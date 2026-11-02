@@ -30,9 +30,9 @@ exe = EXE(pyz, a.scripts, [], exclude_binaries=True, name='MindTrail Lab',
 collection = COLLECT(exe, a.binaries, a.datas, strip=False, upx=False, name='MindTrail Lab')
 if sys.platform == 'darwin':
     application = BUNDLE(collection, name='MindTrail Lab.app',
-        bundle_identifier='org.awearpersonallab.desktop', version='0.2.3',
+        bundle_identifier='org.awearpersonallab.desktop', version='0.2.4',
         icon=str(root / 'build' / 'icons' / 'awear.icns'),
-        info_plist={'CFBundleShortVersionString': '0.2.3', 'LSUIElement': True,
+        info_plist={'CFBundleShortVersionString': '0.2.4', 'LSUIElement': True,
             'NSBluetoothAlwaysUsageDescription': 'Record EEG from the AWEAR device you select.',
             'NSBluetoothPeripheralUsageDescription': 'Record EEG from the AWEAR device you select.',
             'NSHighResolutionCapable': True, 'LSMinimumSystemVersion':'10.15'})
