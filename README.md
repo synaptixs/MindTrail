@@ -2,7 +2,10 @@
 
 **Explore your EEG recordings. Add context with activity labels. Keep your archive on your computer.**
 
-MindTrail Lab is a local dashboard for data collected by your AWEAR device. Review
+MindTrail Lab is a local dashboard for data collected by your AWEAR device.
+The cloud EEG recordings shown here were collected **behind the right ear**
+(RIGHT_TEMP / TP10, one channel at 256 Hz). Separate Bluetooth recordings keep
+their own recorded placement; this does not relabel left-side or unknown sessions. Review
 amplitude trends, inspect EEG, compare activities, and export your recordings.
 
 > **For personal exploration:** signal patterns and amplitude are not validated measures
@@ -180,11 +183,11 @@ Spectral estimates use 4-second Hann windows with 2-second steps and never join 
 <details>
 <summary><strong>Mobile scores</strong></summary>
 
-manually enter the AWEAR mobile app's score (0–100), displayed state (Alert, Engaged, Relaxed, or Calm), and observation time. **Timestamp at Save** captures a live reading's time when you save; uncheck it to enter a past time. Editing preserves the original timestamp unless you deliberately change it.
+manually enter the AWEAR mobile app's score (0–100), displayed state (Alert, Engaged, Relaxed, or Calm), and observation time. **Mark time now** fixes the observation time before you type; starting to enter a score also marks the time. Saving preserves that moment. Uncheck the live capture option to enter a past time. Editing preserves the original timestamp unless you deliberately change it.
 
 Time entry uses your computer's timezone and is saved as UTC, separately from the time you entered or edited the observation. Optional timing uncertainty, app version, and notes preserve context. States are transcribed, never inferred from score ranges.
 
-Browse, filter, edit, delete, and export every observation in the selected range as CSV or JSON. Each observation shows its current activity label and whether a stored one-second EEG record covers that time; gaps remain unmatched. **View aligned window** opens the EEG viewer with a purple observation marker, activity shading, and raw EEG.
+Browse, filter, edit, delete, and export every observation in the selected range as CSV or JSON. Each observation shows its current activity label and whether a stored one-second EEG record covers that time; gaps remain unmatched. **Inspect nearby EEG** opens a 60-second context window with the observation marker, activity shading, and raw EEG. The history shows recording coverage in the 30 seconds either side, separately from the exact-time match. This inspection window is not the mobile app's known averaging window. Recent-page context refreshes every ten seconds; a manual refresh also updates previously loaded older pages.
 
 You can also prefill an observation time from the EEG viewer. The app's score averaging window and processing delay are unknown, so matching timestamps does not establish sample-level or physiological equivalence. A point observation does not label an entire surrounding period.
 
@@ -488,6 +491,7 @@ In your development environment:
 ```bash
 python -m pip install -r requirements-build.txt numpy scikit-learn
 python -m unittest discover
+node --test test/test_scores_ui.js
 node --check src/static/welcome.js
 ```
 

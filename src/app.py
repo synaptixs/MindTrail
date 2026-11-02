@@ -497,6 +497,22 @@ def mobile_score_rows(participant: str, start_ms: int | None = None, end_ms: int
                  "sampleCount": row["eeg_samples"]} if row["eeg_ms"] is not None else None} for row in rows]
 
 
+def mobile_score_context(connection: sqlite3.Connection, participant: str, observed_ms: int) -> dict:
+    """Describe nearby archived seconds; this is not the mobile app's averaging window."""
+    start_ms, end_ms = observed_ms - 30_000, observed_ms + 30_000
+    records = connection.execute("""SELECT timestamp_ms FROM readings WHERE participant_id=?
+        AND timestamp_ms>? AND timestamp_ms<? ORDER BY timestamp_ms""",
+        (participant, start_ms - 1000, end_ms)).fetchall()
+    covered_ms, cursor = 0, start_ms
+    for record in records:
+        lower, upper = max(start_ms, record["timestamp_ms"]), min(end_ms, record["timestamp_ms"] + 1000)
+        covered_ms += max(0, upper - max(cursor, lower))
+        cursor = max(cursor, upper)
+    return {"start": iso(start_ms), "end": iso(end_ms), "seconds": 60,
+            "recordCount": len(records), "coveredSeconds": covered_ms / 1000,
+            "coveragePercent": round(covered_ms / 600, 1)}
+
+
 def mobile_score_page(participant: str, start_ms: int | None = None, end_ms: int | None = None,
                       before_ms: int | None = None) -> dict:
     where, values = mobile_score_filter(participant, start_ms, end_ms)
@@ -504,6 +520,9 @@ def mobile_score_page(participant: str, start_ms: int | None = None, end_ms: int
         total = connection.execute("SELECT COUNT(*) FROM mobile_scores o WHERE " + where, values).fetchone()[0]
     rows = mobile_score_rows(participant, start_ms, end_ms, before_ms, MOBILE_SCORE_PAGE_SIZE + 1)
     page = rows[:MOBILE_SCORE_PAGE_SIZE]
+    with db() as connection:
+        for row in page:
+            row["context"] = mobile_score_context(connection, participant, utc_ms(row["observedAt"]))
     return {"participantId": participant, "total": total, "observations": page,
             "nextBefore": page[-1]["observedAt"] if len(rows) > MOBILE_SCORE_PAGE_SIZE else None}
 

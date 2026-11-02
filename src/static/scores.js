@@ -1,5 +1,5 @@
 const $ = id => document.getElementById(id);
-const state = {rows:[], nextBefore:null, total:0, editing:null, loading:false, saving:false};
+const state = {rows:[], nextBefore:null, total:0, editing:null, loading:false, saving:false, captureTime:null, loadedOlder:false};
 const colors = {alert:'#bd8050',engaged:'#af9852',relaxed:'#568eab',calm:'#3f9774'};
 function esc(value) { return String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function localInput(value) {
@@ -23,7 +23,7 @@ function updateTimePreview() {
   const live = $('capture-now').checked;
   $('observed-at').disabled = live;
   if (live) {
-    $('timestamp-preview').textContent = `Live reading: the observation time is captured when you press Save. Computer timezone: ${Intl.DateTimeFormat().resolvedOptions().timeZone}; stored as UTC. Uncheck “Timestamp at Save” to enter a past time.`;
+    $('timestamp-preview').textContent = state.captureTime ? `Marked ${stamp(state.captureTime)}. This time stays fixed while you type and save. Uncheck the option above to enter a past reading.` : 'Click Mark time now when you read your phone, or start entering the score to mark the time. Saving will preserve that moment.';
     return;
   }
   const date = new Date($('observed-at').value);
@@ -36,7 +36,8 @@ function clearEditor() {
   $('app-version').value = version;
   $('observed-at').value = localInput(new Date());
   state.editing = null;
-  $('editor-title').textContent = 'Record a mobile score';
+  state.captureTime = null;
+  $('editor-title').textContent = 'Record a phone check-in';
   $('save-score').textContent = 'Save observation';
   $('cancel-edit').hidden = true;
   updateTimePreview();
@@ -71,21 +72,35 @@ function render() {
   const query = rangeQuery();
   for (const format of ['csv','json']) $('scores-'+format).href = '/api/export/mobile-scores.'+format+(query.size ? '?'+query : '');
   $('score-rows').innerHTML = state.rows.map(row => {
-    const eegUrl = '/eeg.html?'+new URLSearchParams({start:new Date(Date.parse(row.observedAt)-10000).toISOString()});
-    return `<tr><td><strong>${esc(stamp(row.observedAt))}</strong><small>±${row.uncertaintySeconds} sec · entered ${esc(stamp(row.createdAt))}</small></td><td><strong>${row.score}</strong></td><td><span class="score-state">${esc(row.state)}</span></td><td>${row.activity ? esc(row.activity) : 'Unlabeled'}</td><td>${row.eeg ? `Recorded<small>${esc(row.eeg.deviceId || 'Device ID unavailable')} · ${row.eeg.sampleCount} samples</small>` : '<span class="score-error">No EEG at this time</span>'}<small><a href="${esc(eegUrl)}">View aligned window ↗</a></small></td><td class="score-note">${esc(row.note || '—')}<small>${row.appVersion ? 'App '+esc(row.appVersion) : 'App version unspecified'}</small></td><td><button type="button" data-edit="${row.id}">Edit</button><button type="button" data-delete="${row.id}">Delete</button></td></tr>`;
+    const context = row.context;
+    const eegUrl = '/eeg.html?'+new URLSearchParams({start:context ? context.start : new Date(Date.parse(row.observedAt)-30000).toISOString(), seconds:'60'});
+    const coverage = context ? `<strong>${context.coveredSeconds} of 60 sec recorded</strong><meter min="0" max="100" value="${context.coveragePercent}" aria-label="EEG context coverage">${context.coveragePercent}%</meter><small>${esc(stamp(context.start))} – ${esc(stamp(context.end))}</small>` : '';
+    return `<tr><td><strong>${esc(stamp(row.observedAt))}</strong><small>±${row.uncertaintySeconds} sec · entered ${esc(stamp(row.createdAt))}</small></td><td><strong>${row.score}</strong></td><td><span class="score-state">${esc(row.state)}</span></td><td>${row.activity ? esc(row.activity) : 'Unlabeled'}</td><td>${coverage}${row.eeg ? `At marked time: recorded<small>${esc(row.eeg.deviceId || 'Device ID unavailable')} · ${row.eeg.sampleCount} samples</small>` : '<span class="score-error">No EEG at the exact marked time in the archive</span>'}<small><a href="${esc(eegUrl)}">Inspect nearby EEG ↗</a></small></td><td class="score-note">${esc(row.note || '—')}<small>${row.appVersion ? 'App '+esc(row.appVersion) : 'App version unspecified'}</small></td><td><button type="button" data-edit="${row.id}">Edit</button><button type="button" data-delete="${row.id}">Delete</button></td></tr>`;
   }).join('') || '<tr><td colspan="7" class="empty-state">No observations yet. Record the score and state shown in your mobile app.</td></tr>';
   renderChart();
 }
-async function load(append=false) {
+async function load(append=false, refresh=false) {
   if (state.loading) return;
   state.loading = true;
   try {
     const query = rangeQuery();
     if (append && state.nextBefore) query.set('before',state.nextBefore);
     const result = await api('/api/mobile-scores?'+query);
-    state.rows = append ? [...state.rows,...result.observations] : result.observations;
+    const target = refresh ? state.rows.length : 0;
+    const refreshed = [...result.observations];
+    let cursor = result.nextBefore;
+    while (refresh && cursor && refreshed.length < target) {
+      const olderQuery = rangeQuery(); olderQuery.set('before',cursor);
+      const older = await api('/api/mobile-scores?'+olderQuery);
+      refreshed.push(...older.observations);
+      if (older.nextBefore === cursor) break;
+      cursor = older.nextBefore;
+    }
+    state.rows = append ? [...state.rows,...result.observations] : refreshed;
+    if (append) state.loadedOlder = true;
+    else if (!refresh) state.loadedOlder = false;
     state.total = result.total;
-    state.nextBefore = result.nextBefore;
+    state.nextBefore = refresh ? cursor : result.nextBefore;
     $('participant').textContent = result.participantId;
     render();
   } catch(error) { notice(error.message,true); }
@@ -93,19 +108,27 @@ async function load(append=false) {
 }
 $('observed-at').addEventListener('input',updateTimePreview);
 $('capture-now').addEventListener('change',updateTimePreview);
-$('use-now').addEventListener('click',() => { $('capture-now').checked=true; $('observed-at').value=localInput(new Date()); updateTimePreview(); });
+function markTime() {
+  state.captureTime = new Date().toISOString();
+  $('capture-now').checked = true;
+  $('observed-at').value = localInput(state.captureTime);
+  updateTimePreview();
+}
+$('use-now').addEventListener('click',markTime);
+$('score').addEventListener('input',() => { if ($('capture-now').checked && !state.captureTime) markTime(); });
 $('cancel-edit').addEventListener('click',clearEditor);
 $('score-form').addEventListener('submit',async event => {
   event.preventDefault();
   if (state.saving) return;
   state.saving = true; $('save-score').disabled = true;
   try {
+    if ($('capture-now').checked && !state.captureTime) throw new Error('Mark the observation time before saving.');
     const path = state.editing === null ? '/api/mobile-scores' : `/api/mobile-scores/${state.editing}/edit`;
-    await api(path,{observedAt:$('capture-now').checked ? new Date().toISOString() : new Date($('observed-at').value).toISOString(),score:Number($('score').value),
+    await api(path,{observedAt:$('capture-now').checked ? state.captureTime : new Date($('observed-at').value).toISOString(),score:Number($('score').value),
       state:$('mobile-state').value,uncertaintySeconds:Number($('uncertainty').value),
       appVersion:$('app-version').value,note:$('score-note').value});
     clearEditor();
-    notice('Observation saved. EEG coverage and activity context reflect the current archive.');
+    notice('Check-in saved at the marked time. Nearby EEG context updates as recordings arrive.');
     await load();
   } catch(error) { notice(error.message,true); }
   finally { state.saving = false; $('save-score').disabled = false; }
@@ -115,6 +138,7 @@ $('score-rows').addEventListener('click',async event => {
   if (edit) {
     const row = state.rows.find(row => row.id === Number(edit.dataset.edit));
     state.editing = row.id;
+    state.captureTime = null;
     $('capture-now').checked = false;
     $('observed-at').value = localInput(row.observedAt); $('score').value = row.score;
     $('mobile-state').value=row.state; $('uncertainty').value=row.uncertaintySeconds;
@@ -142,3 +166,6 @@ if (initialTime && Number.isFinite(new Date(initialTime).getTime())) {
 }
 load();
 api('/api/status').then(status => { $('demo-badge').hidden=!status.demo; }).catch(()=>{});
+
+$('refresh-context').addEventListener('click',() => load(false,true));
+setInterval(() => { if (!state.loadedOlder && !state.editing && !state.saving && !document.hidden) load(); },10000);

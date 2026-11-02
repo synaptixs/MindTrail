@@ -2,6 +2,8 @@ import csv
 import io
 import json
 import tempfile
+import threading
+import urllib.request
 import unittest
 from pathlib import Path
 
@@ -90,6 +92,65 @@ class MobileScoreTests(unittest.TestCase):
         self.assertEqual(len(app.mobile_score_rows(self.participant)), 1)
         app.delete_mobile_score(self.participant, identifier)
         self.assertEqual(app.mobile_score_page(self.participant)["total"], 0)
+
+    def test_http_checkin_save_and_context_without_a_cloud_key(self):
+        with app.db() as connection:
+            app.put_setting(connection, "participant_id", self.participant)
+        server = app.AppServer(("127.0.0.1", 0), app.Collector("", demo=True))
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            url = f"http://127.0.0.1:{server.server_port}/api/mobile-scores"
+            body = {"observedAt": app.iso(self.base + 1500), "score": 52,
+                    "state": "engaged", "uncertaintySeconds": 0}
+            request = urllib.request.Request(url, data=json.dumps(body).encode(),
+                headers={"Content-Type": "application/json", "X-Awear-Local": "1"})
+            with urllib.request.urlopen(request, timeout=5) as response:
+                self.assertEqual(response.status, 201)
+            with urllib.request.urlopen(url, timeout=5) as response:
+                page = json.load(response)
+            row = page["observations"][0]
+            self.assertEqual(row["observedAt"], body["observedAt"])
+            self.assertIsNone(row["eeg"])
+            self.assertEqual(row["context"]["coveredSeconds"], 2)
+        finally:
+            server.shutdown()
+            thread.join(timeout=5)
+            server.server_close()
+
+    def test_context_retains_gaps_and_updates_when_delayed_records_arrive(self):
+        app.save_mobile_score(self.participant, self.base + 1500, 50, "relaxed")
+        first = app.mobile_score_page(self.participant)["observations"][0]
+        self.assertIsNone(first["eeg"])
+        self.assertEqual(first["context"]["recordCount"], 2)
+        self.assertEqual(first["context"]["coveredSeconds"], 2)
+        self.assertEqual(first["context"]["coveragePercent"], 3.3)
+        with app.db() as connection:
+            connection.execute("""INSERT INTO readings
+                (participant_id,timestamp_ms,waveform_json,sample_count,mean,rms,peak_to_peak)
+                VALUES (?,?,?,?,?,?,?)""", (self.participant, self.base + 1000, "[1]", 256, 1, 1, 0))
+        refreshed = app.mobile_score_page(self.participant)["observations"][0]
+        self.assertIsNotNone(refreshed["eeg"])
+        self.assertEqual(refreshed["context"]["coveredSeconds"], 3)
+        self.assertEqual(refreshed["observedAt"], first["observedAt"])
+        exported = json.loads(app.mobile_score_export(self.participant, "json"))
+        self.assertNotIn("context", exported["observations"][0])
+
+    def test_context_clips_boundaries_and_does_not_double_count_overlap(self):
+        app.save_mobile_score(self.participant, self.base + 30_000, 50, "relaxed")
+        with app.db() as connection:
+            for participant, offset in [(self.participant, -1000), (self.participant, 500),
+                                         (self.participant, 59_500), (self.participant, 60_000),
+                                         ("P-OTHER", 4000)]:
+                connection.execute("""INSERT INTO readings
+                    (participant_id,timestamp_ms,waveform_json,sample_count,mean,rms,peak_to_peak)
+                    VALUES (?,?,?,?,?,?,?)""", (participant, self.base + offset, "[1]", 256, 1, 1, 0))
+        context = app.mobile_score_page(self.participant)["observations"][0]["context"]
+        self.assertEqual(context["start"], app.iso(self.base))
+        self.assertEqual(context["end"], app.iso(self.base + 60_000))
+        self.assertEqual(context["recordCount"], 4)
+        self.assertEqual(context["coveredSeconds"], 3)
+        self.assertEqual(context["coveragePercent"], 5)
 
     def test_validation_rejects_invalid_values(self):
         for value in (-1, 101, float("nan"), True, "50"):

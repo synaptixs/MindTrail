@@ -32,20 +32,24 @@
       <div class="content scores-content">
         <div class="eyebrow">ADD YOUR MOBILE APP OBSERVATIONS</div>
         <h1>Mobile scores<span class="title-dot">.</span></h1>
-        <p class="lead">Record the score and state you see in AWEAR, then inspect the EEG and activity at that time.</p>
+        <p class="lead">A timed check-in from your phone: mark the moment, copy the displayed reading, then review nearby EEG. These readings are entered manually; they are not downloaded mobile scores.</p>
+        <p class="collection-context"><strong>Cloud EEG collection: right ear</strong> · Behind the right ear · RIGHT_TEMP / TP10 · 256 Hz. Separate Bluetooth sessions keep their own placement metadata.</p>
         <div id="notice" class="notice" role="status" hidden></div>
         <section class="card score-editor" aria-labelledby="editor-title">
-          <div class="section-head"><div><div class="eyebrow">MANUAL OBSERVATION</div><h2 id="editor-title">Record a mobile score</h2><p>Enter the time associated with the mobile reading. Each entry is a point observation; its state is selected exactly as shown in the app.</p></div></div>
+          <div class="section-head"><div><div class="eyebrow">MANUAL OBSERVATION</div><h2 id="editor-title">Record a phone check-in</h2><p>1. Mark the time you read your phone. 2. Enter its score and state. 3. Review the surrounding 60 seconds of EEG. The context window is for inspection, not a known score averaging period.</p></div></div>
           <form id="score-form">
-            <label class="score-live-mode"><input id="capture-now" type="checkbox" checked> Timestamp at Save (for a live reading)</label>
+            <label class="score-live-mode"><input id="capture-now" type="checkbox" checked> Mark time when I start entering a reading</label>
             <div class="score-form-grid">
-              <label class="score-time-field">Observed time <span class="score-time-input"><input id="observed-at" type="datetime-local" step="0.001" required><button id="use-now" class="button subtle" type="button">Use now</button></span></label>
+              <label class="score-time-field">Marked / observed time <span class="score-time-input"><input id="observed-at" type="datetime-local" step="0.001" required><button id="use-now" class="button subtle" type="button">Mark time now</button></span></label>
               <label>Score (0–100)<input id="score" type="number" min="0" max="100" step="any" inputmode="decimal" required></label>
               <label>State shown in app<select id="mobile-state" required><option value="">Choose state</option><option value="alert">Alert</option><option value="engaged">Engaged</option><option value="relaxed">Relaxed</option><option value="calm">Calm</option></select></label>
+            </div>
+            <details class="score-advanced"><summary>Optional timing and app details</summary><div class="score-form-grid">
               <label>Time uncertainty ± seconds<input id="uncertainty" type="number" min="0" max="3600" step="1" value="0" required></label>
               <label>App version <span class="optional">optional</span><input id="app-version" maxlength="80" placeholder="Version from your phone"></label>
               <label class="score-note-field">Note <span class="optional">optional</span><input id="score-note" maxlength="500" placeholder="What was on screen or happening at the time?"></label>
             </div>
+            </details>
             <p id="timestamp-preview" class="scores-help"></p>
             <p class="scores-help">Use uncertainty when the time is approximate; 0 preserves the time as entered. AWEAR's score averaging window and processing delay are unknown, so a timestamp match does not establish sample-level alignment.</p>
             <div class="score-actions"><button id="save-score" class="button primary" type="submit">Save observation</button><button id="cancel-edit" class="button subtle" type="button" hidden>Cancel edit</button></div>
@@ -53,13 +57,13 @@
         </section>
 
         <section class="card score-list" aria-labelledby="scores-title">
-          <div class="section-head"><div><div class="eyebrow">OBSERVATION HISTORY</div><h2 id="scores-title">Scores, EEG, and activities</h2><p>The activity label is looked up at each observation time. EEG is matched only when a stored one-second record covers that time.</p></div><span id="score-count" class="count-badge">Loading…</span></div>
+          <div class="section-head"><div><div class="eyebrow">OBSERVATION HISTORY</div><h2 id="scores-title">Phone check-ins and nearby EEG</h2><p>Each row shows the activity at the marked time, exact-time EEG availability, and recording coverage within 30 seconds either side. Gaps remain missing; a nearby record is not an exact-time match.</p></div><button id="refresh-context" class="button subtle" type="button">Refresh EEG context</button><span id="score-count" class="count-badge">Loading…</span></div>
           <form id="range-form" class="score-range"><label>From<input id="range-start" type="datetime-local" step="1"></label><label>To (exclusive)<input id="range-end" type="datetime-local" step="1"></label><button class="button subtle" type="submit">Apply range</button><button id="clear-range" class="button subtle" type="button">Clear</button></form>
           <p id="chart-description" class="scores-help">Points show manually entered readings; values between them are unknown.</p>
           <div id="score-chart" class="score-chart" role="img" aria-label="Recorded mobile score observations from zero to one hundred"></div>
-          <div class="score-table-wrap" tabindex="0" role="region" aria-label="Mobile observations, scroll horizontally"><table class="score-table"><thead><tr><th>Observed time</th><th>Score</th><th>State</th><th>Activity</th><th>EEG coverage</th><th>Note / version</th><th>Actions</th></tr></thead><tbody id="score-rows"></tbody></table></div>
+          <div class="score-table-wrap" tabindex="0" role="region" aria-label="Mobile observations, scroll horizontally"><table class="score-table"><thead><tr><th>Observed time</th><th>Score</th><th>State</th><th>Activity</th><th>EEG context · ±30 sec</th><th>Note / version</th><th>Actions</th></tr></thead><tbody id="score-rows"></tbody></table></div>
           <div class="score-list-footer"><button id="load-older" class="button subtle" type="button" hidden>Load older observations ↓</button><div class="score-exports"><a id="scores-csv" class="button subtle" href="/api/export/mobile-scores.csv">↓ CSV</a><a id="scores-json" class="button subtle" href="/api/export/mobile-scores.json">↓ JSON</a></div></div>
-          <p class="scores-help">Exports include every observation in the selected range, entry/update times, timing uncertainty, current activity context, and matching EEG record details. Exported times are UTC. EEG matching assumes each record timestamp marks its start.</p>
+          <p class="scores-help">Exports include every observation in the selected range, entry/update times, timing uncertainty, current activity context, and matching EEG record details. Context windows are recomputed for the preview; exports retain the original observation and exact-time EEG match. Recent-page context refreshes every 10 seconds; use Refresh EEG context after loading older pages. Exported times are UTC. EEG matching assumes each record timestamp marks its start.</p>
         </section>
       </div>
     </main>
