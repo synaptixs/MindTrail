@@ -473,7 +473,7 @@ class DashboardTests(unittest.TestCase):
     def test_accidental_positional_key_is_not_echoed(self):
         example = "example-secret-123"
         result = subprocess.run(
-            [sys.executable, str(app.ROOT / "app.py"), "--key-prompt", example],
+            [sys.executable, str(app.SOURCE_ROOT / "app.py"), "--key-prompt", example],
             capture_output=True, text=True, timeout=10,
         )
         self.assertEqual(result.returncode, 2)

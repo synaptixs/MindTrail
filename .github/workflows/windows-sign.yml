@@ -37,7 +37,7 @@ jobs:
       - name: Run source and packaging tests
         run: python -m unittest discover
       - name: Check first-run JavaScript
-        run: node --check static/welcome.js
+        run: node --check src/static/welcome.js
       - name: Install NSIS compiler
         run: choco install nsis --yes --no-progress
       - name: Verify pinned signing tools
@@ -77,7 +77,7 @@ jobs:
         shell: pwsh
         run: |
           $env:PATH += ';C:\Program Files (x86)\NSIS'
-          python installer_build.py windows --release
+          python src/installer_build.py windows --release
       - name: Verify signatures, install, upgrade and uninstall
         shell: pwsh
         run: |

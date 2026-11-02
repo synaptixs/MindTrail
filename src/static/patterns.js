@@ -43,7 +43,7 @@ function renderOverview() {
   $('source-records').textContent = `${report.source.records.toLocaleString()} source records · ${report.windows.length.toLocaleString()} windows`;
   $('source-status').textContent = report.sourceCurrent ? 'Archive matches analysis' : `${report.currentRecords.toLocaleString()} records now · rerun analysis`;
   if (!report.sourceCurrent) {
-    $('notice').textContent = 'New recordings have arrived since this report was generated. Rerun python analyze_patterns.py to include them.';
+    $('notice').textContent = 'New recordings have arrived since this report was generated. Rerun python src/analyze_patterns.py to include them.';
     $('notice').hidden = false;
   }
   $('window-total').textContent = report.windows.length.toLocaleString();

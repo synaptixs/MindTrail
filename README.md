@@ -3,6 +3,21 @@
 A local dashboard for your own AWEAR EEG recordings. It polls the documented REST API, stores raw one-second waveform records in SQLite, and lets you label live activities or past time intervals. The dashboard charts centered signal amplitude and compares labeled periods. It is exploratory signal analysis, not a measure of focus, mood, or health.
 
 
+## Repository layout
+
+- `src/`: application modules, dashboard assets, and Python build entry points.
+- `test/`: unittest cases; run `python -m unittest discover` from the repository root.
+- `installer/`: packaging templates, runtime locks, and installer verification tools.
+- `scripts/`: convenient Mac and Windows installer build commands.
+
+Install publisher dependencies with `python -m pip install -r requirements-build.txt`.
+Build a development DMG on macOS with `./scripts/build-mac.sh`, or a Windows setup
+EXE on Windows with `./scripts/build-windows.ps1` (requires NSIS on PATH).
+Outputs go to `dist/`. Pass `--release` to require signing; Mac releases also require
+notarization credentials. `MINDTRAIL_BUILD_PYTHON` can select an isolated build interpreter.
+See [installer instructions](installer/README.md) for universal Mac preparation,
+prerequisites, signing, and native verification. No signing keys are bundled.
+
 ## Desktop app and installers (Mac and Windows)
 
 The desktop app includes its Python runtime and dependencies. The Windows setup installs automatically and opens the dashboard; the universal Mac DMG contains **Install MindTrail Lab**, which installs to your Applications folder and opens it. First run is **enter API key → Connect**. The main setup screen includes a five-step beginner guide to getting an API key, with AWEAR’s email/Continue sign-in steps, key creation, copy-and-return instructions, and a suggested support request for personal-data access. It opens automatically when no key is configured and stays available as an expandable guide after a key is saved. The app selects the account and finds the earliest recording date automatically. Participant/date controls, Bluetooth and archive restore are available under **Advanced settings**.
@@ -15,7 +30,7 @@ Desktop data is separate from installed files. New installations use: `~/Library
 
 [Installer build, signing and verification instructions](installer/README.md) describe both platforms and the simple end-user flow. Files containing **unsigned** in the name are development builds; production distribution requires signing/notarization and native Windows validation. A universal Mac binary contains both Intel and Apple Silicon code; Intel execution still needs a target-machine check. Automatic update delivery remains a future feature.
 
-For source development, create `.venv-desktop`, install `requirements-desktop.txt`, then run `desktop.py`. The existing `Launch AWEAR.command` and `Launch AWEAR.cmd` shortcuts use that environment. These source shortcuts are developer conveniences; end users use the self-contained installers. Use `desktop.py --data-dir PATH --no-key-store --no-browser` for isolated tests. `AWEAR_DATA_DIR` sets the writable profile for command-line exports and analysis; explicit desktop `--data-dir` takes precedence.
+For source development, create `.venv-desktop`, install `requirements-desktop.txt`, then run `src/desktop.py`. The existing `Launch AWEAR.command` and `Launch AWEAR.cmd` shortcuts use that environment. These source shortcuts are developer conveniences; end users use the self-contained installers. Use `src/desktop.py --data-dir PATH --no-key-store --no-browser` for isolated tests. `AWEAR_DATA_DIR` sets the writable profile for command-line exports and analysis; explicit desktop `--data-dir` takes precedence.
 
 
 ## Start
@@ -24,23 +39,23 @@ Requires Python 3.10 or newer. No packages or build step are needed.
 
 ```bash
 cd MindTrail
-python3 app.py
+python3 src/app.py
 ```
 
 First, open the local `.env` file in an editor and paste your key after `AWEAR_API_KEY=`. The file is ignored by Git and created with owner-only permissions. Restart the server after changing the key. Open **http://127.0.0.1:8765**. The key is read by the local Python process and is never sent to the browser. A nonempty `AWEAR_API_KEY` already set in your shell takes precedence over `.env`.
 
-You can still use `python3 app.py --key-prompt` to enter the key at a hidden prompt instead of storing it in `.env`. Run that command with **nothing after `--key-prompt`**; the prompt overrides the environment and `.env`. For the source CLI, enter the key only at its prompt or in your private `.env`. Do not paste keys into chat, a repository, or a command-line argument. The desktop app provides its own API key field.
+You can still use `python3 src/app.py --key-prompt` to enter the key at a hidden prompt instead of storing it in `.env`. Run that command with **nothing after `--key-prompt`**; the prompt overrides the environment and `.env`. For the source CLI, enter the key only at its prompt or in your private `.env`. Do not paste keys into chat, a repository, or a command-line argument. The desktop app provides its own API key field.
 
 Choose the participant ID returned by your key and set the earliest time to sync. The initial backfill may take time for long histories. The server polls every 30 seconds while it is running; the page refreshes every 10 seconds. This is near-real-time polling of uploaded data, not a direct Bluetooth stream. The age of the latest record is visible on the dashboard.
 
 Use **Source** to select another participant ID or move the sync start earlier. Previously stored records and labels remain in the local database.
 
-After Python code changes, stop the running server with Ctrl+C and restart it on the same port (for example, `python3 app.py --port 8765`). Refreshing the browser alone updates the interface but leaves the running Python code unchanged. Each dashboard port has its own server process; restart the port you actually use.
+After Python code changes, stop the running server with Ctrl+C and restart it on the same port (for example, `python3 src/app.py --port 8765`). Refreshing the browser alone updates the interface but leaves the running Python code unchanged. Each dashboard port has its own server process; restart the port you actually use.
 
 For a clearly marked sample view without an API key, run:
 
 ```bash
-python3 app.py --demo
+python3 src/app.py --demo
 ```
 
 Demo data is stored separately in `awear_demo.sqlite3`. Real recordings and labels are stored in `awear_data.sqlite3` next to this file. Back up that database if you want to retain your archive. Both database files are excluded by `.gitignore`.
@@ -63,7 +78,7 @@ The [AWEAR API reference](https://awearlabs.com/docs#participant-data) describes
 
 All amplitude timelines and daily recording graphs include every recorded hour, including mornings, evenings and weekends. The activity comparison includes an explicit **No activity assigned** group for recordings without a label. This is a display grouping, not a saved activity or an inference that outside work hours are relaxing. The work schedule only controls suggested labels; it never clips graphs, raw records, coverage or exports. Your selected graph range still controls the overview and comparison; the half-hour list pages through all recorded history.
 
-`python3 backfill_activity_labels.py` previews labels for unassigned recorded time from 08:00 to 16:00 Monday–Friday in `America/New_York`. Add `--apply` to save them as **Work (Misc)**, or `--all-days` only when your schedule includes weekends. Suggestions are in at most 30-minute pieces, clipped to recorded endpoints, and never overlap an existing activity. Small gaps within a piece remain schedule-inferred time. Five-minute breaks are not placed without actual times.
+`python3 src/backfill_activity_labels.py` previews labels for unassigned recorded time from 08:00 to 16:00 Monday–Friday in `America/New_York`. Add `--apply` to save them as **Work (Misc)**, or `--all-days` only when your schedule includes weekends. Suggestions are in at most 30-minute pieces, clipped to recorded endpoints, and never overlap an existing activity. Small gaps within a piece remain schedule-inferred time. Five-minute breaks are not placed without actual times.
 
 Each suggestion has `source=schedule`, `reviewed=false`, and a batch ID. Existing annotations migrate as manual/reviewed and remain protected. Applying a batch saves the before-label snapshot, settings, proposed intervals, coverage counts and created IDs under `data/activity-backfill/<batch-id>/`. Repeating the backfill adds nothing where activities already exist. Raw EEG is never rewritten. Review suggestions through the **Edit** button beside each suggested label in **Recorded periods**; inferred activities should not be treated as observed ground truth in analysis.
 
@@ -73,7 +88,7 @@ The live app needs no packages. The optional offline clustering command requires
 
 ```bash
 cd MindTrail
-python analyze_patterns.py
+python src/analyze_patterns.py
 ```
 
 Use `--demo` to analyze the separate demo archive, or `--participant P-XXXXXX` to select a particular participant. The command reads the local SQLite archive and saves `data/patterns/<id>.json`; it does not call the AWEAR API or edit raw records. Rerun it after new recordings arrive. The page indicates when the archive's record count or endpoints have changed since the analysis.
@@ -106,8 +121,8 @@ The collector follows the community-documented [AWEAR LUCA protocol](https://git
 The same collector is available from the terminal:
 
 ```bash
-.venv-bluetooth/bin/python bluetooth_collector.py scan
-.venv-bluetooth/bin/python bluetooth_collector.py record --device DEVICE_ID_FROM_SCAN --seconds 60 --placement right --output data/bluetooth/my-new-session
+.venv-bluetooth/bin/python src/bluetooth_collector.py scan
+.venv-bluetooth/bin/python src/bluetooth_collector.py record --device DEVICE_ID_FROM_SCAN --seconds 60 --placement right --output data/bluetooth/my-new-session
 ```
 
 Use a new output directory each time; existing recording files are never overwritten. The dashboard keeps its session browser to the latest 20 sessions and reports the total.
@@ -118,7 +133,7 @@ Run a separate export from the documented API endpoints:
 
 ```bash
 cd MindTrail
-python3 export_data.py
+python3 src/export_data.py
 ```
 
 The command reads the same `.env` key, or use `--key-prompt` for a hidden prompt. It creates `data/` and saves each successful run in a new `data/export-<UTC timestamp>/` folder. It exports members and usage, and each participant's stats, sessions, and raw EEG in **both JSON and CSV**. With 2–10 participants it also writes a comparison JSON and separate comparison stats/timeline CSV files. Raw CSV has one row per second and 256 sample columns. A `manifest.json` records each participant's exported time window and counts. `data/` is excluded from Git.
@@ -127,12 +142,12 @@ By default, the raw and session export starts at each participant's `firstRecord
 
 These endpoints do **not** provide the consumer app's calm/focus scores or user-entered activity tags. The dashboard's own labels remain in SQLite and are available from its **Activity labels · CSV** download.
 
-To merge raw EEG from the newest saved API snapshot into the dashboard's local archive, run `python3 import_snapshot.py`. It inserts missing timestamps, keeps existing recordings and labels, and does not need an API key. Pass a snapshot directory to import a particular export.
+To merge raw EEG from the newest saved API snapshot into the dashboard's local archive, run `python3 src/import_snapshot.py`. It inserts missing timestamps, keeps existing recordings and labels, and does not need an API key. Pass a snapshot directory to import a particular export.
 
 The raw table's `device_id` is retained from AWEAR raw records when supplied. For archived rows that predate this field and are newer than the saved export, fill missing IDs directly from AWEAR:
 
 ```bash
-python3 backfill_device_ids.py
+python3 src/backfill_device_ids.py
 ```
 
 This command also reads `.env`, or accepts `--key-prompt`. It requests only one-hour windows that contain missing IDs and updates a row only when the returned timestamp and waveform both match and the device ID is unambiguous. It reports how many rows remain unresolved. It does not save your key or guess an ID from session summaries.

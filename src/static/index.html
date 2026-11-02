@@ -47,7 +47,7 @@
         <div id="notice" class="notice" role="status" hidden></div>
 
         <section id="setup" class="setup-panel card" hidden>
-          <div class="setup-copy"><div class="eyebrow">GET CONNECTED</div><h2>Connect your recording</h2><p>The API key stays in the local Python process. Choose the participant ID for your device and when to begin collecting.</p><p id="key-help" class="key-help" hidden>Start this app with <code>python3 app.py --key-prompt</code> and enter your key in the terminal. It will not be saved.</p></div>
+          <div class="setup-copy"><div class="eyebrow">GET CONNECTED</div><h2>Connect your recording</h2><p>The API key stays in the local Python process. Choose the participant ID for your device and when to begin collecting.</p><p id="key-help" class="key-help" hidden>Start this app with <code>python3 src/app.py --key-prompt</code> and enter your key in the terminal. It will not be saved.</p></div>
           <form id="setup-form" class="setup-form"><label>Participant ID<select id="participant-select" required><option value="">Loading participants…</option></select></label><label>Sync recordings since<input id="sync-start" type="datetime-local" required></label><button id="connect-button" class="button primary" type="submit">Connect &amp; sync <span>↗</span></button></form>
         </section>
 

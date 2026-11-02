@@ -12,7 +12,7 @@ from pathlib import Path
 def main() -> None:
     if sys.platform not in {"darwin", "win32"}:
         raise SystemExit("Build on macOS for Mac, or on Windows for Windows.")
-    root = Path(__file__).resolve().parent
+    root = Path(__file__).resolve().parent.parent
     from installer_build import make_icons
     icons = root / "build" / "icons"
     make_icons(icons)
