@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101b23">
+  <title>Mobile scores · MindTrail Lab</title>
+  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/scores.css">
+  <script src="/scores.js" defer></script>
+</head>
+<body>
+  <div class="shell">
+    <aside class="rail">
+      <div class="brand"><div class="brand-mark">M<span>·</span></div><div><strong>MindTrail</strong><small>LAB</small></div></div>
+      <div class="rail-rule"></div>
+      <nav aria-label="Sections">
+        <a class="nav-link" href="/"><span class="nav-icon">◫</span> Overview</a>
+        <a class="nav-link" href="/#activity"><span class="nav-icon">◷</span> Activity log</a>
+        <a class="nav-link" href="/#recorded-periods"><span class="nav-icon">▤</span> Recorded periods</a>
+        <a class="nav-link" href="/eeg.html"><span class="nav-icon">∿</span> EEG signal</a>
+        <a class="nav-link" href="/bluetooth.html"><span class="nav-icon">ᛒ</span> Bluetooth</a>
+        <a class="nav-link active" href="/scores.html" aria-current="page"><span class="nav-icon">◎</span> Mobile scores</a>
+        <a class="nav-link" href="/patterns.html"><span class="nav-icon">◩</span> Signal patterns</a>
+        <a class="nav-link" href="/data.html"><span class="nav-icon">▦</span> Data tables</a>
+        <a class="nav-link" href="/#exports"><span class="nav-icon">⇩</span> Exports</a>
+      </nav>
+      <div class="rail-bottom"><div class="local-card"><span class="green-dot"></span><div><strong>Private workspace</strong><small>Data stored on this computer</small></div></div><div class="rail-foot">AWEAR data · Local dashboard<br>Exploratory signal analysis</div></div>
+    </aside>
+    <main>
+      <header class="topbar"><div class="breadcrumb">Personal lab <span>/</span> Mobile scores</div><div class="top-actions"><span id="demo-badge" class="demo-badge" hidden>Sample data</span><span id="participant" class="pill">Loading source…</span></div></header>
+      <div class="content scores-content">
+        <div class="eyebrow">ADD YOUR MOBILE APP OBSERVATIONS</div>
+        <h1>Mobile scores<span class="title-dot">.</span></h1>
+        <p class="lead">Record the score and state you see in AWEAR, then inspect the EEG and activity at that time.</p>
+        <div id="notice" class="notice" role="status" hidden></div>
+        <section class="card score-editor" aria-labelledby="editor-title">
+          <div class="section-head"><div><div class="eyebrow">MANUAL OBSERVATION</div><h2 id="editor-title">Record a mobile score</h2><p>Enter the time associated with the mobile reading. Each entry is a point observation; its state is selected exactly as shown in the app.</p></div></div>
+          <form id="score-form">
+            <label class="score-live-mode"><input id="capture-now" type="checkbox" checked> Timestamp at Save (for a live reading)</label>
+            <div class="score-form-grid">
+              <label class="score-time-field">Observed time <span class="score-time-input"><input id="observed-at" type="datetime-local" step="0.001" required><button id="use-now" class="button subtle" type="button">Use now</button></span></label>
+              <label>Score (0–100)<input id="score" type="number" min="0" max="100" step="any" inputmode="decimal" required></label>
+              <label>State shown in app<select id="mobile-state" required><option value="">Choose state</option><option value="alert">Alert</option><option value="engaged">Engaged</option><option value="relaxed">Relaxed</option><option value="calm">Calm</option></select></label>
+              <label>Time uncertainty ± seconds<input id="uncertainty" type="number" min="0" max="3600" step="1" value="0" required></label>
+              <label>App version <span class="optional">optional</span><input id="app-version" maxlength="80" placeholder="Version from your phone"></label>
+              <label class="score-note-field">Note <span class="optional">optional</span><input id="score-note" maxlength="500" placeholder="What was on screen or happening at the time?"></label>
+            </div>
+            <p id="timestamp-preview" class="scores-help"></p>
+            <p class="scores-help">Use uncertainty when the time is approximate; 0 preserves the time as entered. AWEAR's score averaging window and processing delay are unknown, so a timestamp match does not establish sample-level alignment.</p>
+            <div class="score-actions"><button id="save-score" class="button primary" type="submit">Save observation</button><button id="cancel-edit" class="button subtle" type="button" hidden>Cancel edit</button></div>
+          </form>
+        </section>
+
+        <section class="card score-list" aria-labelledby="scores-title">
+          <div class="section-head"><div><div class="eyebrow">OBSERVATION HISTORY</div><h2 id="scores-title">Scores, EEG, and activities</h2><p>The activity label is looked up at each observation time. EEG is matched only when a stored one-second record covers that time.</p></div><span id="score-count" class="count-badge">Loading…</span></div>
+          <form id="range-form" class="score-range"><label>From<input id="range-start" type="datetime-local" step="1"></label><label>To (exclusive)<input id="range-end" type="datetime-local" step="1"></label><button class="button subtle" type="submit">Apply range</button><button id="clear-range" class="button subtle" type="button">Clear</button></form>
+          <p id="chart-description" class="scores-help">Points show manually entered readings; values between them are unknown.</p>
+          <div id="score-chart" class="score-chart" role="img" aria-label="Recorded mobile score observations from zero to one hundred"></div>
+          <div class="score-table-wrap" tabindex="0" role="region" aria-label="Mobile observations, scroll horizontally"><table class="score-table"><thead><tr><th>Observed time</th><th>Score</th><th>State</th><th>Activity</th><th>EEG coverage</th><th>Note / version</th><th>Actions</th></tr></thead><tbody id="score-rows"></tbody></table></div>
+          <div class="score-list-footer"><button id="load-older" class="button subtle" type="button" hidden>Load older observations ↓</button><div class="score-exports"><a id="scores-csv" class="button subtle" href="/api/export/mobile-scores.csv">↓ CSV</a><a id="scores-json" class="button subtle" href="/api/export/mobile-scores.json">↓ JSON</a></div></div>
+          <p class="scores-help">Exports include every observation in the selected range, entry/update times, timing uncertainty, current activity context, and matching EEG record details. Exported times are UTC. EEG matching assumes each record timestamp marks its start.</p>
+        </section>
+      </div>
+    </main>
+  </div>
+</body>
+</html>

@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Connect · MindTrail Lab</title>
+  <link rel="stylesheet" href="/style.css"><link rel="stylesheet" href="/welcome.css">
+  <script src="/welcome.js" defer></script>
+</head>
+<body>
+  <div class="welcome-shell">
+    <header class="welcome-header"><a href="/" class="brand"><div class="brand-mark">M<span>·</span></div><div><strong>MindTrail</strong><small>LAB</small></div></a><span class="private-badge"><span class="green-dot"></span> Your computer. Your data.</span></header>
+    <main class="welcome-main">
+      <div class="eyebrow">WELCOME TO YOUR PERSONAL LAB</div>
+      <h1 id="page-title">Your recordings, connected<span class="title-dot">.</span></h1>
+      <p class="welcome-lead">Enter your AWEAR API key. We’ll find your recordings and take care of the setup.</p>
+      <div id="feedback" class="welcome-feedback" role="status" aria-live="polite" hidden></div>
+      <section id="current-workspace" class="workspace-summary" hidden>
+        <div><strong>Workspace ready</strong><p id="connection-summary"></p></div>
+        <div class="welcome-actions"><a id="open-workspace" class="button primary" href="/">Open dashboard ↗</a><button id="forget-key" class="button subtle" type="button" hidden>Forget saved key</button></div>
+      </section>
+      <section id="connect-card" class="connection-card card">
+        <div class="connect-mark" aria-hidden="true">A<span>·</span></div>
+        <h2>Connect your AWEAR</h2>
+        <p>One key. Your recordings and activity labels, together in a private workspace.</p>
+        <details id="api-key-guide" class="key-guide" open>
+          <summary id="key-guide-title">How to get an AWEAR API key</summary>
+          <p class="key-guide-explanation">An API key is a private access code from AWEAR that lets MindTrail Lab retrieve your recordings.</p>
+          <ol>
+            <li><strong>Open AWEAR’s portal.</strong> Use the <strong>Open AWEAR portal</strong> button below. It opens a separate tab, so you can return here afterward.</li>
+            <li><strong>Enter your email and click Continue.</strong> Follow AWEAR’s sign-in or account setup prompts. Use the account that has access to your recordings.</li>
+            <li><strong>Find API keys in the portal.</strong> Choose the option to create a new key and name it “MindTrail Lab”.</li>
+            <li><strong>Copy the key AWEAR displays.</strong> It is shown only once. Keep a private copy somewhere safe.</li>
+            <li><strong>Return to this MindTrail Lab tab.</strong> Paste the key into <strong>API key</strong> below and click <strong>Connect</strong>. Your recordings will start syncing automatically.</li>
+          </ol>
+          <div class="key-guide-links"><a class="button subtle" href="https://awearlabs.com/login" target="_blank" rel="noopener noreferrer">Open AWEAR portal ↗</a><a href="https://awearlabs.com/docs#authentication" target="_blank" rel="noopener noreferrer">Official key instructions ↗</a></div>
+          <p class="key-guide-help"><strong>No account access, API keys menu, or recordings?</strong> <a href="https://aweartech.com/pages/contact" target="_blank" rel="noopener noreferrer">Contact AWEAR</a>. You can ask: “I own an AWEAR device and would like API access to my own recordings. How do I enable it and create an API key?”</p>
+        </details>
+        <form id="key-form">
+          <label for="api-key">API key</label>
+          <div class="key-connect"><input id="api-key" type="password" autocomplete="off" spellcheck="false" required placeholder="Paste your AWEAR API key"><button class="button primary" type="submit">Connect <span>→</span></button></div>
+          <p id="storage-help" class="field-help">Your key stays on this computer.</p>
+        </form>
+        <div class="automatic-setup"><span>✓ Automatic account selection</span><span>✓ Background history sync</span><span>✓ New recordings stay up to date</span></div>
+      </section>
+      <details id="advanced" class="restore-section">
+        <summary>Advanced settings</summary>
+        <label class="remember-choice"><input id="remember-key" type="checkbox" checked> Save my key securely for next time</label>
+        <button id="use-current-key" class="button subtle" type="button" hidden>Reconnect with current key</button>
+        <section id="source-settings" hidden>
+          <h3>Recording source</h3><p>Personal accounts are selected automatically. Change the source or sync start here if needed.</p>
+          <button id="load-sources" class="button subtle" type="button">Load available sources</button>
+          <form id="source-form" hidden><label for="participant">Participant</label><select id="participant" required></select><label for="sync-start">Sync recordings since</label><input id="sync-start" type="datetime-local" required><button class="button primary" type="submit">Save source</button></form>
+        </section>
+        <section><h3>Direct Bluetooth</h3><p>Record directly from a nearby device without an API key. Setup creates a local profile; scanning and recording start only when you choose them.</p><p id="bluetooth-help" hidden>The Bluetooth component is unavailable in this source installation.</p><button id="bluetooth-setup" class="button subtle" type="button">Set up Bluetooth →</button></section>
+        <section id="restore-section"><h3>Restore an existing archive</h3><p>Before connecting, restore a copy of <code>awear_data.sqlite3</code> into this empty workspace. Stop the old app first. Bluetooth sessions and export files must be copied separately.</p><label for="archive-file">Choose your SQLite archive</label><input id="archive-file" type="file" accept=".sqlite3,.db"><button id="restore" type="button" class="button subtle">Restore archive</button></section>
+      </details>
+      <footer class="welcome-footer"><button id="quit" class="button subtle" type="button">Quit MindTrail Lab</button><strong>Saved locally</strong><p id="data-directory">Loading your workspace location…</p><p>MindTrail Lab keeps syncing while it’s running. Close the browser whenever you like; use Settings → Quit MindTrail Lab to stop.</p></footer>
+    </main>
+  </div>
+  <dialog id="confirmation" aria-labelledby="confirmation-message"><h2 id="confirmation-message"></h2><div class="welcome-actions"><button id="confirm-cancel" class="button subtle" type="button">Cancel</button><button id="confirm-accept" class="button primary" type="button">Confirm</button></div></dialog>
+</body>
+</html>

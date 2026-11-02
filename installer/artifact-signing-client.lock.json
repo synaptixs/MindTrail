@@ -1,0 +1,7 @@
+{
+  "package": "Microsoft.ArtifactSigning.Client",
+  "version": "1.0.146",
+  "url": "https://api.nuget.org/v3-flatcontainer/microsoft.artifactsigning.client/1.0.146/microsoft.artifactsigning.client.1.0.146.nupkg",
+  "sha256": "7761e5d8f31e54b764da21d33cd8b0a2940e1b05526c7dfcb5e94b0431426f70",
+  "dlib": "bin/x64/Azure.CodeSigning.Dlib.dll"
+}

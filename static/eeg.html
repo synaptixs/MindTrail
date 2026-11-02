@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101b23">
+  <title>EEG signal · MindTrail Lab</title>
+  <meta name="description" content="Inspect your single-channel AWEAR EEG signal and activity context.">
+  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/eeg.css">
+  <script src="/eeg.js" defer></script>
+</head>
+<body>
+  <div class="shell">
+    <aside class="rail">
+      <div class="brand"><div class="brand-mark">M<span>·</span></div><div><strong>MindTrail</strong><small>LAB</small></div></div>
+      <div class="rail-rule"></div>
+      <nav aria-label="Sections">
+        <a class="nav-link" href="/"><span class="nav-icon">◫</span> Overview</a>
+        <a class="nav-link" href="/#activity"><span class="nav-icon">◷</span> Activity log</a>
+        <a class="nav-link" href="/#recorded-periods"><span class="nav-icon">▤</span> Recorded periods</a>
+        <a class="nav-link active" href="/eeg.html" aria-current="page"><span class="nav-icon">∿</span> EEG signal</a>
+        <a class="nav-link" href="/bluetooth.html"><span class="nav-icon">ᛒ</span> Bluetooth</a>
+        <a class="nav-link" href="/scores.html"><span class="nav-icon">◎</span> Mobile scores</a>
+        <a class="nav-link" href="/patterns.html"><span class="nav-icon">◩</span> Signal patterns</a>
+        <a class="nav-link" href="/data.html"><span class="nav-icon">▦</span> Data tables</a>
+        <a class="nav-link" href="/#exports"><span class="nav-icon">⇩</span> Exports</a>
+      </nav>
+      <div class="rail-bottom"><div class="local-card"><span class="green-dot"></span><div><strong>Private workspace</strong><small>Data stored on this computer</small></div></div><div class="rail-foot">AWEAR data · Local dashboard<br>Exploratory signal analysis</div></div>
+    </aside>
+    <main>
+      <header class="topbar"><div class="breadcrumb">Personal lab <span>/</span> EEG signal</div><div class="top-actions"><span id="participant" class="pill">Loading source…</span></div></header>
+      <div class="content eeg-content">
+        <div class="eyebrow">RIGHT TEMPORAL · TP10</div>
+        <h1>EEG signal<span class="title-dot">.</span></h1>
+        <p class="lead">Inspect one channel over time, with your activity labels and recording gaps in view.</p>
+        <div id="notice" class="notice error" role="alert" hidden></div>
+
+        <section class="card eeg-controls" aria-label="Signal window controls">
+          <form id="window-form">
+            <label>Window starts <input id="start" type="datetime-local" step="1" required></label>
+            <label>Length <select id="seconds"><option value="10">10 seconds</option><option value="30" selected>30 seconds</option><option value="60">60 seconds</option></select></label>
+            <button class="button primary" type="submit">Show signal</button>
+          </form>
+          <div class="eeg-navigation"><button id="previous" class="button subtle" type="button">← Previous</button><button id="next" class="button subtle" type="button">Next →</button><button id="latest" class="button subtle" type="button">Latest recording</button></div>
+        </section>
+
+        <div class="eeg-meta"><span id="window-time">—</span><span id="coverage">—</span><span id="device">—</span></div>
+        <section class="card eeg-card" aria-labelledby="waveform-title">
+          <div class="section-head compact"><div><div class="eyebrow">TIME DOMAIN</div><h2 id="waveform-title">Centered waveform</h2><p>Each record is one second with 256 successive samples. The display subtracts that second's mean; the stored waveform stays raw.</p></div></div>
+          <canvas id="waveform" class="signal-canvas" role="img" aria-label="Centered EEG waveform over the selected time window"></canvas>
+          <div class="eeg-axis"><span id="axis-start">—</span><span id="axis-end">—</span></div>
+          <div id="activity-labels" class="eeg-labels"></div>
+          <div class="eeg-score-heading"><strong>Mobile observations</strong><a id="log-mobile-score" href="/scores.html">Record a mobile score ↗</a></div>
+          <div id="mobile-score-list" class="eeg-labels eeg-scores"></div>
+          <p class="eeg-band-note">Purple markers locate manually recorded mobile readings. Shading shows entered timing uncertainty. The app's averaging window and processing delay are unknown.</p>
+        </section>
+
+        <section class="card eeg-card" aria-labelledby="spectrogram-title">
+          <div class="section-head compact"><div><div class="eyebrow">TIME × FREQUENCY</div><h2 id="spectrogram-title">Spectrogram</h2><p>4-second Hann windows, 2-second steps, 1–40 Hz. Empty columns mean there was not enough continuous data. Warmer color means more power.</p></div><span id="spectrogram-scale" class="small-badge">—</span></div>
+          <canvas id="spectrogram" class="spectrogram-canvas" role="img" aria-label="EEG frequency power over time"></canvas>
+          <div class="eeg-axis"><span id="spectrogram-start">—</span><span id="spectrogram-end">—</span></div>
+        </section>
+
+        <section class="card eeg-card" aria-labelledby="spectrum-title">
+          <div class="section-head compact"><div><div class="eyebrow">FREQUENCY SUMMARY</div><h2 id="spectrum-title">Average power spectrum</h2><p>Each 4-second window has its mean removed. Power is averaged across valid windows; band shares are relative to total 1–40 Hz power.</p></div><span id="window-count" class="small-badge">—</span></div>
+          <canvas id="spectrum" class="spectrum-canvas" role="img" aria-label="Average EEG power spectrum from 1 to 40 hertz"></canvas>
+          <div id="bands" class="eeg-bands"></div>
+          <p class="eeg-band-note">Low-frequency power can be dominated by drift or movement; higher frequencies can include nearby muscle activity. Review the waveform before comparing activities.</p>
+        </section>
+        <p class="eeg-caveat">AWEAR's public specifications give one behind-ear channel at 256 Hz. They do not define a voltage conversion, electrode reference, onboard filtering, or whether each record timestamp marks its first sample. Times inside a record are displayed assuming the timestamp is its start. These charts are for exploratory comparison; muscle activity, movement, and contact changes can affect them.</p>
+      </div>
+    </main>
+  </div>
+</body>
+</html>

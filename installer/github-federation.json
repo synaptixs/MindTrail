@@ -1,0 +1,7 @@
+{
+  "name": "mindtrail-github-main",
+  "issuer": "https://token.actions.githubusercontent.com",
+  "subject": "repo:ssmith-synaptixs/mindtrail-lab:ref:refs/heads/main",
+  "description": "MindTrail Lab signing from the main branch of its private GitHub repository",
+  "audiences": ["api://AzureADTokenExchange"]
+}

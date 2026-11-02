@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101b23"><title>Bluetooth · MindTrail Lab</title>
+  <link rel="stylesheet" href="/style.css"><link rel="stylesheet" href="/bluetooth.css">
+  <script src="/bluetooth.js" defer></script>
+</head>
+<body>
+  <div class="shell">
+    <aside class="rail">
+      <div class="brand"><div class="brand-mark">M<span>·</span></div><div><strong>MindTrail</strong><small>LAB</small></div></div>
+      <div class="rail-rule"></div>
+      <nav aria-label="Sections">
+        <a class="nav-link" href="/"><span class="nav-icon">◫</span> Overview</a>
+        <a class="nav-link" href="/#activity"><span class="nav-icon">◷</span> Activity log</a>
+        <a class="nav-link" href="/#recorded-periods"><span class="nav-icon">▤</span> Recorded periods</a>
+        <a class="nav-link active" href="/bluetooth.html" aria-current="page"><span class="nav-icon">ᛒ</span> Bluetooth</a>
+        <a class="nav-link" href="/eeg.html"><span class="nav-icon">∿</span> EEG signal</a>
+        <a class="nav-link" href="/scores.html"><span class="nav-icon">◎</span> Mobile scores</a>
+        <a class="nav-link" href="/patterns.html"><span class="nav-icon">◩</span> Signal patterns</a>
+        <a class="nav-link" href="/data.html"><span class="nav-icon">▦</span> Data tables</a>
+        <a class="nav-link" href="/#exports"><span class="nav-icon">⇩</span> Exports</a>
+      </nav>
+      <div class="rail-bottom"><div class="local-card"><span class="green-dot"></span><div><strong>Private workspace</strong><small>Data stored on this computer</small></div></div><div class="rail-foot">AWEAR data · Local dashboard<br>Exploratory signal analysis</div></div>
+    </aside>
+    <main>
+      <header class="topbar"><div class="breadcrumb">Personal lab <span>/</span> Bluetooth</div><div class="top-actions"><span id="participant" class="pill">Loading source…</span></div></header>
+      <div class="content ble-content">
+        <div class="eyebrow">DIRECT FROM YOUR DEVICE</div><h1>Bluetooth<span class="title-dot">.</span></h1>
+        <p class="lead">Connect AWEAR to this computer and record its raw EEG locally.</p>
+        <div id="notice" class="notice" role="status" hidden></div>
+        <section class="card ble-card" aria-labelledby="connection-title">
+          <div class="section-head"><div><div class="eyebrow">SELECT YOUR DEVICE</div><h2 id="connection-title">Scan, connect, record</h2><p>Keep your device nearby. If the mobile app is connected to it, disconnect it there before trying this collector.</p></div><span id="connection-state" class="small-badge">Idle</span></div>
+          <div class="ble-controls"><button id="scan" class="button subtle" type="button">Scan for AWEAR · 10 sec</button><label>Discovered device<select id="device"><option value="">Scan to discover devices</option></select></label><label>Placement<select id="placement"><option value="unknown">Not specified</option><option value="right">Right side</option><option value="left">Left side</option></select></label><label>Recording length<select id="duration"><option value="60">1 minute</option><option value="300">5 minutes</option><option value="900">15 minutes</option><option value="3600">1 hour</option></select></label><button id="connect" class="button primary" type="button" disabled>Connect &amp; record</button><button id="stop" class="button subtle" type="button" disabled>Stop recording</button></div>
+          <p id="scan-summary" class="ble-help">Only AWEAR candidates are listed. Select the device you own; connection never selects one automatically.</p>
+          <p class="ble-help">Your computer may request Bluetooth access. On Mac, allow MindTrail Lab in System Settings → Privacy &amp; Security → Bluetooth. On Windows, turn on Bluetooth in Settings → Bluetooth &amp; devices. Then scan again.</p>
+        </section>
+        <section class="card ble-card" aria-labelledby="stream-title">
+          <div class="section-head"><div><div class="eyebrow">LIVE CAPTURE</div><h2 id="stream-title">Latest received second</h2><p>Centered for display. Saved samples retain the exact decoded ADC values.</p></div><span id="stream-source" class="small-badge">Waiting for data</span></div>
+          <div class="ble-metrics"><div><small>EEG BLOCKS</small><strong id="blocks">0</strong></div><div><small>SAMPLES RECEIVED</small><strong id="samples">0</strong></div><div><small>MISSING BLOCKS</small><strong id="missing">0</strong></div><div><small>DECODE WARNINGS</small><strong id="warnings">0</strong></div></div>
+          <div id="waveform" class="ble-waveform" role="img" aria-label="Latest Bluetooth EEG waveform"></div>
+          <div class="ble-times"><span id="device-time">Device clock: —</span><span id="arrival-time">Computer arrival: —</span></div>
+          <p id="capture-details" class="ble-help">No recording started.</p>
+          <p class="ble-help">Device time and Computer arrival time are retained separately. The device clock is unverified and is not set by this collector. Bluetooth sessions stay separate from the API archive until their timing and sample values have been checked.</p>
+        </section>
+        <section class="card ble-card" aria-labelledby="sessions-title"><div class="section-head"><div><div class="eyebrow">SAVED ON THIS COMPUTER</div><h2 id="sessions-title">Bluetooth sessions</h2><p>Each session retains raw notifications, decoded EEG, packet metadata, and connection events. Stop the recording to download its files.</p></div><span id="session-count" class="small-badge">0 sessions</span></div><div id="sessions" class="ble-sessions"></div></section>
+        <p class="ble-help">Placement is saved as session metadata. Left-side placement is experimental; the collector does not adapt the device or validate its physiological interpretation. The collector uses a community-documented protocol and supports one 256 Hz channel. It does not generate AWEAR mobile scores or establish left-ear compatibility.</p>
+      </div>
+    </main>
+  </div>
+</body>
+</html>

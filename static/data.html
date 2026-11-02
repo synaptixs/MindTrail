@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101b23">
+  <title>Data tables · MindTrail Lab</title>
+  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/data.css">
+  <script src="/data.js" defer></script>
+</head>
+<body>
+  <div class="shell">
+    <aside class="rail">
+      <div class="brand"><div class="brand-mark">M<span>·</span></div><div><strong>MindTrail</strong><small>LAB</small></div></div>
+      <div class="rail-rule"></div>
+      <nav aria-label="Sections">
+        <a class="nav-link" href="/"><span class="nav-icon">◫</span> Overview</a>
+        <a class="nav-link" href="/#activity"><span class="nav-icon">◷</span> Activity log</a>
+        <a class="nav-link" href="/#recorded-periods"><span class="nav-icon">▤</span> Recorded periods</a>
+        <a class="nav-link" href="/eeg.html"><span class="nav-icon">∿</span> EEG signal</a>
+        <a class="nav-link" href="/bluetooth.html"><span class="nav-icon">ᛒ</span> Bluetooth</a>
+        <a class="nav-link" href="/scores.html"><span class="nav-icon">◎</span> Mobile scores</a>
+        <a class="nav-link" href="/patterns.html"><span class="nav-icon">◩</span> Signal patterns</a>
+        <a class="nav-link active" href="/data.html" aria-current="page"><span class="nav-icon">▦</span> Data tables</a>
+        <a class="nav-link" href="/#exports"><span class="nav-icon">⇩</span> Exports</a>
+      </nav>
+      <div class="rail-bottom"><div class="local-card"><span class="green-dot"></span><div><strong>Private workspace</strong><small>Data stored on this computer</small></div></div><div class="rail-foot">AWEAR data · Local dashboard<br>Exploratory signal analysis</div></div>
+    </aside>
+    <main>
+      <header class="topbar"><div class="breadcrumb">Personal lab <span>/</span> Data tables</div><div class="top-actions"><span id="participant" class="pill">Loading source…</span></div></header>
+      <div class="content data-content">
+        <div class="eyebrow">EXPLORE YOUR ARCHIVE</div>
+        <h1>Data tables<span class="title-dot">.</span></h1>
+        <p class="lead">Inspect raw recordings, saved sessions, and account statistics. Table timestamps are shown in UTC; range filters use your local time.</p>
+        <div id="notice" class="notice error" role="alert" hidden></div>
+        <div class="table-tabs" role="tablist" aria-label="Data tables">
+          <button id="tab-raw" type="button" role="tab" aria-selected="true" class="selected" data-tab="raw">Raw data</button>
+          <button id="tab-sessions" type="button" role="tab" aria-selected="false" data-tab="sessions">Sessions</button>
+          <button id="tab-stats" type="button" role="tab" aria-selected="false" data-tab="stats">Stats</button>
+        </div>
+        <section class="card table-card" aria-labelledby="table-title">
+          <div class="table-heading"><div><div class="eyebrow" id="table-eyebrow">LOCAL ARCHIVE</div><h2 id="table-title">Raw EEG recordings</h2><p id="table-source">Waveforms stored in the local SQLite archive.</p></div><span id="row-count" class="count-badge">Loading…</span></div>
+          <form id="range-form" class="range-form"><label>From<input id="start" type="datetime-local"></label><label>To<input id="end" type="datetime-local"></label><button class="button primary" type="submit">Apply range</button><button id="clear-range" class="button subtle" type="button">Clear</button></form>
+          <p id="table-help" class="table-help">Activity comes from your saved time-period labels. Scroll sideways for all 256 waveform samples; values are shown exactly as saved.</p>
+          <div id="table-wrap" class="table-wrap" tabindex="0" role="region" aria-label="Data table, scroll horizontally"><table id="data-table"><thead></thead><tbody></tbody></table></div>
+          <div class="table-footer"><span id="page-info"></span><button id="load-more" class="button subtle" type="button" hidden>Load older records ↓</button></div>
+        </section>
+      </div>
+    </main>
+  </div>
+</body>
+</html>
