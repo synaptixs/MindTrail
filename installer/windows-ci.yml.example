@@ -12,13 +12,13 @@ jobs:
         with:
           python-version: '3.14'
       - run: python -m pip install -r requirements-build.txt
-      - run: python -m unittest test_desktop test_bluetooth test_installer_build
+      - run: python -m unittest test.test_desktop test.test_bluetooth test.test_installer_build
       - run: choco install nsis --yes --no-progress
       - name: Build offline installer
         shell: pwsh
         run: |
           $env:PATH += ';C:\Program Files (x86)\NSIS'
-          python installer_build.py windows
+          python src/installer_build.py windows
       - name: Exercise installer and private runtime
         shell: pwsh
         run: |

@@ -20,9 +20,9 @@ def worker_command(root: Path) -> list[str] | None:
         return [sys.executable, "--ble-worker"]
     python = root / ".venv-bluetooth" / ("Scripts/python.exe" if sys.platform == "win32" else "bin/python")
     if python.is_file():
-        return [str(python), str(root / "bluetooth_collector.py")]
+        return [str(python), str(Path(__file__).resolve().with_name("bluetooth_collector.py"))]
     if importlib.util.find_spec("bleak"):
-        return [sys.executable, str(root / "bluetooth_collector.py")]
+        return [sys.executable, str(Path(__file__).resolve().with_name("bluetooth_collector.py"))]
     return None
 
 

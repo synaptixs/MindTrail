@@ -284,7 +284,7 @@ class LifecycleTests(unittest.TestCase):
             self.assertTrue(contender.acquire())
             self.assertEqual(contender.read(), {})
             contender.close()
-            process = subprocess.run([sys.executable, "-c", "from desktop_runtime import InstanceLock; from pathlib import Path; import sys,os; lock=InstanceLock(Path(sys.argv[1])); assert lock.acquire(); os._exit(0)", temporary], check=True)
+            process = subprocess.run([sys.executable, "-c", "from desktop_runtime import InstanceLock; from pathlib import Path; import sys,os; lock=InstanceLock(Path(sys.argv[1])); assert lock.acquire(); os._exit(0)", temporary], check=True, env={**os.environ, "PYTHONPATH": str(app.SOURCE_ROOT)})
             self.assertEqual(process.returncode, 0)
             self.assertTrue(lock.acquire())
             lock.close()

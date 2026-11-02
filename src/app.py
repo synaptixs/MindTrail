@@ -32,7 +32,8 @@ from zoneinfo import ZoneInfo
 
 from bluetooth_manager import BluetoothManager
 
-ROOT = Path(__file__).resolve().parent
+SOURCE_ROOT = Path(__file__).resolve().parent
+ROOT = SOURCE_ROOT if getattr(sys, "frozen", False) else SOURCE_ROOT.parent
 DATA_ROOT = Path(os.environ["AWEAR_DATA_DIR"]).expanduser().resolve() if os.environ.get("AWEAR_DATA_DIR") else None
 DB_PATH = (DATA_ROOT or ROOT) / "awear_data.sqlite3"
 API_BASE = "https://awearlabs.com/api/v1"
@@ -979,7 +980,7 @@ class Handler(BaseHTTPRequestHandler):
                             "scores.html", "scores.js", "scores.css", "bluetooth.html", "bluetooth.js", "bluetooth.css",
                             "welcome.html", "welcome.js", "welcome.css"}:
                 return self._json(404, {"error": "Not found"})
-            path = ROOT / "static" / name
+            path = SOURCE_ROOT / "static" / name
             body = path.read_bytes()
             mime = {"index.html": "text/html", "data.html": "text/html", "eeg.html": "text/html",
                     "patterns.html": "text/html", "app.js": "text/javascript", "data.js": "text/javascript",
@@ -1157,7 +1158,7 @@ class AppServer(ThreadingHTTPServer):
 class SafeArgumentParser(argparse.ArgumentParser):
     def error(self, message: str) -> None:
         if message.startswith("unrecognized arguments:"):
-            self.exit(2, "error: unexpected argument. Run `python3 app.py --key-prompt` with nothing after it. "
+            self.exit(2, "error: unexpected argument. Run `python3 src/app.py --key-prompt` with nothing after it. "
                          "When `AWEAR API key:` appears, paste your key and press Return.\n")
         super().error(message)
 

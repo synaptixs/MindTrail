@@ -20,7 +20,7 @@ import zlib
 from pathlib import Path, PurePosixPath
 
 VERSION = "0.2.3"
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parent.parent
 APP_FILES = ("app.py", "desktop.py", "desktop_runtime.py", "credential_store.py", "bluetooth_manager.py", "bluetooth_collector.py", "ble_protocol.py")
 STATIC_FILES = tuple(name + extension for name in ("app", "data", "eeg", "patterns", "scores", "bluetooth", "welcome") for extension in (".js", ".css"))
 STATIC_FILES = tuple(name for name in STATIC_FILES if name != "app.css") + ("style.css", "index.html", "data.html", "eeg.html", "patterns.html", "scores.html", "bluetooth.html", "welcome.html")
@@ -160,10 +160,10 @@ def stage_windows(cache: Path, payload: Path) -> dict:
     (payload / "runtime" / f"python{minor}._pth").write_text(f"python{minor}.zip\n.\n../app\n../vendor\n", encoding="utf-8")
     (payload / "app" / "static").mkdir(parents=True)
     for name in APP_FILES:
-        shutil.copy2(ROOT / name, payload / "app" / name)
+        shutil.copy2(ROOT / "src" / name, payload / "app" / name)
     shutil.copy2(ROOT / "installer" / "windows_entry.pyw", payload / "app" / "windows_entry.pyw")
     for name in STATIC_FILES:
-        shutil.copy2(ROOT / "static" / name, payload / "app" / "static" / name)
+        shutil.copy2(ROOT / "src" / "static" / name, payload / "app" / "static" / name)
     make_icons(ROOT / "build" / "icons")
     shutil.copy2(ROOT / "build" / "icons" / "awear.ico", payload / "awear.ico")
     manifest = {"version": VERSION, "platform": "windows-x64", "python": lock["python"],
@@ -278,7 +278,7 @@ def build_mac(args) -> Path:
         raise ValueError("Release requires Developer ID Application and a notarytool profile. Development packages remain unsigned.")
     application = ROOT / "dist" / "MindTrail Lab.app"
     if not args.skip_app_build:
-        subprocess.run([sys.executable, str(ROOT / "build_desktop.py")], check=True)
+        subprocess.run([sys.executable, str(ROOT / "src" / "build_desktop.py")], check=True)
     if not application.is_dir():
         raise ValueError("Build the Mac application first.")
     if signed:

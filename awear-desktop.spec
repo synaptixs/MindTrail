@@ -5,7 +5,7 @@ from pathlib import Path
 from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 
 root = Path(SPECPATH)
-static = [(str(path), 'static') for path in sorted((root / 'static').iterdir())
+static = [(str(path), 'static') for path in sorted((root / 'src' / 'static').iterdir())
           if path.is_file() and path.suffix in {'.html', '.css', '.js'}]
 hidden = ['tzdata', 'zoneinfo']
 if sys.platform == 'darwin':
@@ -16,7 +16,7 @@ elif sys.platform == 'win32':
     hidden += collect_submodules('winrt')
     hidden += ['keyring.backends.Windows']
 
-a = Analysis([str(root / 'desktop.py')], pathex=[str(root)],
+a = Analysis([str(root / 'src' / 'desktop.py')], pathex=[str(root / "src")],
              binaries=[], datas=static + collect_data_files('tzdata') + collect_data_files('certifi'), hiddenimports=hidden,
              hookspath=[], hooksconfig={}, runtime_hooks=[],
              excludes=['numpy', 'sklearn', 'matplotlib', 'pytest', 'IPython', 'notebook', 'tkinter'], noarchive=False)

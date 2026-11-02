@@ -35,7 +35,7 @@ class BluetoothManager:
         return bool(self.worker_command) or self.python.is_file()
 
     def command(self) -> list[str]:
-        return self.worker_command or [str(self.python), str(self.root / "bluetooth_collector.py")]
+        return self.worker_command or [str(self.python), str(Path(__file__).resolve().with_name("bluetooth_collector.py"))]
 
     @staticmethod
     def process_options() -> dict:
