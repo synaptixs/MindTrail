@@ -1,0 +1,94 @@
+name: Sign Windows installer
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_signing:
+        description: Sign and validate a Windows installer using the approved publisher profile
+        required: true
+        type: boolean
+        default: false
+permissions:
+  contents: read
+concurrency:
+  group: mindtrail-windows-signing
+  cancel-in-progress: false
+jobs:
+  sign:
+    # OIDC federation independently restricts authentication to this main branch.
+    if: github.ref == 'refs/heads/main' && inputs.confirm_signing && vars.MINDTRAIL_WINDOWS_SIGNING_READY == 'true'
+    runs-on: windows-2025
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      AWEAR_SIGNING_RESOURCE_GROUP: ${{ vars.AWEAR_SIGNING_RESOURCE_GROUP }}
+      AWEAR_SIGNING_ACCOUNT: ${{ vars.AWEAR_SIGNING_ACCOUNT }}
+      AWEAR_SIGNING_PROFILE: ${{ vars.AWEAR_SIGNING_PROFILE }}
+      AWEAR_SIGNING_ENDPOINT: ${{ vars.AWEAR_SIGNING_ENDPOINT }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.14.10'
+      - name: Install publisher build dependencies
+        run: python -m pip install -r requirements-build.txt numpy scikit-learn
+      - name: Run source and packaging tests
+        run: python -m unittest discover
+      - name: Check first-run JavaScript
+        run: node --check static/welcome.js
+      - name: Install NSIS compiler
+        run: choco install nsis --yes --no-progress
+      - name: Verify pinned signing tools
+        shell: pwsh
+        run: ./installer/prepare_windows_signing.ps1
+      - name: Authenticate using GitHub OIDC
+        uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          allow-no-subscriptions: true
+      - name: Require an active Public Trust profile
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          foreach ($name in 'AZURE_SUBSCRIPTION_ID','AWEAR_SIGNING_RESOURCE_GROUP','AWEAR_SIGNING_ACCOUNT','AWEAR_SIGNING_PROFILE','AWEAR_SIGNING_ENDPOINT') {
+            if (-not [Environment]::GetEnvironmentVariable($name)) { throw "Missing repository variable $name" }
+          }
+          $id = "/subscriptions/$env:AZURE_SUBSCRIPTION_ID/resourceGroups/$env:AWEAR_SIGNING_RESOURCE_GROUP/providers/Microsoft.CodeSigning/codeSigningAccounts/$env:AWEAR_SIGNING_ACCOUNT/certificateProfiles/$env:AWEAR_SIGNING_PROFILE"
+          $result = az rest --method get --url "https://management.azure.com${id}?api-version=2025-10-13" --only-show-errors
+          if ($LASTEXITCODE -ne 0) { throw 'The signing profile is not accessible; signing stopped.' }
+          $profile = $result | ConvertFrom-Json
+          if ($profile.properties.profileType -ne 'PublicTrust' -or $profile.properties.provisioningState -ne 'Succeeded' -or $profile.properties.status -ne 'Active') {
+            throw 'The profile must be provisioned, active and Public Trust; signing stopped.'
+          }
+          $metadata = @{
+            Endpoint = $env:AWEAR_SIGNING_ENDPOINT
+            CodeSigningAccountName = $env:AWEAR_SIGNING_ACCOUNT
+            CertificateProfileName = $env:AWEAR_SIGNING_PROFILE
+            CorrelationId = '${{ github.run_id }}'
+            ExcludeCredentials = @('EnvironmentCredential','WorkloadIdentityCredential','ManagedIdentityCredential','SharedTokenCacheCredential','VisualStudioCredential','VisualStudioCodeCredential','AzurePowerShellCredential','AzureDeveloperCliCredential','InteractiveBrowserCredential')
+          }
+          $path = Join-Path $PWD 'build/windows-signing/metadata.json'
+          $metadata | ConvertTo-Json | Set-Content $path -Encoding utf8
+          "AWEAR_WINDOWS_ARTIFACT_METADATA=$path" | Add-Content $env:GITHUB_ENV -Encoding utf8
+      - name: Sign the embedded uninstaller and setup
+        shell: pwsh
+        run: |
+          $env:PATH += ';C:\Program Files (x86)\NSIS'
+          python installer_build.py windows --release
+      - name: Verify signatures, install, upgrade and uninstall
+        shell: pwsh
+        run: |
+          $setup = (Get-ChildItem dist/*Windows*x64*Setup.exe).FullName
+          python installer/smoke_windows.py --installer $setup --require-signed --report dist/windows-signed-validation.json
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: mindtrail-windows-signed-${{ github.sha }}
+          retention-days: 7
+          if-no-files-found: error
+          path: |
+            dist/*Windows*x64*Setup.exe
+            dist/*.sha256
+            dist/windows-signed-validation.json

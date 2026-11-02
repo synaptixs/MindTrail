@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101b23">
+  <title>Signal patterns · MindTrail Lab</title>
+  <meta name="description" content="Explore quality flags and recurring patterns in personal AWEAR recordings.">
+  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/patterns.css">
+  <script src="/patterns.js" defer></script>
+</head>
+<body>
+  <div class="shell">
+    <aside class="rail">
+      <div class="brand"><div class="brand-mark">M<span>·</span></div><div><strong>MindTrail</strong><small>LAB</small></div></div>
+      <div class="rail-rule"></div>
+      <nav aria-label="Sections">
+        <a class="nav-link" href="/"><span class="nav-icon">◫</span> Overview</a>
+        <a class="nav-link" href="/#activity"><span class="nav-icon">◷</span> Activity log</a>
+        <a class="nav-link" href="/#recorded-periods"><span class="nav-icon">▤</span> Recorded periods</a>
+        <a class="nav-link" href="/eeg.html"><span class="nav-icon">∿</span> EEG signal</a>
+        <a class="nav-link" href="/bluetooth.html"><span class="nav-icon">ᛒ</span> Bluetooth</a>
+        <a class="nav-link" href="/scores.html"><span class="nav-icon">◎</span> Mobile scores</a>
+        <a class="nav-link active" href="/patterns.html" aria-current="page"><span class="nav-icon">◩</span> Signal patterns</a>
+        <a class="nav-link" href="/data.html"><span class="nav-icon">▦</span> Data tables</a>
+        <a class="nav-link" href="/#exports"><span class="nav-icon">⇩</span> Exports</a>
+      </nav>
+      <div class="rail-bottom"><div class="local-card"><span class="green-dot"></span><div><strong>Private workspace</strong><small>Data stored on this computer</small></div></div><div class="rail-foot">AWEAR data · Local dashboard<br>Exploratory signal analysis</div></div>
+    </aside>
+    <main>
+      <header class="topbar"><div class="breadcrumb">Personal lab <span>/</span> Signal patterns</div><div class="top-actions"><span id="participant" class="pill">Loading source…</span></div></header>
+      <div class="content patterns-content">
+        <div class="eyebrow">RIGHT TEMPORAL · EXPLORATORY</div>
+        <h1>Signal patterns<span class="title-dot">.</span></h1>
+        <p class="lead">See recurring signal shapes and recording-quality flags before assigning your own activity labels.</p>
+        <div id="notice" class="notice" role="status" hidden></div>
+        <section id="empty" class="card patterns-empty" hidden>
+          <h2>No analysis report yet</h2>
+          <p>Run the local analysis command, then reload this page. The analysis reads your saved EEG and does not change it.</p>
+          <code>python analyze_patterns.py</code>
+          <p>Use a Python environment with NumPy and scikit-learn. Your live dashboard still runs with standard Python.</p>
+        </section>
+        <div id="report" hidden>
+          <div class="patterns-meta"><span id="generated">—</span><span id="source-records">—</span><span id="source-status">—</span></div>
+          <section class="patterns-metrics" aria-label="Pattern overview">
+            <article class="card metric"><div class="metric-label">ANALYZED WINDOWS</div><div id="window-total" class="metric-value">—</div><div class="metric-meta">Four continuous seconds each</div></article>
+            <article class="card metric"><div class="metric-label">FLAGGED WINDOWS</div><div id="flagged-total" class="metric-value">—</div><div class="metric-meta">Relative signal-quality checks</div></article>
+            <article class="card metric"><div class="metric-label">PATTERN 1</div><div id="pattern-one" class="metric-value">—</div><div class="metric-meta">Of unflagged windows</div></article>
+            <article class="card metric"><div class="metric-label">PATTERN 2</div><div id="pattern-two" class="metric-value">—</div><div class="metric-meta">Of unflagged windows</div></article>
+          </section>
+
+          <section class="card patterns-card" aria-labelledby="timeline-title">
+            <div class="section-head"><div><div class="eyebrow">RECORDED TIME</div><h2 id="timeline-title">Pattern mix by 30-minute period</h2><p>Each bar represents a recorded period. White space means there were no complete four-second windows.</p></div><label class="day-filter">Show day <select id="day"><option value="all">All days</option></select></label></div>
+            <div class="pattern-legend"><span><i class="swatch one"></i> Pattern 1</span><span><i class="swatch two"></i> Pattern 2</span><span><i class="swatch flagged"></i> Flagged</span><span><i class="swatch empty"></i> No windows</span></div>
+            <div id="timeline-scroll" class="timeline-scroll"><canvas id="timeline" height="110" role="img" aria-label="Pattern mix by recorded half-hour period"></canvas></div>
+            <div id="timeline-axis" class="timeline-axis"></div>
+          </section>
+
+          <div class="patterns-two-column">
+            <section class="card patterns-card" aria-labelledby="quality-title"><div class="eyebrow">SIGNAL QUALITY</div><h2 id="quality-title">Windows needing review</h2><div id="quality-details"></div><p class="patterns-note">A window can have more than one flag. Flags use thresholds relative to this archive; they are screening cues, not verified artifact diagnoses. Gaps and device changes are never joined into analysis windows.</p></section>
+            <section class="card patterns-card" aria-labelledby="profiles-title"><div class="eyebrow">PATTERN SHAPES</div><h2 id="profiles-title">Median spectral shares</h2><div id="profiles"></div><p class="patterns-note">High low-frequency power may reflect drift or movement; higher frequencies may include muscle activity. Pattern numbers are unnamed signal groups.</p></section>
+          </div>
+
+          <section class="card patterns-card" aria-labelledby="comparison-title"><div class="eyebrow">MODEL COMPARISON</div><h2 id="comparison-title">GMM and K-means</h2><p class="patterns-note">The timeline uses a two-group Gaussian mixture model as a coarse starting view. Silhouette measures feature separation; lower BIC favors a GMM fit. Neither score establishes an activity or brain state.</p><p id="comparison-note" class="patterns-note"></p><div class="patterns-table-scroll"><table class="patterns-table"><thead><tr><th>Groups</th><th>GMM silhouette</th><th>K-means silhouette</th><th>GMM BIC</th><th>Agreement (ARI)</th></tr></thead><tbody id="comparison"></tbody></table></div></section>
+
+          <section class="card patterns-card" aria-labelledby="periods-title"><div class="section-head"><div><div class="eyebrow">REVIEW AND LABEL</div><h2 id="periods-title">Recorded periods</h2><p>Choose a period to inspect its four-second windows, then assign an activity if the period is unlabeled.</p></div><span id="period-count" class="small-badge">—</span></div><div class="patterns-table-scroll"><table class="patterns-table"><thead><tr><th>Period</th><th>Analyzed</th><th>Pattern 1</th><th>Pattern 2</th><th>Flagged</th><th>Activity</th><th>Review</th></tr></thead><tbody id="periods"></tbody></table></div></section>
+
+          <section id="window-section" class="card patterns-card" aria-labelledby="windows-title" hidden><div class="section-head"><div><div class="eyebrow">FOUR-SECOND WINDOWS</div><h2 id="windows-title">Selected period</h2><p id="window-description">—</p></div><button id="close-windows" class="button subtle" type="button">Close</button></div><div class="patterns-table-scroll"><table class="patterns-table"><thead><tr><th>Start</th><th>Quality</th><th>GMM</th><th>K-means</th><th>GMM fit probability</th><th>AC RMS</th><th>View</th></tr></thead><tbody id="windows"></tbody></table></div><div class="page-controls"><button id="older-windows" class="button subtle" type="button">← Earlier</button><span id="window-page">—</span><button id="newer-windows" class="button subtle" type="button">Later →</button></div></section>
+          <p class="patterns-caveat">Single-channel behind-ear EEG cannot identify an activity, emotion, or clinical state from these groups alone. Compare them against your labeled periods and inspect representative waveforms before interpreting them.</p>
+        </div>
+      </div>
+    </main>
+  </div>
+</body>
+</html>

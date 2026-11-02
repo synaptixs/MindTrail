@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101b23">
+  <title>MindTrail Lab</title>
+  <meta name="description" content="A private, local EEG dashboard with activity labels.">
+  <link rel="stylesheet" href="/style.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <div class="shell">
+    <aside class="rail">
+      <div class="brand"><div class="brand-mark">M<span>·</span></div><div><strong>MindTrail</strong><small>LAB</small></div></div>
+      <div class="rail-rule"></div>
+      <nav aria-label="Sections">
+        <a class="nav-link active" href="#overview"><span class="nav-icon">◫</span> Overview</a>
+        <a class="nav-link" href="#activity"><span class="nav-icon">◷</span> Activity log</a>
+        <a class="nav-link" href="#recorded-periods"><span class="nav-icon">▤</span> Recorded periods</a>
+        <a class="nav-link" href="/eeg.html"><span class="nav-icon">∿</span> EEG signal</a>
+        <a class="nav-link" href="/bluetooth.html"><span class="nav-icon">ᛒ</span> Bluetooth</a>
+        <a class="nav-link" href="/scores.html"><span class="nav-icon">◎</span> Mobile scores</a>
+        <a class="nav-link" href="/patterns.html"><span class="nav-icon">◩</span> Signal patterns</a>
+        <a class="nav-link" href="/data.html"><span class="nav-icon">▦</span> Data tables</a>
+        <a id="desktop-settings" class="nav-link" href="/welcome.html" hidden><span class="nav-icon">⚙</span> Settings &amp; quit</a>
+        <a class="nav-link" href="#exports"><span class="nav-icon">⇩</span> Exports</a>
+      </nav>
+      <div class="rail-bottom">
+        <div class="local-card"><span class="green-dot"></span><div><strong>Private workspace</strong><small>Data stored on this computer</small></div></div>
+        <div class="rail-foot">AWEAR data · Local dashboard<br>Exploratory signal analysis</div>
+      </div>
+    </aside>
+
+    <main id="overview">
+      <header class="topbar">
+        <div class="breadcrumb">Personal lab <span>/</span> Overview</div>
+        <div class="top-actions"><span id="demo-badge" class="demo-badge" hidden>Sample data</span><span id="connection-pill" class="pill"><span class="pill-dot"></span> Checking connection</span></div>
+      </header>
+
+      <div class="content">
+        <section class="heading-row">
+          <div><div class="eyebrow">YOUR EEG WORKSPACE</div><h1>Signal overview<span class="title-dot">.</span></h1><p class="lead">Explore your recordings in context, one activity at a time.</p></div>
+          <div class="heading-actions"><button id="source-button" class="button subtle" type="button">◈ Source</button><button id="sync-button" class="button subtle" type="button">↻ <span>Sync now</span></button><div class="range-switch" role="group" aria-label="Time range"><button type="button" data-range="4" aria-pressed="false">4h</button><button type="button" data-range="24" aria-pressed="false">24h</button><button type="button" data-range="168" class="selected" aria-pressed="true">7d</button></div></div>
+        </section>
+
+        <div id="notice" class="notice" role="status" hidden></div>
+
+        <section id="setup" class="setup-panel card" hidden>
+          <div class="setup-copy"><div class="eyebrow">GET CONNECTED</div><h2>Connect your recording</h2><p>The API key stays in the local Python process. Choose the participant ID for your device and when to begin collecting.</p><p id="key-help" class="key-help" hidden>Start this app with <code>python3 app.py --key-prompt</code> and enter your key in the terminal. It will not be saved.</p></div>
+          <form id="setup-form" class="setup-form"><label>Participant ID<select id="participant-select" required><option value="">Loading participants…</option></select></label><label>Sync recordings since<input id="sync-start" type="datetime-local" required></label><button id="connect-button" class="button primary" type="submit">Connect &amp; sync <span>↗</span></button></form>
+        </section>
+
+        <section class="metrics" aria-label="Signal summary">
+          <article class="metric card"><div class="metric-label">RECORDED TIME <span>◷</span></div><div id="recorded-time" class="metric-value">—</div><div class="metric-meta">One record ≈ one second</div></article>
+          <article class="metric card"><div class="metric-label">WINDOW COVERAGE <span>◫</span></div><div id="coverage" class="metric-value">—</div><div class="metric-meta">Received seconds in selected window</div></article>
+          <article class="metric card"><div class="metric-label">SIGNAL AMPLITUDE <span>∿</span></div><div id="mean-rms" class="metric-value">—</div><div class="metric-meta">Within-second AC RMS · device units</div></article>
+          <article class="metric card"><div class="metric-label">LATEST RECORD <span>↗</span></div><div id="latest-record" class="metric-value metric-time">—</div><div id="latest-age" class="metric-meta">Waiting for data</div></article>
+        </section>
+
+        <section class="chart-card card" aria-labelledby="chart-title">
+          <div class="section-head"><div><div class="eyebrow">SIGNAL TREND · ALL RECORDED HOURS</div><h2 id="chart-title">Amplitude over time</h2><p>Includes recordings before 8 AM and after 4 PM. Shading marks activity labels; the work guideline does not limit the graph.</p></div><div class="legend"><span class="legend-line"></span> AC RMS <span class="legend-shade"></span> Activity</div></div>
+          <div class="chart-stage"><div id="trend-chart" class="chart" role="img" aria-label="EEG amplitude chart"></div>
+              <svg id="range-brush" class="range-brush" viewBox="0 0 900 230" preserveAspectRatio="none" aria-label="Select a time interval on the amplitude graph">
+                <rect id="brush-before" class="brush-dim" y="12" height="192"/>
+                <rect id="brush-selected" class="brush-selected" y="12" height="192"/>
+                <rect id="brush-after" class="brush-dim" y="12" height="192"/>
+                <g id="focus-start-handle" class="brush-handle" data-edge="start" role="slider" tabindex="0" aria-label="Start time handle" aria-orientation="horizontal" aria-valuemin="0" aria-valuemax="604800" aria-valuenow="0">
+                  <rect class="brush-hit" x="-30" y="12" width="31" height="192"/>
+                  <path class="brush-line" d="M0 12 V204"/>
+                  <rect class="brush-grip" x="-15" y="91" width="15" height="34" rx="4"/>
+                  <path class="brush-grip-mark" d="M-10 101 V115 M-6 101 V115"/>
+                  <title>Drag to change the start time</title>
+                </g>
+                <g id="focus-end-handle" class="brush-handle" data-edge="end" role="slider" tabindex="0" aria-label="End time handle" aria-orientation="horizontal" aria-valuemin="0" aria-valuemax="604800" aria-valuenow="604800">
+                  <rect class="brush-hit" x="-1" y="12" width="31" height="192"/>
+                  <path class="brush-line" d="M0 12 V204"/>
+                  <rect class="brush-grip" x="0" y="91" width="15" height="34" rx="4"/>
+                  <path class="brush-grip-mark" d="M6 101 V115 M10 101 V115"/>
+                  <title>Drag to change the end time</title>
+                </g>
+              </svg>
+          </div>
+          <div class="chart-footer"><span id="chart-start">Start —</span><span id="chart-end">End —</span></div>
+          <div class="time-focus" aria-labelledby="focus-title">
+            <div class="focus-heading"><div><h3 id="focus-title">Drag either edge to zoom</h3><p id="focus-context">Drag the vertical handles on the plot; release to zoom into the selection.</p></div><button id="reset-focus" class="button subtle" type="button" disabled>Show full 7 days</button></div>
+            <div class="focus-footer"><span id="focus-duration" role="status">Full seven-day window</span><span id="focus-loading" role="status" hidden>Updating graph…</span><a id="focus-eeg" href="/eeg.html">Inspect EEG at start ↗</a></div>
+            <details class="focus-exact"><summary>Enter exact start and end times</summary><div class="focus-fields"><label>Start<input id="focus-start-time" type="datetime-local" step="1" aria-label="Selected start time"></label><label>End<input id="focus-end-time" type="datetime-local" step="1" aria-label="Selected end time"></label></div></details>
+          </div>
+        </section>
+
+        <section class="two-column">
+          <article class="card waveform-card"><div class="section-head compact"><div><div class="eyebrow">LATEST WAVEFORM</div><h2>One second, 256 samples</h2></div><span id="waveform-time" class="small-badge">No data yet</span></div><div id="waveform-chart" class="waveform" role="img" aria-label="Latest EEG waveform"></div><p class="help-line">RIGHT_TEMP (TP10) · Display centered on this second · <a href="/eeg.html">Explore EEG signal ↗</a></p></article>
+          <article class="card activities-card"><div class="section-head compact"><div><div class="eyebrow">ACTIVITY COMPARISON · ALL RECORDED HOURS</div><h2>Activities and unassigned time</h2></div></div><p class="card-intro">Includes every recording in the selected window. Time without a label appears as No activity assigned, including before and after work. Motion and contact quality can affect amplitude.</p><div id="activity-comparison" class="activity-comparison"><div class="empty-state">Loading recorded activities…</div></div></article>
+        </section>
+
+        <section id="activity" class="activity-section">
+          <div class="section-head activity-heading"><div><div class="eyebrow">ADD CONTEXT</div><h2>Activity log</h2><p>Add an activity here, or click Edit beside a label in Recorded periods to change its name, note, or times.</p></div></div>
+          <div class="activity-grid">
+            <div class="card label-editor"><div class="editor-tabs" role="tablist" aria-label="Label mode"><button id="live-tab" class="selected" type="button" role="tab" aria-selected="true">Live activity</button><button id="past-tab" type="button" role="tab" aria-selected="false">Past interval</button></div>
+              <form id="label-form"><div class="form-fields"><label>Activity name<input id="label-name" maxlength="80" placeholder="e.g. Reading, walking, focused work" required></label><label>Note <span class="optional">optional</span><input id="label-note" maxlength="500" placeholder="What was happening?" /></label><div id="interval-fields" class="interval-fields" hidden><label>Start<input id="label-start" type="datetime-local" step="1"></label><label>End<input id="label-end" type="datetime-local" step="1"></label></div></div><button id="label-submit" class="button primary full" type="submit">Start activity <span>→</span></button><button id="delete-label-edit" class="button subtle delete-edit" type="button" hidden>Delete activity</button><button id="cancel-label-edit" class="button subtle cancel-edit" type="button" hidden>Cancel editing</button></form>
+              <div id="active-activity" class="active-activity" hidden></div>
+            </div>
+
+          </div>
+        </section>
+
+        <section id="recorded-periods" class="recorded-section card" aria-labelledby="recorded-title">
+          <div class="section-head recorded-heading"><div><div class="eyebrow">EVERY RECORDING · FIRST TO LAST</div><h2 id="recorded-title">Daily recordings &amp; activities</h2><p>Drag either vertical handle on a daily graph, then release to zoom. Assign an activity to that selection, or show the entire day to follow new recordings. Arrow keys adjust seconds; Shift adjusts minutes. Times use America/New_York.</p><p id="recorded-refreshed" role="status">Refreshes every 10 seconds while this page is open.</p></div><span id="interval-count" class="count-badge">Loading…</span></div>
+          <div id="intervals-list" class="intervals-list" role="list"><div class="empty-state">Loading recorded periods…</div></div>
+          <div class="intervals-footer"><button id="load-older" class="button subtle" type="button" hidden>Load older periods ↓</button></div>
+        </section>
+
+        <section id="exports" class="exports-card card"><div><div class="eyebrow">YOUR LOCAL COPY</div><h2>Keep your data portable</h2><p>Raw waveform records are stored in SQLite. Download the selected window as JSONL, or export your activity labels as CSV.</p></div><div class="export-actions"><a id="raw-export" class="button subtle" href="/api/export/raw.jsonl">↓ Raw EEG · JSONL</a><a class="button subtle" href="/api/export/labels.csv">↓ Activity labels · CSV</a></div></section>
+        <footer>Built for personal exploration. Signal amplitude alone does not measure focus, mood, or health.</footer>
+      </div>
+    </main>
+  </div>
+</body>
+</html>
