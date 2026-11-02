@@ -8,15 +8,36 @@ amplitude trends, inspect EEG, compare activities, and export your recordings.
 > **For personal exploration:** signal patterns and amplitude are not validated measures
 > of focus, mood, or health. Waveforms remain in device units.
 
-[Get started](#get-started) · [Get an API key](#get-your-awear-api-key) ·
+[Download installers](#download-installers) · [Get started](#get-started) · [Get an API key](#get-your-awear-api-key) ·
 [Use the dashboard](#use-the-dashboard) · [Run from source](#run-from-source) ·
 [Build installers](#build-installers) · [Troubleshooting](#troubleshooting)
+
+## Download installers
+
+**MindTrail Lab 0.2.3 — preview release**
+
+| Your computer | Download | Signing status |
+| --- | --- | --- |
+| **Mac — Apple Silicon or Intel** | [Download the Mac installer (.dmg)](https://github.com/synaptixs/MindTrail/releases/download/v0.2.3/MindTrail-Lab-0.2.3-Mac-universal2.dmg) | Developer ID signed; Apple notarized |
+| **Windows x64** | [Download the Windows installer — UNSIGNED (.exe)](https://github.com/synaptixs/MindTrail/releases/download/v0.2.3/MindTrail-Lab-0.2.3-Windows-x64-Setup-unsigned.exe) | **Unsigned — Azure publisher approval pending** |
+
+> **Windows testers:** this preview installer is unsigned. Windows or your browser
+> may show an unknown-publisher warning, and organization security policies may
+> block it. If blocked, contact the publisher or your IT administrator. Do not
+> disable security protections. Wait for the signed release if your computer
+> requires a trusted publisher.
+
+Open the download and follow the [three setup steps below](#get-started).
+Python is included; you do not need to install it yourself.
+
+[Release notes and verification reports](https://github.com/synaptixs/MindTrail/releases/tag/v0.2.3) ·
+[SHA-256 checksums](https://github.com/synaptixs/MindTrail/releases/download/v0.2.3/SHA256SUMS.txt)
 
 ## Get started
 
 ### 1. Install MindTrail Lab
 
-If you received a packaged installer, use the steps for your computer:
+Use the [download for your computer](#download-installers), then:
 
 | Computer | Open | Then |
 | --- | --- | --- |
@@ -24,7 +45,7 @@ If you received a packaged installer, use the steps for your computer:
 | **Windows x64** | The MindTrail Lab `Setup.exe` file | Run the installer. It installs for your user account and opens the dashboard. |
 
 Packaged installers include Python and dependencies. You do not need a terminal.
-This repository contains the source and build tools; cloning it does not install the app.
+You can also [run from source](#run-from-source); cloning this repository alone does not install the app.
 
 > Files named **unsigned** are development builds. Windows or macOS may show a
 > security warning or block installation. If blocked, contact the publisher or your
