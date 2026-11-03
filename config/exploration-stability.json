@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "temporalBlockMinutes": 30,
+  "maximumExcludedDays": 3,
+  "minimumSharedWindows": 20,
+  "recurrenceMinimumWindowsPerDay": 5
+}

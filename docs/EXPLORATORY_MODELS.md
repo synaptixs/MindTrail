@@ -89,5 +89,6 @@ Synthetic checks cover clearly separated populations, constant/small/empty group
 noise accounting, acquisition/participant isolation, source preservation, deterministic
 sampling and repeatability. The real frozen-archive pilot is bounded in advance to 120
 seconds and 1.5 GiB peak memory. It is a software/resource check, not a method endorsement.
-P3-W2 must assess parameter sensitivity, cross-day recurrence and session/contact confounds
-before choosing a default. P3-A1 stability and the full Phase 3 acceptance gate remain open.
+The [P3-W2 stability command](EXPLORATORY_STABILITY.md) assesses parameter sensitivity,
+cross-day recurrence and session/contact confounds without choosing a default. The full
+Phase 3 acceptance gate remains open.
