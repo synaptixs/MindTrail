@@ -83,6 +83,10 @@ class ExplorerTests(unittest.TestCase):
             self.assertEqual(index['groups'][0]['files'][view],views.base.content_digest(payload))
             self.assertEqual(len(payload['points']),64)
             self.assertTrue(all(sum(d['counts'])==64 for d in payload['distributions']))
+            source={w['windowId']:w for w in report['windows']}
+            for point in payload['points']:
+                expected=views.base.feature_vector(source[point['windowId']])
+                self.assertEqual(point['modelFeatures'],expected if view=='with_power' else expected[1:])
             ids={p['windowId'] for p in payload['points']}
             for c in payload['candidates']:
                 self.assertLessEqual(len(c['representatives']),12)
@@ -181,6 +185,7 @@ class ExplorerTests(unittest.TestCase):
                 with closing(sqlite3.connect(self.database)) as source:
                     rows=source.execute('SELECT participant_id,timestamp_ms,device_id,sample_count,waveform_json FROM readings').fetchall()
                 c.executemany('INSERT INTO readings(participant_id,timestamp_ms,device_id,sample_count,waveform_json,mean,rms,peak_to_peak) VALUES(?,?,?,?,?,0,1,2)',rows)
+            app.add_label('P','Reading','Synthetic reference',1793700000000,1793700004000)
             server=app.AppServer(('127.0.0.1',0),app.Collector('',demo=True));thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start()
             try:
                 base=f'http://127.0.0.1:{server.server_port}'
@@ -196,7 +201,17 @@ class ExplorerTests(unittest.TestCase):
                 group=index['groups'][0]['acquisitionGroupId']
                 with urllib.request.urlopen(base+f'/api/exploration?group={group}&view=with_power') as r:payload=json.load(r)
                 window=payload['points'][0]['windowId']
+                body={'participantId':'P','group':group,'identity':payload['explorationIdentity'],'reference':window,'spacingMinutes':5}
+                request=urllib.request.Request(base+'/api/similarity/search',data=json.dumps(body).encode(),headers={'X-Awear-Local':'1','Content-Type':'application/json'})
+                with urllib.request.urlopen(request) as r:matches=json.load(r)
+                self.assertEqual(matches['status'],'ready');self.assertGreater(matches['counts']['eligible'],0)
+                self.assertTrue(all(p['startMs']>=1793700064000 for p in matches['items']))
                 with urllib.request.urlopen(base+f'/api/exploration/waveform?group={group}&window={window}&identity={index["explorationIdentity"]}') as r:self.assertTrue(json.load(r)['sourceVerified'])
+                target=next(p for p in matches['items'] if p['annotation']['canAssign'])
+                acceptance={**body,'target':target['windowId'],'proposalId':target['proposalId'],'label':'Reading','reviewed':True}
+                request=urllib.request.Request(base+'/api/similarity/accept',data=json.dumps(acceptance).encode(),headers={'X-Awear-Local':'1','Content-Type':'application/json'})
+                with urllib.request.urlopen(request) as r:self.assertEqual(r.status,201)
+                with urllib.request.urlopen(base+'/api/exploration') as r:self.assertEqual(json.load(r)['status'],'stale')
                 with self.assertRaises(urllib.error.HTTPError) as failure:urllib.request.urlopen(base+'/api/exploration?group=../x')
                 failure.exception.close()
             finally:server.shutdown();thread.join(timeout=5);server.server_close()

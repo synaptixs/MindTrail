@@ -10,7 +10,7 @@ async function request(url,body){const r=await fetch(url,body===undefined?{}:{me
 function candidate(){return payload?.candidates.find(c=>c.candidateId===$('candidate').value)||null;}
 function describe(c){const p=c.parameters;return c.method==='hdbscan'?`HDBSCAN · minimum size ${p.min_cluster_size} · samples ${p.min_samples} · single ${p.allow_single_cluster?'allowed':'forbidden'}`:`${c.method==='gmm'?'GMM':'K-means'} · ${p.n_components||p.n_clusters} groups · seed ${p.random_state}`;}
 function clearWave(){waveSequence++;$('waveform').replaceChildren();$('waveform-note').textContent='Select an observed window to inspect its recorded samples.';$('eeg-link').hidden=true;}
-function hideReport(message){viewSequence++;payload=null;currentKey=null;$('report').hidden=true;$('freshness').textContent=message;clearWave();}
+function hideReport(message){window.dispatchEvent(new Event("exploration-cleared"));viewSequence++;payload=null;currentKey=null;$('report').hidden=true;$('freshness').textContent=message;clearWave();}
 async function refresh(){
   try{
     const [state,snapshot]=await Promise.all([request('/api/analysis/state'),request('/api/exploration')]);
@@ -32,7 +32,7 @@ async function refresh(){
 }
 async function loadView(){
   const sequence=++viewSequence;const group=$('group').value,view=$('view').value;
-  payload=null;$('report').hidden=true;clearWave();
+  window.dispatchEvent(new Event('exploration-cleared'));payload=null;$('report').hidden=true;clearWave();
   try{
     const data=await request(`/api/exploration?group=${encodeURIComponent(group)}&view=${view}`);
     if(sequence!==viewSequence)return;
@@ -44,7 +44,7 @@ async function loadView(){
     $('conditions').textContent=`Session: ${g.recordingConditions.sessionStatus.replaceAll('_',' ')}. Contact impedance is unmeasured. Excluded-day refits evaluated ${g.excludedDayScope.evaluatedDays.length} of ${g.excludedDayScope.availableDays} selected dates; pooled recurrence is not independent replication.`;
     $('candidate').replaceChildren(new Option('Ungrouped — no model selected',''),...data.candidates.map(c=>{const o=new Option(`${describe(c)}${c.status==='fitted'?'':` · ${c.status}`}`,c.candidateId);o.disabled=c.status!=='fitted';return o;}));
     $('feature').replaceChildren(...data.distributions.map((d,i)=>new Option(d.label,String(i))));
-    $('report').hidden=false;draw();drawHistogram();
+    $('report').hidden=false;draw();drawHistogram();window.dispatchEvent(new Event('exploration-ready'));
   }catch(e){if(sequence===viewSequence){$('status').textContent=e.message;payload=null;$('report').hidden=true;}}
 }
 function drawPCA(){
@@ -86,7 +86,7 @@ function drawRepresentatives(){
 }
 function drawTable(){
   const c=candidate(),start=page*25,end=Math.min(start+25,payload.points.length);$('windows').replaceChildren();
-  payload.points.slice(start,end).forEach((p,i)=>{const label=c?.labels[start+i],row=document.createElement('tr');for(const value of [fmt.format(p.startMs),`${num((p.endMsExclusive-p.startMs)/1000)} s`,label===undefined?'Ungrouped':label<0?'Unassigned':`Group ${label+1}`,num(p.featureValues[6])])row.append(text('td',value));const cell=document.createElement('td');cell.append(waveformButton(p.windowId));row.append(cell);$('windows').append(row);});
+  payload.points.slice(start,end).forEach((p,i)=>{const label=c?.labels[start+i],row=document.createElement('tr');for(const value of [fmt.format(p.startMs),`${num((p.endMsExclusive-p.startMs)/1000)} s`,label===undefined?'Ungrouped':label<0?'Unassigned':`Group ${label+1}`,num(p.featureValues[6])])row.append(text('td',value));const cell=document.createElement('td');cell.append(waveformButton(p.windowId));const ref=text('button','Find similar');ref.type='button';ref.className='button subtle';ref.dataset.reference=p.windowId;cell.append(ref);row.append(cell);$('windows').append(row);});
   $('window-count').textContent=`${payload.points.length?start+1:0}–${end} of ${num(payload.points.length)} selected windows shown · America/New_York.`;$('previous').disabled=page===0;$('next').disabled=end>=payload.points.length;
 }
 async function showWaveform(window){

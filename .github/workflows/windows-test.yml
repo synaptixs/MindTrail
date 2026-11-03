@@ -29,6 +29,10 @@ jobs:
         run: node --check src/static/welcome.js
       - name: Check recording quality JavaScript
         run: node --check src/static/quality.js
+      - name: Check exploration JavaScript
+        run: |
+          node --check src/static/explore.js
+          node --check src/static/similarity.js
       - name: Install NSIS compiler
         run: choco install nsis --yes --no-progress
       - name: Verify signing prerequisites without signing

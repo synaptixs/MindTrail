@@ -106,7 +106,7 @@ def build_views(report, *, check=lambda: None, progress=lambda stage, done, tota
             projection['features'] = data['features']
             normalized = ((matrix-np.median(matrix, axis=0))/np.maximum(np.percentile(matrix, 75, axis=0)-np.percentile(matrix, 25, axis=0), 1e-6)) if len(raw) else matrix
             points = [{**{k: w[k] for k in ('windowId', 'startMs', 'endMsExclusive', 'sourceRecordDigests')},
-                       'coordinates': coordinates[i], 'featureValues': values[i].tolist()} for i, w in enumerate(windows)]
+                       'coordinates': coordinates[i], 'modelFeatures': matrix[i].tolist(), 'featureValues': values[i].tolist()} for i, w in enumerate(windows)]
             candidates = []
             for candidate in data['candidates']:
                 check()
