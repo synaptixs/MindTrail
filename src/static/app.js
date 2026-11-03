@@ -201,7 +201,7 @@ function chartSvg(series, labels, start, end, bucketMs) {
     const left=x(Math.max(Date.parse(label.start),Date.parse(start)));
     const right=x(Math.min(Date.parse(label.end||end),Date.parse(end)));
     if (right<=left) return '';
-    return `<rect x="${left.toFixed(1)}" y="${T}" width="${(right-left).toFixed(1)}" height="${H-T-B}" fill="${i%2 ? '#cde4f0':'#def1d6'}" opacity=".55"><title>${label.source==='schedule'&&!label.reviewed?'Suggested: ':''}${escapeHtml(label.label)}</title></rect>`;
+    return `<rect x="${left.toFixed(1)}" y="${T}" width="${(right-left).toFixed(1)}" height="${H-T-B}" fill="${i%2 ? '#cde4f0':'#def1d6'}" opacity=".55"><title>${escapeHtml(label.label)} · ${escapeHtml(evidenceText(label))}</title></rect>`;
   }).join('');
   const guides=[0,.25,.5,.75,1].map(v=>`<g><line x1="${L}" x2="${W-R}" y1="${y(maxY*v)}" y2="${y(maxY*v)}" stroke="#e9f0e9"/><text x="${L-9}" y="${y(maxY*v)+3}" text-anchor="end" fill="#9baaa1" font-size="9">${(maxY*v).toFixed(0)}</text></g>`).join('');
   const paths=lines.map(p=>`<polyline points="${p}" fill="none" stroke="#268d6c" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>`).join('');
@@ -237,9 +237,9 @@ function daySelection(day) {
 }
 function daySelectionStatus(day,range) {
   const overlaps=day.labels.filter(label=>Date.parse(label.start)<range.end&&(!label.end||Date.parse(label.end)>range.start));
-  const protectedLabels=overlaps.filter(label=>label.source!=='schedule'||label.reviewed);
+  const protectedLabels=overlaps.filter(label=>!isPendingSuggestion(label));
   return {blocked:protectedLabels.length>0,message:protectedLabels.length?
-    `Overlaps confirmed activity: ${[...new Set(protectedLabels.map(label=>label.label))].join(', ')}. Narrow the selection or edit the existing label.`:
+    `Overlaps existing activity: ${[...new Set(protectedLabels.map(label=>label.label))].join(', ')}. Narrow the selection or edit the existing label.`:
     overlaps.length?'Saving this activity will retain the suggested work periods around it.':'Assign an activity to this exact time range.'};
 }
 function dayStamp(day,value) {
@@ -264,7 +264,7 @@ function dailyPreview(period) {
   const y=value=>130-value/max*120;
   const shade=plot.labels.map(label=>{
     const left=x(label.start), right=x(label.end||plot.end);
-    return `<rect x="${left}" y="8" width="${Math.max(0,right-left)}" height="122" fill="#e4f2dd" opacity="${label.source==='schedule'&&!label.reviewed?'.45':'.8'}"><title>${escapeHtml(label.label)}${label.source==='schedule'&&!label.reviewed?' (suggested)':''}</title></rect>`;
+    return `<rect x="${left}" y="8" width="${Math.max(0,right-left)}" height="122" fill="#e4f2dd" opacity="${isPendingSuggestion(label)?'.45':'.8'}"><title>${escapeHtml(label.label)} · ${escapeHtml(evidenceText(label))}</title></rect>`;
   }).join('');
   const lines=preview.segments.map(segment=>`<polyline points="${segment.map(point=>`${(x(point.start)+x(point.end))/2},${y(point.acRms)}`).join(' ')}" fill="none" stroke="#278366" stroke-width="1.7" vector-effect="non-scaling-stroke"/>`).join('');
   const coverage=preview.coverage.map(run=>`<rect x="${x(run.start)}" y="146" width="${x(run.end)-x(run.start)}" height="8" fill="#398d70"/>`).join('');
@@ -304,10 +304,10 @@ function renderIntervals() {
     lastDay=key;
     const time=(date)=>date.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'});
     const labels=[...new Set(period.labels.map(item=>item.label))];
-    const activityLabels=period.labels.map(label=>`<span class="interval-label"><span>${escapeHtml(label.label)}</span><button type="button" class="edit-activity" data-edit="${label.id}" aria-label="Edit ${escapeHtml(label.label)} activity">Edit</button>${label.source==='schedule'&&!label.reviewed?'<span class="label-suggested">Suggested</span>':''}</span>`).join('');
+    const activityLabels=period.labels.map(label=>`<span class="interval-label"><span>${escapeHtml(label.label)}</span><button type="button" class="edit-activity" data-edit="${label.id}" aria-label="Edit ${escapeHtml(label.label)} activity">Edit</button><span class="label-suggested">${escapeHtml(evidenceText(label))}</span></span>`).join('');
     const status=labels.length?`<div class="interval-labels">${activityLabels}</div>`:
       `<small>${period.complete?'Ready to label':'In progress'}</small>`;
-    const suggestionsOnly=period.labels.length&&period.labels.every(l=>l.source==='schedule'&&!l.reviewed);
+    const suggestionsOnly=period.labels.length&&period.labels.every(l=>isPendingSuggestion(l));
     const canPick=period.complete&&(!labels.length||suggestionsOnly);
     const rawUrl='/data.html?'+new URLSearchParams({start:period.start,end:period.end});
     const eegUrl='/eeg.html?'+new URLSearchParams({start:period.firstRecord});
@@ -458,7 +458,7 @@ function renderSummary(result) {
   $('waveform-time').textContent=result.waveform ? localStamp(result.waveform.time) : 'No data yet';
   renderActiveLabel(result.labels);
   const max=Math.max(1,...result.activities.map(a=>a.acRms||0));
-  $('activity-comparison').innerHTML=result.activities.length ? result.activities.map(a=>`<div class="comparison-row${a.unassigned?' unassigned':''}"><div>${escapeHtml(a.label)}<small>${duration(a.records)}${a.unassigned?' · unlabeled':''}</small></div><progress value="${Math.max(2,100*a.acRms/max).toFixed(1)}" max="100"></progress><div class="value">${a.acRms.toFixed(1)}</div></div>`).join('') : '<div class="empty-state">No recordings in the selected time window.</div>';
+  $('activity-comparison').innerHTML=result.activities.length ? result.activities.map(a=>`<div class="comparison-row${a.unassigned?' unassigned':''}"><div>${escapeHtml(a.label)}<small>${duration(a.records)}${a.unassigned?' · unlabeled':` · ${escapeHtml(reviewText(a.reviewState))} · ${escapeHtml(a.source||'unknown origin')}`}</small></div><progress value="${Math.max(2,100*a.acRms/max).toFixed(1)}" max="100"></progress><div class="value">${a.acRms.toFixed(1)}</div></div>`).join('') : '<div class="empty-state">No recordings in the selected time window.</div>';
 }
 
 async function refresh() {
@@ -625,8 +625,37 @@ function mode(value){
 }
 $('live-tab').addEventListener('click',()=>{cancelLabelEdit();mode('live');});
 $('past-tab').addEventListener('click',()=>mode('past'));
+function isPendingSuggestion(label) {
+  return ['schedule','model'].includes(label.source)&&label.reviewState==='needs_review';
+}
+function reviewText(value) {
+  return {confirmed:'Confirmed',needs_review:'Needs review',uncertain:'Unsure of activity'}[value]||'Review unknown';
+}
+function evidenceText(label) {
+  const timing=label.timingPrecision==='approximate'?`Approximate timing (start ±${label.startUncertaintyMs===null?'?':label.startUncertaintyMs/1000}s, end ±${label.endUncertaintyMs===null?'?':label.endUncertaintyMs/1000}s)`:label.timingPrecision==='exact'?'Known boundaries':'Timing unknown';
+  return `${reviewText(label.reviewState)} · ${label.source||'unknown origin'} · ${timing}`;
+}
+function updateEvidenceFields() {
+  $('label-uncertainty').hidden=$('label-precision').value!=='approximate';
+}
+function setEvidence(label) {
+  $('label-review').value=label.reviewState||'needs_review';$('label-precision').value=label.timingPrecision||'unknown';
+  $('label-start-uncertainty').value=label.startUncertaintyMs===null||label.startUncertaintyMs===undefined?'':label.startUncertaintyMs/1000;
+  $('label-end-uncertainty').value=label.endUncertaintyMs===null||label.endUncertaintyMs===undefined?'':label.endUncertaintyMs/1000;
+  $('label-origin').textContent=`Original source: ${label.source||'unknown'}. Saving a review keeps this origin.`;updateEvidenceFields();
+}
+function readEvidence(end) {
+  const precision=$('label-precision').value;
+  const uncertainty=(id)=>$(id).value===''?null:Math.round(Number($(id).value)*1000);
+  return {reviewState:$('label-review').value,timingPrecision:precision,
+    startUncertaintyMs:precision==='exact'?0:precision==='approximate'?uncertainty('label-start-uncertainty'):null,
+    endUncertaintyMs:!end?null:precision==='exact'?0:precision==='approximate'?uncertainty('label-end-uncertainty'):null};
+}
+$('label-precision').addEventListener('change',updateEvidenceFields);
+// Changed boundaries invalidate the old timing declaration until the person declares it again.
+for(const edge of ['start','end'])$(`label-${edge}`).addEventListener('input',()=>{$('label-precision').value='unknown';$('label-start-uncertainty').value='';$('label-end-uncertainty').value='';updateEvidenceFields();});
 function cancelLabelEdit() {
-  state.editingLabel=null;state.editingInputs=null;state.pendingLabelRange=null;$('cancel-label-edit').hidden=true;$('delete-label-edit').hidden=true;$('label-form').reset();mode('live');
+  state.editingLabel=null;state.editingInputs=null;state.pendingLabelRange=null;$('cancel-label-edit').hidden=true;$('delete-label-edit').hidden=true;$('label-form').reset();updateEvidenceFields();$('label-origin').textContent='Origin: entered by you. Timing stays unknown unless you specify it.';mode('live');
 }
 $('cancel-label-edit').addEventListener('click',cancelLabelEdit);
 $('delete-label-edit').addEventListener('click',async()=>{
@@ -647,7 +676,7 @@ $('label-form').addEventListener('submit',async(event)=>{
     const name=$('label-name').value;
     const selectedActivity=state.activityItems.find(a=>!a.archived&&a.name===name);
     const activityId=original&&name===original.label?original.activityId:selectedActivity?.id;
-    await post(original?`/api/labels/${original.id}/edit`:'/api/labels',{label:name,note:$('label-note').value,start,end,activityId,participantId:state.selected});
+    await post(original?`/api/labels/${original.id}/edit`:'/api/labels',{label:name,note:$('label-note').value,start,end,activityId,participantId:state.selected,evidence:readEvidence(end)});
     const message=original?'Activity updated. Suggestions around it were retained.':state.mode==='live'?'Activity started. Stop it when you finish.':'Interval saved. Overlapping suggestions were refined.';
     cancelLabelEdit();
     notice(message,'success');
@@ -665,14 +694,15 @@ $('active-activity').addEventListener('click',async(event)=>{
 });
 function editActivity(label) {
   state.editingLabel=label;mode('past');$('cancel-label-edit').hidden=false;$('delete-label-edit').hidden=false;
-  $('label-name').value=label.label;$('label-note').value=label.source==='schedule'&&!label.reviewed?'':label.note;
+  setEvidence(label);
+  $('label-name').value=label.label;$('label-note').value=label.note;
   $('label-start').value=preciseInput(Date.parse(label.start));
   $('label-end').value=label.end?preciseInput(Date.parse(label.end)):'';
   $('label-end').required=!!label.end;
   state.editingInputs={start:$('label-start').value,end:$('label-end').value};
   $('activity').scrollIntoView({behavior:'smooth',block:'start'});
   $('label-name').focus({preventScroll:true});
-  notice(label.source==='schedule'&&!label.reviewed?'Review this suggestion, then save your changes. Shortening it keeps the surrounding work suggestions.':'Edit the activity and save your changes.','success');
+  notice(isPendingSuggestion(label)?'Choose a review state explicitly. Saving preserves the original source; shortening keeps surrounding suggestions.':'Edit the activity and save your changes.','success');
 }
 $('load-older').addEventListener('click',async()=>{
   if (state.intervalLoading || !state.nextBefore) return;

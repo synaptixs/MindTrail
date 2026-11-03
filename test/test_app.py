@@ -249,7 +249,7 @@ class DashboardTests(unittest.TestCase):
         self.assertEqual(label, {"id": label_id, "label": "Reading", "note": "Original note",
                                 "start": app.iso(base + slot + 1234), "end": app.iso(base + 2*slot + 2345),
                                 "source": "manual", "reviewed": True,
-                                "activityId": label["activityId"], "recordedLabel": "Reading"})
+                                "activityId": label["activityId"], "recordedLabel": "Reading", "reviewState": "confirmed", "timingPrecision": "unknown", "startUncertaintyMs": None, "endUncertaintyMs": None})
         self.assertTrue(label["activityId"])
         # Both overlapping rows edit the same complete activity, not a clipped half-hour copy.
         self.assertEqual(first["intervals"][0]["labels"][0], label)

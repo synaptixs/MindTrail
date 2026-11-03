@@ -364,13 +364,13 @@ def summary(participant: str, start_ms: int, end_ms: int) -> dict:
         labels = connection.execute("""SELECT * FROM labels
             WHERE participant_id=? AND start_ms<? AND (end_ms IS NULL OR end_ms>?) ORDER BY start_ms DESC""",
             (participant, end_ms, start_ms)).fetchall()
-        activities = connection.execute("""SELECT l.label, COUNT(*) AS records, AVG(r.rms) AS rms,
+        activities = connection.execute("""SELECT l.label,l.source,l.review_state AS reviewState, COUNT(*) AS records, AVG(r.rms) AS rms,
             AVG(r.rms*r.rms-r.mean*r.mean) AS ac_power,
             AVG(r.peak_to_peak) AS peak_to_peak FROM readings r LEFT JOIN labels l
             ON r.participant_id=l.participant_id AND r.timestamp_ms>=l.start_ms
             AND (l.end_ms IS NULL OR r.timestamp_ms<l.end_ms)
             WHERE r.participant_id=? AND r.timestamp_ms>=? AND r.timestamp_ms<?
-            GROUP BY l.label ORDER BY records DESC,l.label IS NULL,l.label""", (participant, start_ms, end_ms)).fetchall()
+            GROUP BY l.label,l.source,l.review_state ORDER BY records DESC,l.label IS NULL,l.label,l.source,l.review_state""", (participant, start_ms, end_ms)).fetchall()
         last = connection.execute("""SELECT timestamp_ms,waveform_json FROM readings
             WHERE participant_id=? AND timestamp_ms>=? AND timestamp_ms<? ORDER BY timestamp_ms DESC LIMIT 1""",
             (participant, start_ms, end_ms)).fetchone()
@@ -790,13 +790,17 @@ def public_label(row: sqlite3.Row) -> dict:
     return {"id": row["id"], "label": row["label"], "note": row["note"],
             "start": iso(row["start_ms"]), "end": iso(row["end_ms"]) if row["end_ms"] is not None else None,
             "source": row["source"], "reviewed": bool(row["reviewed"]),
-            "activityId": row["activity_id"], "recordedLabel": row["recorded_label"]}
+            "activityId": row["activity_id"], "recordedLabel": row["recorded_label"], "reviewState": row["review_state"],
+            "timingPrecision": row["timing_precision"], "startUncertaintyMs": row["start_uncertainty_ms"],
+            "endUncertaintyMs": row["end_uncertainty_ms"]}
 
 
 def label_review(participant: str, scope: str, limit: int = 100) -> dict:
-    if scope not in ("all", "suggested") or not 1 <= limit <= 1000:
-        raise ValueError("Choose all or suggested activities; page size must be 1–1000")
-    where = "participant_id=?" + (" AND source='schedule' AND reviewed=0" if scope == "suggested" else "")
+    if scope not in ("all", "suggested", "needs_review", "uncertain", "confirmed") or not 1 <= limit <= 1000:
+        raise ValueError("Choose a valid activity review scope; page size must be 1–1000")
+    where = "participant_id=?"
+    if scope == "suggested":where += " AND source IN ('schedule','model') AND review_state='needs_review'"
+    elif scope != "all":where += " AND review_state='"+scope+"'"
     with db() as connection:
         total = connection.execute(f"SELECT COUNT(*) FROM labels WHERE {where}", (participant,)).fetchone()[0]
         rows = connection.execute(f"SELECT * FROM labels WHERE {where} ORDER BY start_ms DESC,id DESC LIMIT ?",
@@ -805,7 +809,7 @@ def label_review(participant: str, scope: str, limit: int = 100) -> dict:
 
 
 def add_label(participant: str, label: str, note: str, start_ms: int, end_ms: int | None,
-              label_id: int | None = None, activity_id: str | None = None, expected_participant: str | None = None) -> int:
+              label_id: int | None = None, activity_id: str | None = None, expected_participant: str | None = None, evidence: dict | None = None) -> int:
     """Save a human activity, protecting confirmed labels and splitting pending suggestions."""
     label = label.strip()
     if not participant or not label or len(label) > 80 or len(note) > 500:
@@ -830,15 +834,16 @@ def add_label(participant: str, label: str, note: str, start_ms: int, end_ms: in
             allow_archived=current["activity_id"] if current is not None else None)
         label = activity["name"]
         recorded_label = current["recorded_label"] if current is not None and current["activity_id"] == activity["id"] else label
+        review,precision,start_uncertainty,end_uncertainty = personal_activities.label_evidence(current,evidence,start_ms,end_ms)
         overlaps = connection.execute("""SELECT * FROM labels WHERE participant_id=?
             AND id != COALESCE(?, -1)
             AND start_ms < COALESCE(?, 9223372036854775807)
             AND COALESCE(end_ms, 9223372036854775807) > ?""",
             (participant, label_id, end_ms, start_ms)).fetchall()
-        if any(row["source"] != "schedule" or row["reviewed"] for row in overlaps):
-            raise ValueError("This interval overlaps an existing activity. Stop or edit the other interval first.")
+        if any(row["source"] not in ("schedule","model") or row["review_state"] != "needs_review" for row in overlaps):
+            raise ValueError("This interval overlaps an existing protected activity. Stop or edit the other interval first.")
         suggestions = list(overlaps)
-        if current is not None and current["source"] == "schedule" and not current["reviewed"]:
+        if current is not None and current["source"] in ("schedule","model") and current["review_state"] == "needs_review":
             suggestions.append(current)
         for row in suggestions:
             # Preserve schedule suggestions outside the human-entered interval.
@@ -854,14 +859,14 @@ def add_label(participant: str, label: str, note: str, start_ms: int, end_ms: in
             for lower, upper in spans:
                 connection.execute("""INSERT INTO labels
                     (participant_id,label,note,start_ms,end_ms,source,reviewed,batch_id,activity_id,recorded_label)
-                    VALUES (?,?,?,?,?,'schedule',0,?,?,?)""",
-                    (participant, row["label"], row["note"], lower, upper, row["batch_id"],row["activity_id"],row["recorded_label"]))
+                    VALUES (?,?,?,?,?,?,0,?,?,?)""",
+                    (participant, row["label"], row["note"], lower, upper, row["source"], row["batch_id"],row["activity_id"],row["recorded_label"]))
         if current is not None:
-            connection.execute("UPDATE labels SET label=?,note=?,start_ms=?,end_ms=?,reviewed=1,activity_id=?,recorded_label=? WHERE id=?",
-                               (label, note.strip(), start_ms, end_ms,activity["id"],recorded_label,label_id))
+            connection.execute("UPDATE labels SET label=?,note=?,start_ms=?,end_ms=?,reviewed=?,activity_id=?,recorded_label=?,review_state=?,timing_precision=?,start_uncertainty_ms=?,end_uncertainty_ms=? WHERE id=?",
+                               (label, note.strip(), start_ms, end_ms,int(review=="confirmed"),activity["id"],recorded_label,review,precision,start_uncertainty,end_uncertainty,label_id))
             return label_id
-        cursor = connection.execute("INSERT INTO labels(participant_id,label,note,start_ms,end_ms,activity_id,recorded_label) VALUES (?,?,?,?,?,?,?)",
-                                    (participant, label, note.strip(), start_ms, end_ms,activity["id"],recorded_label))
+        cursor = connection.execute("INSERT INTO labels(participant_id,label,note,start_ms,end_ms,activity_id,recorded_label,reviewed,review_state,timing_precision,start_uncertainty_ms,end_uncertainty_ms) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+                                    (participant, label, note.strip(), start_ms, end_ms,activity["id"],recorded_label,int(review=="confirmed"),review,precision,start_uncertainty,end_uncertainty))
         return cursor.lastrowid
 
 
@@ -1110,12 +1115,12 @@ class Handler(BaseHTTPRequestHandler):
             raise ValueError("Select a participant first")
         output = io.StringIO()
         writer = csv.writer(output)
-        writer.writerow(["label", "start_utc", "end_utc", "note"] + (["id","activity_id","recorded_label","source","reviewed"] if extended else []))
+        writer.writerow(["label", "start_utc", "end_utc", "note"] + (["id","activity_id","recorded_label","source","reviewed","review_state","timing_precision","start_uncertainty_ms","end_uncertainty_ms"] if extended else []))
         with db() as connection:
-            for row in connection.execute("""SELECT label,start_ms,end_ms,note,id,activity_id,recorded_label,source,reviewed FROM labels
+            for row in connection.execute("""SELECT label,start_ms,end_ms,note,id,activity_id,recorded_label,source,reviewed,review_state,timing_precision,start_uncertainty_ms,end_uncertainty_ms FROM labels
                 WHERE participant_id=? ORDER BY start_ms""", (participant,)):
                 writer.writerow([safe_csv(row[0]), iso(row[1]), iso(row[2]) if row[2] else "", safe_csv(row[3])]
-                    + ([row[4],safe_csv(row[5]),safe_csv(row[6]),safe_csv(row[7]),row[8]] if extended else []))
+                    + ([row[4],safe_csv(row[5]),safe_csv(row[6]),safe_csv(row[7]),row[8],row[9],row[10],row[11],row[12]] if extended else []))
         body = output.getvalue().encode()
         self.send_response(200)
         self.send_header("Content-Type", "text/csv; charset=utf-8")
@@ -1208,7 +1213,7 @@ class Handler(BaseHTTPRequestHandler):
                 start_ms = utc_ms(body["start"])
                 end_ms = utc_ms(body["end"]) if body.get("end") else None
                 label_id = int(route.split("/")[3]) if route.endswith("/edit") else None
-                saved_id = add_label(participant, str(body.get("label", "")), str(body.get("note", "")), start_ms, end_ms, label_id,body.get("activityId"),body.get("participantId"))
+                saved_id = add_label(participant, str(body.get("label", "")), str(body.get("note", "")), start_ms, end_ms, label_id,body.get("activityId"),body.get("participantId"),body.get("evidence"))
                 return self._json(200 if label_id is not None else 201, {"id": saved_id})
             if route.startswith("/api/labels/") and route.endswith("/stop"):
                 label_id = int(route.split("/")[3])
@@ -1220,7 +1225,7 @@ class Handler(BaseHTTPRequestHandler):
                         raise ValueError("Active label not found")
                     if end_ms <= row[0]:
                         raise ValueError("End must be later than start")
-                    connection.execute("UPDATE labels SET end_ms=? WHERE id=?", (end_ms, label_id))
+                    connection.execute("UPDATE labels SET end_ms=?,end_uncertainty_ms=CASE WHEN timing_precision='exact' THEN 0 ELSE NULL END WHERE id=?", (end_ms, label_id))
                 return self._json(200, {"ok": True})
             if route.startswith("/api/labels/") and route.endswith("/delete"):
                 label_id = int(route.split("/")[3])
