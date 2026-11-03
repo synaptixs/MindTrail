@@ -957,6 +957,12 @@ class Handler(BaseHTTPRequestHandler):
                 return
             if route.path == "/api/export/activity-assignments.csv":
                 return self._export_labels(extended=True)
+            if route.path == "/api/discovery/daily":
+                from discovery_daily_access import page
+                return self._json(200,page(self.server.analysis,self._selected(),{k:v[0] for k,v in params.items()}))
+            if route.path == "/api/discovery/daily/waveform":
+                from discovery_daily_access import waveform
+                return self._json(200,waveform(self.server.analysis,self._selected(),{k:v[0] for k,v in params.items()}))
             if route.path == "/api/discovery":
                 from discovery_contracts import read
                 return self._json(200,read(self.server.analysis,self._selected()))
@@ -1145,7 +1151,7 @@ class Handler(BaseHTTPRequestHandler):
             if name not in {"index.html", "app.js", "interval_time.js", "style.css", "data.html", "data.js", "data.css",
                             "eeg.html", "eeg.js", "eeg.css", "patterns.html", "patterns.js", "patterns.css",
                             "scores.html", "bluetooth.html", "bluetooth.js", "bluetooth.css",
-                            "welcome.html", "welcome.js", "welcome.css", "quality.html", "quality.js", "quality.css", "review.html", "review.js", "review.css", "explore.html", "explore.js", "explore.css", "similarity.js", "compare.html", "compare.js", "compare.css", "discover.html", "discover.js", "discover.css"}:
+                            "welcome.html", "welcome.js", "welcome.css", "quality.html", "quality.js", "quality.css", "review.html", "review.js", "review.css", "explore.html", "explore.js", "explore.css", "similarity.js", "compare.html", "compare.js", "compare.css", "discover.html", "discover.js", "discover.css", "discovery_daily.js"}:
                 return self._json(404, {"error": "Not found"})
             path = SOURCE_ROOT / "static" / name
             body = path.read_bytes()
@@ -1158,7 +1164,7 @@ class Handler(BaseHTTPRequestHandler):
                     "welcome.js": "text/javascript", "welcome.css": "text/css",
                     "quality.html": "text/html", "quality.js": "text/javascript", "quality.css": "text/css",
                     "review.html":"text/html","review.js":"text/javascript","review.css":"text/css",
-                    "explore.html":"text/html","explore.js":"text/javascript","explore.css":"text/css","similarity.js":"text/javascript","compare.html":"text/html","compare.js":"text/javascript","compare.css":"text/css","discover.html":"text/html","discover.js":"text/javascript","discover.css":"text/css"}[name]
+                    "explore.html":"text/html","explore.js":"text/javascript","explore.css":"text/css","similarity.js":"text/javascript","compare.html":"text/html","compare.js":"text/javascript","compare.css":"text/css","discover.html":"text/html","discover.js":"text/javascript","discover.css":"text/css","discovery_daily.js":"text/javascript"}[name]
             self.send_response(200)
             self.send_header("Content-Type", mime + "; charset=utf-8")
             self.send_header("Content-Length", str(len(body)))

@@ -21,9 +21,9 @@ from pathlib import Path, PurePosixPath
 
 VERSION = "0.2.7"
 ROOT = Path(__file__).resolve().parent.parent
-APP_FILES = ("app.py", "desktop.py", "desktop_runtime.py", "credential_store.py", "bluetooth_manager.py", "bluetooth_collector.py", "ble_protocol.py", "archive_paths.py", "analysis_manager.py", "personal_activities.py", "daily_review.py", "candidate_boundaries.py", "episode_review.py", "analysis_provenance.py", "exploration_access.py", "similar_periods.py", "activity_access.py", "discovery_contracts.py", "discovery_questions.py")
+APP_FILES = ("app.py", "desktop.py", "desktop_runtime.py", "credential_store.py", "bluetooth_manager.py", "bluetooth_collector.py", "ble_protocol.py", "archive_paths.py", "analysis_manager.py", "personal_activities.py", "daily_review.py", "candidate_boundaries.py", "episode_review.py", "analysis_provenance.py", "exploration_access.py", "similar_periods.py", "activity_access.py", "discovery_contracts.py", "discovery_questions.py", "discovery_daily.py", "discovery_daily_access.py")
 STATIC_FILES = tuple(name + extension for name in ("app", "data", "eeg", "patterns", "bluetooth", "welcome", "quality", "review", "explore", "compare", "discover") for extension in (".js", ".css"))
-STATIC_FILES = tuple(name for name in STATIC_FILES if name != "app.css") + ("interval_time.js", "similarity.js", "style.css", "index.html", "data.html", "eeg.html", "patterns.html", "scores.html", "bluetooth.html", "welcome.html", "quality.html", "review.html", "explore.html", "compare.html", "discover.html")
+STATIC_FILES = tuple(name for name in STATIC_FILES if name != "app.css") + ("interval_time.js", "similarity.js", "style.css", "index.html", "data.html", "eeg.html", "patterns.html", "scores.html", "bluetooth.html", "welcome.html", "quality.html", "review.html", "explore.html", "compare.html", "discover.html", "discovery_daily.js")
 
 
 def sha256(path: Path) -> str:
