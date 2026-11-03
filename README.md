@@ -120,6 +120,7 @@ Keep keys out of GitHub, screenshots, bug reports, and command-line arguments.
 | Zoom into a day and assign or edit labels | **Activity log** |
 | Examine waveforms, spectra, and recording gaps | **EEG signal** |
 | Inspect raw samples, sessions, and stats | **Data tables** |
+| Explore readiness without activity labels; save research questions (source workspace) | **Discover recordings** |
 | Review analysis coverage and screening cues (source workspace) | **Recording quality** |
 | Review optional offline clustering results | **Signal patterns** |
 | Scan and record directly from a device | **Bluetooth** |
@@ -136,6 +137,8 @@ Bluetooth stream. The dashboard shows the age of the latest recording.
 to stop the desktop app. Open MindTrail Lab again to return to your workspace.
 
 ### Detailed feature guides
+
+- [Label-free discovery readiness and optional questions](docs/DISCOVERY_READINESS.md)
 
 Expand only the guide you need:
 

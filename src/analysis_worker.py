@@ -58,6 +58,8 @@ def run(directory: Path) -> int:
             atomic_json(directory/'report.json',report,check)
             check()
             atomic_json(directory/'summary.json',summary)
+            from discovery_contracts import build as discovery_build
+            atomic_json(directory/'discovery.json',discovery_build(report,request['participant'],request['timezone'],demo=request['demo'],check=check),check)
             days=quality_days(report,check)
             for date,runs in sorted(days.items()):
                 atomic_json(directory/('quality-'+date+'.json'),{'version':1,'analysisIdentity':report['analysisIdentity'],'participantId':request['participant'],'runs':runs},check)
