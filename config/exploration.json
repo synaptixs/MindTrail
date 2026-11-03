@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "seed": 42,
+  "maximumInputWindows": 1000000,
+  "maximumGroups": 16,
+  "maximumSelectedPerGroup": 2000,
+  "minimumSelectedPerGroup": 20,
+  "minimumStartSpacingMs": 60000,
+  "timezone": "America/New_York",
+  "maximumComponents": 6,
+  "densityMinimumSizes": [15, 30, 60],
+  "densityMinimumSamples": 10
+}
