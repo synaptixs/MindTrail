@@ -32,7 +32,7 @@ def wait_for_workspace(process, profile):
             with opener.open(url.split("/launch")[0] + "/welcome.html", timeout=1) as response:
                 page = response.read().decode()
             assert 'id="api-key-guide"' in page and 'MindTrail Lab' in page
-            with opener.open(url.split("/launch")[0] + "/", timeout=1) as response:
+            with opener.open(url.split("/launch")[0] + "/index.html", timeout=1) as response:
                 overview = response.read().decode()
             assert 'href="/scores.html"' not in overview, "Mobile score navigation must be removed"
             assert 'id="recorded-periods"' in overview
