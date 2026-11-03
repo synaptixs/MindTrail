@@ -1,6 +1,6 @@
 'use strict';
 const $=id=>document.getElementById(id),T=MindTrailTime;
-let participant='',offset=0,historyOffset=0,items=[],selected=null,generation=0,viewGeneration=0,busy=false,refreshGeneration=0;
+let participant='',offset=0,historyOffset=0,items=[],selected=null,generation=0,viewGeneration=0,busy=false,refreshGeneration=0,lookupGeneration=0;
 const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const stamp=ms=>T.stamp(ms),iso=ms=>new Date(ms).toISOString();
 function notice(message){$('notice').textContent=message;}
@@ -17,11 +17,11 @@ async function load(){
     if(token!==refreshGeneration||q.participantId!==participant||h.participantId!==participant)return;
     items=q.items;
     $('queue-count').textContent=`Showing ${q.items.length} of ${q.total} eligible review items (offset ${q.offset}). ${q.ordinaryTotal} ordinary; ${q.candidateTotal} optional candidates. ${q.unknownTotal} unknown decisions; ${q.rejectedTotal} rejections. ${q.invalidTimestampRecords} invalid-timestamp records excluded. Candidate snapshot: ${q.candidateStatus}. Items can overlap and are not independent observations.`;
-    $('queue').innerHTML=q.items.length?q.items.map((item,i)=>`<article class="review-item"><strong>${esc(stamp(item.startMs))} → ${esc(stamp(item.endMsExclusive))}</strong><p>${esc(item.reason)}${item.annotation?' · '+esc(item.annotation.label)+' · '+esc(item.annotation.source)+' · '+esc(item.annotation.reviewState):''}</p><small>${(item.recordedMs/1000).toLocaleString()} recorded seconds · ${item.coveragePct.toFixed(1)}% interval coverage${item.kind==='candidate'?' · PELT · search resolution ≤'+item.maxResolutionMs/1000+'s':''}</small><div class="review-actions"><button class="button subtle" data-open="${i}">Review / edit${item.labelId?' / split':''}</button>${item.labelId&&$('cues').checked?`<button class="button subtle" data-action="confirm" data-index="${i}">Confirm existing annotation</button>`:''}<button class="button subtle" data-action="unknown" data-index="${i}">Activity unknown${item.labelId?' (replace annotation)':''}</button>${item.labelId&&!item.rejectable?'':`<button class="button subtle" data-action="rejected" data-index="${i}">${item.labelId?'Reject suggestion':'Skip this review item'}</button>`}</div></article>`).join(''):'<p>No eligible items in this page. Confirmed activities and explicitly unknown spans are retained separately. Use Previous if the queue shrank.</p>';
+    $('queue').innerHTML=q.items.length?q.items.map((item,i)=>`<article class="review-item">${item.labelId?`<span class="interval-number">Saved interval #${item.labelId}</span>`:''}<strong>${esc(stamp(item.startMs))} → ${esc(stamp(item.endMsExclusive))}</strong><p>${esc(item.reason)}${item.annotation?' · '+esc(item.annotation.label)+' · '+esc(item.annotation.source)+' · '+esc(item.annotation.reviewState):''}</p><small>${(item.recordedMs/1000).toLocaleString()} recorded seconds · ${item.coveragePct.toFixed(1)}% interval coverage${item.kind==='candidate'?' · PELT · search resolution ≤'+item.maxResolutionMs/1000+'s':''}</small><div class="review-actions"><button class="button subtle" data-open="${i}">Review / edit${item.labelId?' / split':''}</button>${item.labelId&&$('cues').checked?`<button class="button subtle" data-action="confirm" data-index="${i}">Confirm existing annotation</button>`:''}<button class="button subtle" data-action="unknown" data-index="${i}">Activity unknown${item.labelId?' (replace annotation)':''}</button>${item.labelId&&!item.rejectable?'':`<button class="button subtle" data-action="rejected" data-index="${i}">${item.labelId?'Reject suggestion':'Skip this review item'}</button>`}</div></article>`).join(''):'<p>No eligible items in this page. Confirmed activities and explicitly unknown spans are retained separately. Use Previous if the queue shrank.</p>';
     $('previous').disabled=busy||offset===0;$('next').disabled=busy||!q.hasMore;
     $('activities').replaceChildren(...v.activities.filter(a=>!a.archived).map(a=>new Option(a.name,a.name)));
     $('history-count').textContent=`Showing ${h.operations.length} of ${h.total} operations (offset ${h.offset}).`;
-    $('history').innerHTML=h.operations.map(op=>{const before=JSON.parse(op.before_json),after=JSON.parse(op.after_json);const rows=[...Object.values(after.labels),...Object.values(after.decisions)].filter(Boolean);const fallback=[...Object.values(before.labels),...Object.values(before.decisions)].filter(Boolean);return `<article class="review-item"><strong>#${op.id} · ${esc(op.action)}${op.undo_of?' of #'+op.undo_of:''}</strong><p>${(rows.length?rows:fallback).map(row=>esc(row.label||row.kind)+(row.label?' <a href="/review.html?labelId='+row.id+'">Open current interval #'+row.id+'</a>':'')+' · '+esc(stamp(row.start_ms))+' → '+esc(row.end_ms===null?'active':stamp(row.end_ms))).join('<br>')}</p><small>${esc(new Date(op.changed_ms).toLocaleString())}</small><div class="review-actions"><button class="button subtle" data-undo="${op.id}" ${op.undone?'disabled':''}>${op.undone?'Already undone':op.action==='undo'?'Reverse this undo':'Undo operation'}</button></div></article>`;}).join('')||'<p>No operations yet.</p>';
+    $('history').innerHTML=h.operations.map(op=>{const before=JSON.parse(op.before_json),after=JSON.parse(op.after_json);const rows=[...Object.values(after.labels),...Object.values(after.decisions)].filter(Boolean);const fallback=[...Object.values(before.labels),...Object.values(before.decisions)].filter(Boolean);return `<article class="review-item"><strong>Change #${op.id} · ${esc(op.action)}${op.undo_of?' of #'+op.undo_of:''}</strong><p>${(rows.length?rows:fallback).map(row=>esc(row.label||row.kind)+(row.label?' <a href="/review.html?labelId='+row.id+'">Open current interval #'+row.id+'</a>':'')+' · '+esc(stamp(row.start_ms))+' → '+esc(row.end_ms===null?'active':stamp(row.end_ms))).join('<br>')}</p><small>${esc(new Date(op.changed_ms).toLocaleString())}</small><div class="review-actions"><button class="button subtle" data-undo="${op.id}" ${op.undone?'disabled':''}>${op.undone?'Already undone':op.action==='undo'?'Reverse this undo':'Undo operation'}</button></div></article>`;}).join('')||'<p>No operations yet.</p>';
     $('history-previous').disabled=busy||historyOffset===0;$('history-next').disabled=busy||!h.hasMore;
   }catch(e){notice(e.message);}
 }
@@ -38,18 +38,38 @@ async function waveform(task,token){
 }
 async function openTask(task){
   close();const token=generation;selected={...task};$('editor').hidden=false;$('review-form').reset();$('uncertainty').hidden=true;
+  $('editor-title').textContent=task.labelId?'Saved interval #'+task.labelId:'Review selected period';
   $('selection').textContent=stamp(task.startMs)+' → '+stamp(task.endMsExclusive);
   $('selection-context').textContent=task.labelId?`Editing interval #${task.labelId}. ${$('cues').checked?'Existing annotation is shown.':'Blind entry: existing name and note are hidden.'}`:'Enter your own activity, or mark it unknown from the queue.';
   for(const [edge,ms] of [['start',task.startMs],['end',task.endMsExclusive],['cut',Math.floor((task.startMs+task.endMsExclusive)/2)]]){$(edge).value=T.input(ms);$(edge+'-offset').value=T.offset(ms);}
   $('split-controls').hidden=!task.labelId;$('eeg').href='/eeg.html?start='+encodeURIComponent(iso(task.startMs));
   waveform(task,viewGeneration);
   if(task.labelId&&$('cues').checked){
-    try {const label=await api('/api/review/label?id='+task.labelId);if(token!==generation||label.participantId!==participant)return;
+    try {const label=task.savedLabel||await api('/api/review/label?id='+task.labelId);if(token!==generation||label.participantId!==participant)return;
       selected.labelVersion=label.labelVersion;$('name').value=label.label;$('note').value=label.note;$('review-state').value=label.reviewState;
     }catch(e){notice(e.message);return;}
   }
   $('editor').scrollIntoView({block:'start'});$('name').focus({preventScroll:true});
 }
+async function openSavedInterval(value){
+  if(busy)return;
+  const id=Number(value);
+  if(!Number.isSafeInteger(id)||id<1){notice('Enter a positive saved interval number.');return;}
+  close();const token=generation,request=++lookupGeneration,person=participant;
+  $('open-interval').disabled=true;
+  try {
+    const label=await api('/api/review/label?id='+id);
+    if(request!==lookupGeneration||token!==generation||person!==participant||label.participantId!==person)return;
+    if(!label.end)throw new Error('Stop this active period in the Activity log first; splitting needs a finished interval.');
+    $('cues').checked=true;await load();
+    if(request!==lookupGeneration||token!==generation||person!==participant)return;
+    $('interval-number').value=String(id);
+    await openTask({labelId:id,labelVersion:label.labelVersion,startMs:Date.parse(label.start),endMsExclusive:Date.parse(label.end),savedLabel:label});
+    notice('Opened saved interval #'+id+'. Confirmed intervals are available here even when absent from the pending queue.');
+  }catch(e){if(request===lookupGeneration&&token===generation)notice(e.message);}
+  finally{if(request===lookupGeneration)$('open-interval').disabled=false;}
+}
+$('interval-lookup').addEventListener('submit',async event=>{event.preventDefault();await openSavedInterval($('interval-number').value);});
 async function resolve(edge){const result=await api('/api/local-time?value='+encodeURIComponent(T.wallValue($(edge).value)));return T.choose(result.choices,$(edge+'-offset').value).ms;}
 $('review-form').addEventListener('submit',async event=>{
   event.preventDefault();if(!selected||busy)return;
@@ -86,5 +106,5 @@ $('cancel').addEventListener('click',close);$('refresh').addEventListener('click
 $('cues').addEventListener('change',()=>{close();offset=0;load();});
 $('previous').addEventListener('click',()=>{offset=Math.max(0,offset-25);load();});$('next').addEventListener('click',()=>{offset+=25;load();});
 $('history-previous').addEventListener('click',()=>{historyOffset=Math.max(0,historyOffset-25);load();});$('history-next').addEventListener('click',()=>{historyOffset+=25;load();});
-async function init(){await load();const id=Number(new URLSearchParams(location.search).get('labelId'));if(id>0){try{const label=await api('/api/review/label?id='+id);if(!label.end)throw new Error('Stop this active period in the Activity log first; splitting needs a finished interval.');$('cues').checked=true;await openTask({labelId:id,labelVersion:label.labelVersion,startMs:Date.parse(label.start),endMsExclusive:Date.parse(label.end)});}catch(e){notice(e.message);}}}
+async function init(){await load();const value=new URLSearchParams(location.search).get('labelId');if(value!==null)await openSavedInterval(value);}
 init();
