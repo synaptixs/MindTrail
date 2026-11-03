@@ -112,7 +112,7 @@ TRIGGERS.update({
     'mt_review_insert': """AFTER INSERT ON labels WHEN NEW.review_state IS NULL OR NEW.reviewed!=(NEW.review_state='confirmed') BEGIN
         UPDATE labels SET review_state=COALESCE(NEW.review_state,CASE WHEN NEW.reviewed THEN 'confirmed' ELSE 'needs_review' END),
             reviewed=CASE WHEN COALESCE(NEW.review_state,CASE WHEN NEW.reviewed THEN 'confirmed' ELSE 'needs_review' END)='confirmed' THEN 1 ELSE 0 END WHERE id=NEW.id; END""",
-    'mt_review_legacy_update': """AFTER UPDATE OF reviewed ON labels WHEN NEW.reviewed!=OLD.reviewed AND NEW.review_state IS OLD.review_state BEGIN
+    'mt_review_legacy_update': """AFTER UPDATE OF reviewed ON labels WHEN NEW.reviewed!=OLD.reviewed AND NEW.review_state IS OLD.review_state AND NEW.reviewed!=(NEW.review_state='confirmed') BEGIN
         UPDATE labels SET review_state=CASE WHEN NEW.reviewed THEN 'confirmed' ELSE 'needs_review' END WHERE id=NEW.id; END""",
     'mt_review_state_update': """AFTER UPDATE OF review_state ON labels WHEN NEW.review_state IS NULL OR NEW.reviewed!=(NEW.review_state='confirmed') BEGIN
         UPDATE labels SET review_state=COALESCE(NEW.review_state,CASE WHEN NEW.reviewed THEN 'confirmed' ELSE 'needs_review' END),

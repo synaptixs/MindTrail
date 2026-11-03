@@ -308,12 +308,18 @@ class ActivityTests(unittest.TestCase):
         with app.db() as c:
             c.execute('UPDATE labels SET reviewed=1 WHERE id=?',(label_id,))
         self.assertEqual(self.label(label_id)['review_state'],'confirmed')
+        with app.db() as c:c.execute("UPDATE labels SET review_state='uncertain' WHERE id=?",(label_id,))
+        self.assertEqual(self.label(label_id)['review_state'],'uncertain')
+        self.assertEqual(self.label(label_id)['reviewed'],0)
         with app.db() as c:c.execute("UPDATE labels SET review_state='needs_review' WHERE id=?",(label_id,))
         self.assertEqual(self.label(label_id)['reviewed'],0)
         with app.db() as c:
             for query in ("UPDATE labels SET timing_precision='exact' WHERE id=?", "UPDATE labels SET start_uncertainty_ms=10 WHERE id=?"):
                 with self.assertRaises(sqlite3.IntegrityError):c.execute(query,(label_id,))
         self.assertNotIn('quality',json.dumps(self.export('A')['assignments'][0]))
+        with app.db() as c:
+            other=c.execute("INSERT INTO labels(participant_id,label,start_ms,end_ms,review_state) VALUES('A','Direct unsure',3000,4000,'uncertain')").lastrowid
+        self.assertEqual((self.label(other)['review_state'],self.label(other)['reviewed']),('uncertain',0))
 
     def test_summary_separates_confirmed_and_unsure_periods_with_same_activity(self):
         app.add_label('A','Read','',1000,2000)
