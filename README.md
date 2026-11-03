@@ -17,16 +17,16 @@ amplitude trends, inspect EEG, compare activities, and export your recordings.
 
 ## Download installers
 
-**Available installer: 0.2.5 (previous release)**
+**MindTrail Lab 0.2.6 — EEG-focused release**
 
 The source now focuses on daily right-ear EEG recordings, coverage, and activity
 labels. Mobile-score entry and charts are retired; saved observations remain archived.
-Updated 0.2.6 installers are being prepared.
+The Mac and Windows installers below include this cleanup.
 
 | Your computer | Download | Signing status |
 | --- | --- | --- |
-| **Mac — Apple Silicon or Intel** | [Download the Mac installer (.dmg)](https://github.com/synaptixs/MindTrail/releases/download/v0.2.5/MindTrail-Lab-0.2.5-Mac-universal2.dmg) | Developer ID signed; Apple notarized |
-| **Windows x64** | [Download the Windows installer — UNSIGNED (.exe)](https://github.com/synaptixs/MindTrail/releases/download/v0.2.5/MindTrail-Lab-0.2.5-Windows-x64-Setup-unsigned.exe) | **Unsigned — Azure publisher approval pending** |
+| **Mac — Apple Silicon or Intel** | [Download the Mac installer (.dmg)](https://github.com/synaptixs/MindTrail/releases/download/v0.2.6/MindTrail-Lab-0.2.6-Mac-universal2.dmg) | Developer ID signed; Apple notarized |
+| **Windows x64** | [Download the Windows installer — UNSIGNED (.exe)](https://github.com/synaptixs/MindTrail/releases/download/v0.2.6/MindTrail-Lab-0.2.6-Windows-x64-Setup-unsigned.exe) | **Unsigned — Azure publisher approval pending** |
 
 > **Windows testers:** this preview installer is unsigned. Windows or your browser
 > may show an unknown-publisher warning, and organization security policies may
@@ -37,8 +37,8 @@ Updated 0.2.6 installers are being prepared.
 Open the download and follow the [three setup steps below](#get-started).
 Python is included; you do not need to install it yourself.
 
-[Release notes and verification reports](https://github.com/synaptixs/MindTrail/releases/tag/v0.2.5) ·
-[SHA-256 checksums](https://github.com/synaptixs/MindTrail/releases/download/v0.2.5/SHA256SUMS.txt)
+[Release notes and verification reports](https://github.com/synaptixs/MindTrail/releases/tag/v0.2.6) ·
+[SHA-256 checksums](https://github.com/synaptixs/MindTrail/releases/download/v0.2.6/SHA256SUMS.txt)
 
 ## Get started
 
