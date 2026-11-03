@@ -85,3 +85,6 @@ round-trips. Node tests exercise pure geometry/formatting under a different host
 Real worker tests compare canonical cold/cached report bytes and check sidecar retention.
 Browser validation covers typing, keyboard selection, saving/reopening, data arrival and
 pinned/unpinned refresh. Private full-archive evidence stays outside the public repository.
+
+Optional P2-W4 candidate periods are documented in [CANDIDATE_BOUNDARIES.md](CANDIDATE_BOUNDARIES.md).
+They propose inspectable intervals without writing labels or changing saved boundaries.

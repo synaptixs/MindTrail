@@ -70,6 +70,9 @@ from pathlib import Path
 sys.path.insert(0,sys.argv[1])
 from analysis_manager import AnalysisManager
 import app
+import candidate_boundaries
+assert 'numpy' not in sys.modules
+assert candidate_boundaries.settings({'minimumSeconds':60,'sensitivity':'medium'})['minimumSeconds']==60
 manager=AnalysisManager(Path(sys.argv[2]),Path(sys.argv[2])/'absent.sqlite3')
 assert manager.available() is False
 state=manager.state('P')

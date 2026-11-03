@@ -7,6 +7,7 @@ import hashlib
 import importlib.util
 from importlib.metadata import PackageNotFoundError, version
 import json
+import math
 import os
 from pathlib import Path
 import re
@@ -20,7 +21,7 @@ from archive_paths import ArchivePaths
 
 
 JOB_ID=re.compile(r'^[0-9a-f]{32}$')
-SOURCE_FILES=('analysis_quality.py','analysis_provenance.py','analysis_worker.py','analysis_view.py','analysis_cache.py','analysis_resources.py','daily_review.py')
+SOURCE_FILES=('analysis_quality.py','analysis_provenance.py','analysis_worker.py','analysis_view.py','analysis_cache.py','analysis_resources.py','daily_review.py','candidate_boundaries.py')
 
 
 def write_json(path: Path, value: dict) -> None:
@@ -39,8 +40,8 @@ def read_json(path: Path, limit=2_000_000) -> dict:
 
 
 def remove_quality_payloads(directory):
-    for path in directory.glob('quality-*'):
-        if re.fullmatch(r'quality-(?:index|\d{4}-\d{2}-\d{2})\.(?:json|tmp)',path.name) and not path.is_symlink():path.unlink()
+    for path in directory.iterdir():
+        if re.fullmatch(r'(?:quality|boundaries)-(?:index|\d{4}-\d{2}-\d{2})\.(?:json|tmp)',path.name) and not path.is_symlink():path.unlink()
 
 
 class AnalysisManager:
@@ -99,7 +100,9 @@ class AnalysisManager:
         if not isinstance(timezone,str):raise ValueError('Invalid timezone')
         try:ZoneInfo(timezone)
         except (ZoneInfoNotFoundError,ValueError):raise ValueError('Choose a valid timezone') from None
-        return {'startMs':start,'endMs':end,'normalize':normalize,'timezone':timezone}
+        from candidate_boundaries import settings as boundary_settings
+        return {'startMs':start,'endMs':end,'normalize':normalize,'timezone':timezone,
+                'candidateBoundaries':boundary_settings(body.get('candidateBoundaries'))}
 
     def _recover(self):
         active=self.root/'active.json'
@@ -199,7 +202,7 @@ class AnalysisManager:
                             report=directory/'report.json'
                             if report.is_symlink() or not report.is_file() or summary['analysisIdentity']!=status['analysisIdentity']:raise ValueError('Incomplete report')
                             pointer={'id':self.job['id'],'signature':self.job['signature'],
-                                     'settings':{k:self.job[k] for k in ('startMs','endMs','normalize','timezone')}}
+                                     'settings':{k:self.job[k] for k in ('startMs','endMs','normalize','timezone','candidateBoundaries')}}
                             write_json(self.root/(self.job['scope']+'.json'),pointer)
                             try:self._prune()
                             except OSError:self.job['warning']='Older generated payloads could not be pruned.'
@@ -291,6 +294,41 @@ class AnalysisManager:
                     runs=value['runs']
                 if pointer['signature']!=self.signature():return {**result,'status':'stale'}
                 return {**result,'status':'current','runs':partition(runs,start,end,'not_analyzed')}
+            except (OSError,ValueError,KeyError,TypeError):return result
+
+    def daily_boundaries(self,participant,date):
+        """Only a complete, current, participant-scoped optional proposal snapshot."""
+        result={'participantId':participant,'date':date,'status':'unavailable','runs':[]}
+        if not participant or not re.fullmatch(r'\d{4}-\d{2}-\d{2}',date):return result
+        with self.lock:
+            try:
+                pointer=read_json(self.root/(self.scope(participant)+'.json'))
+                if pointer['signature']!=self.signature():return {**result,'status':'stale'}
+                if not pointer['settings'].get('candidateBoundaries'):return {**result,'status':'disabled'}
+                directory=self.directory(pointer['id'])
+                index=read_json(directory/'boundaries-index.json')
+                if index['version']!=1 or index['participantId']!=participant:raise ValueError('Invalid boundary scope')
+                if read_json(directory/'summary.json')['analysisIdentity']!=index['analysisIdentity']:raise ValueError('Invalid boundary source')
+                if date not in index['dates']:return {**result,'status':'current','eligibleWindows':0,'excludedWindows':0,'tooShortWindows':0}
+                value=read_json(directory/('boundaries-'+date+'.json'),limit=8_000_000)
+                if value['version']!=1 or value['participantId']!=participant or value['date']!=date or value['analysisIdentity']!=index['analysisIdentity'] or value['settings']!=pointer['settings']['candidateBoundaries']:raise ValueError('Invalid boundary identity')
+                for key in ('eligibleWindows','excludedWindows','tooShortWindows'):
+                    if type(value[key]) is not int or value[key]<0:raise ValueError('Invalid boundary accounting')
+                if not isinstance(value['candidateIdentity'],str):raise ValueError('Invalid candidate identity')
+                for run in value['runs']:
+                    if type(run['maxResolutionMs']) is not int or run['maxResolutionMs']<=0:raise ValueError('Invalid search resolution')
+                    a,b=run['startMs'],run['endMsExclusive']
+                    if type(a) is not int or type(b) is not int or a>=b:raise ValueError('Invalid boundary run')
+                    for method in ('baseline','pelt'):
+                        cursor=a
+                        segments=run['methods'][method]['segments']
+                        for span in segments:
+                            if type(span['startMs']) is not int or type(span['endMsExclusive']) is not int or span['startMs']!=cursor or not cursor<span['endMsExclusive']<=b:raise ValueError('Invalid proposal')
+                            if len(span['meanFeatures'])!=4 or any(type(v) not in (int,float) or not math.isfinite(v) for v in span['meanFeatures']):raise ValueError('Invalid candidate features')
+                            cursor=span['endMsExclusive']
+                        if segments and cursor!=b:raise ValueError('Incomplete proposal run')
+                if pointer['signature']!=self.signature():return {**result,'status':'stale'}
+                return {**value,'status':'current'}
             except (OSError,ValueError,KeyError,TypeError):return result
 
     def close(self):
