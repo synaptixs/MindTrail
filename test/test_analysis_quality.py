@@ -167,6 +167,32 @@ class QualityTests(unittest.TestCase):
             self.assertEqual(report['windows'][0]['acquisitionGroupId'],new.group_id)
             self.assertEqual(report['coverage']['boundaryRemainderRecordSeconds'],2)
 
+    def test_composite_acquisition_fixture_reconciles_all_windows_and_exclusions(self):
+        right=provenance.AcquisitionContext('P','D','bluetooth','right',256,None,'device-timestamp',session_id='A')
+        contexts=[right,replace(right,placement='left'),
+                  provenance.AcquisitionContext('P','D','awear-cloud','right',256,'RIGHT_TEMP','cloud-timestamp'),
+                  replace(right,participant_id='Q',device_id='E',session_id='B')]
+        spec=provenance.AnalysisSpec(normalization='within-acquisition-group-robust',quality_policy_version=quality.QualityPolicy().version)
+        engine=quality.QualityExtractor(spec,quality.QualityPolicy(),'fixed-fixture')
+        timestamp=0
+        tone=json.dumps(np.sin(2*np.pi*10*np.arange(256)/256).tolist())
+        for group,context in enumerate(contexts):
+            for _ in range(4):
+                engine.feed(provenance.SourceRecord(context,timestamp,json.dumps([0]*256) if group==1 else tone,256))
+                timestamp+=1000
+            if group==0:
+                engine.feed(provenance.SourceRecord(context,timestamp,'[NaN]',256));timestamp+=1000
+        report=engine.finish()
+        self.assertEqual(report['coverage']['sourceRecords'],17)
+        self.assertEqual(report['coverage']['excludedRecords'],1)
+        self.assertEqual(report['coverage']['computedWindows'],4)
+        self.assertEqual(report['coverage']['flaggedWindows'],1)
+        self.assertEqual(report['coverage']['boundaryRemainderRecordSeconds'],0)
+        self.assertEqual([w['startMs'] for w in report['windows']],[0,5000,9000,13000])
+        self.assertEqual([w['acquisitionGroupId'] for w in report['windows']],[c.group_id for c in contexts])
+        self.assertEqual(report['windows'][1]['qualityFlags'],['flatline'])
+        self.assertIsNone(report['windows'][1]['normalizedFeatures'])
+
     def test_flags_overlap_without_double_counting_and_preserve_features(self):
         self.add(0,32)
         self.add(32000,4,amplitude=1000)

@@ -16,7 +16,7 @@ def atomic_json(path: Path, value: dict, check=None) -> None:
     temporary=path.with_suffix('.tmp')
     with temporary.open('w',encoding='utf-8') as output:
         os.chmod(temporary,0o600)
-        encoder=json.JSONEncoder(ensure_ascii=False,allow_nan=False,separators=(',',':'))
+        encoder=json.JSONEncoder(ensure_ascii=False,allow_nan=False,sort_keys=True,separators=(',',':'))
         buffer=[]
         for index,chunk in enumerate(encoder.iterencode(value)):
             buffer.append(chunk)
@@ -39,6 +39,7 @@ def run(directory: Path) -> int:
             atomic_json(directory/'status.json',{'state':'running','stage':stage,'done':done,'total':total})
             last_update=time.monotonic()
     try:
+        from analysis_resources import peak_memory_bytes
         from analysis_cache import FeatureCache
         from analysis_quality import analyze_archive, QualityPolicy
         from analysis_provenance import AnalysisSpec
@@ -58,7 +59,8 @@ def run(directory: Path) -> int:
             atomic_json(directory/'summary.json',summary)
             check()
             atomic_json(directory/'status.json',{'state':'completed','stage':'completed','done':1,'total':1,
-                'reusedWindows':cache.hits,'computedFeatures':cache.misses,'analysisIdentity':report['analysisIdentity']})
+                'reusedWindows':cache.hits,'computedFeatures':cache.misses,'analysisIdentity':report['analysisIdentity'],
+                'peakMemoryBytes':peak_memory_bytes()})
         return 0
     except AnalysisCancelled:
         (directory/'report.tmp').unlink(missing_ok=True)

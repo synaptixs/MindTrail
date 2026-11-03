@@ -546,3 +546,7 @@ This currently analyzes saved cloud EEG with right-ear metadata. Bluetooth-file
 analysis and the packaged numerical runtime are still pending; current installer
 builds show this analysis as unavailable. See the [analysis contracts](docs/ANALYSIS_QUALITY.md)
 for exact accounting, units and limitations.
+
+For reproducible full-archive resource and preservation checks, see
+[Phase 1 acceptance](docs/PHASE1_ACCEPTANCE.md). Its runner uses private disposable
+copies and creates a self-contained coverage review report.

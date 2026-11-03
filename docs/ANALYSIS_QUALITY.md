@@ -125,7 +125,7 @@ A window ID identifies its local input/configuration. Quality flags and normaliz
 also depend on the group's reference population: use the report's analysis identity,
 not a window ID alone, to identify those derived results. Raw numeric features can be cached by window ID. Quality flags and normalization references are always recalculated for the complete selected snapshot.
 
-Full-archive performance budgets, Bluetooth-file ingestion and complete Phase 1 acceptance remain pending.
+See [Phase 1 acceptance](PHASE1_ACCEPTANCE.md) for full-archive validation and resource budgets. Bluetooth-file ingestion remains separate work.
 
 
 ## Source-workspace background analysis
@@ -179,10 +179,14 @@ milliseconds; local labels include timezone offsets across daylight-saving chang
 The manager retains each participant/database's current full report plus one extra
 recent payload, and all small job summaries/status records. Only generated
 `jobs/<validated-id>/report.json` payloads are pruned after success; downloaded/user
-exports and raw data are untouched. Cache/metadata cleanup and full archive resource
-budgets remain Phase 1 acceptance work.
+exports and raw data are untouched. Long-term cache/metadata cleanup remains longitudinal-release work;
+[Phase 1 acceptance](PHASE1_ACCEPTANCE.md) bounds the tested reference resource envelope.
 
 This increment enables numerical jobs in the **source workspace** with NumPy.
 Packaged apps include the page and stdlib lifecycle API but show analysis as
 unavailable. Bundling/validating the numerical runtime remains release work;
 these changes do not claim new analysis functionality in current public installers.
+
+Worker-generated JSON uses canonical key ordering, so cold and cached reports are
+byte-identical in the pinned numerical environment. OS peak memory is exposed as
+`peakMemoryBytes` in completed job status, outside the deterministic report.

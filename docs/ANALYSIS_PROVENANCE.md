@@ -3,7 +3,8 @@
 This Phase 1 module defines acquisition/window identities and provides a read-only
 cloud-source inventory. [Quality/feature extraction](ANALYSIS_QUALITY.md) now shares
 the source snapshot through an optional record callback. Incremental feature caching,
-background jobs and the coverage dashboard remain subsequent increments.
+background jobs and the coverage dashboard now use this contract; see
+[quality analysis](ANALYSIS_QUALITY.md) and [Phase 1 acceptance](PHASE1_ACCEPTANCE.md).
 No existing clustering behavior, raw records or personal labels are changed here.
 
 ## Inspect an archive
