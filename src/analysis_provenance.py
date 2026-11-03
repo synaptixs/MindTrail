@@ -15,6 +15,7 @@ import math
 from pathlib import Path
 import sqlite3
 import sys
+from typing import Callable
 
 CONTRACT_VERSION = 1
 METHOD_VERSION = "provenance-v1"
@@ -161,7 +162,9 @@ def _sqlite_value(value: object) -> object:
 
 
 def inspect_archive(database: Path, participant: str | None = None,
-                    spec: AnalysisSpec | None = None) -> dict:
+                    spec: AnalysisSpec | None = None, *,
+                    on_record: Callable[[AcquisitionContext, tuple], None] | None = None,
+                    start_ms: int | None = None, end_ms: int | None = None) -> dict:
     """Stream a consistent cloud-source snapshot without setup/migrations or key access.
 
     Every selected record, including invalid waveform text, affects the revision.
@@ -169,6 +172,10 @@ def inspect_archive(database: Path, participant: str | None = None,
     No claim about waveform eligibility or signal quality is made by this inventory.
     """
     spec = spec or AnalysisSpec()
+    if any(value is not None and (type(value) is not int or value < 0) for value in (start_ms, end_ms)):
+        raise ValueError("Range boundaries must be nonnegative UTC epoch milliseconds")
+    if start_ms is not None and end_ms is not None and start_ms >= end_ms:
+        raise ValueError("Range start must precede end")
     database = database.expanduser().resolve()
     with closing(sqlite3.connect(database.as_uri() + "?mode=ro", uri=True)) as connection:
         connection.execute("PRAGMA query_only=ON")
@@ -190,14 +197,21 @@ def inspect_archive(database: Path, participant: str | None = None,
             digest.update(len(encoded).to_bytes(8, "big"))
             digest.update(encoded)
         include({"contractVersion": CONTRACT_VERSION, "source": asdict(context)})
+        conditions, arguments = ["participant_id=?"], [participant]
+        for boundary, operator in ((start_ms, ">="), (end_ms, "<")):
+            if boundary is not None:
+                conditions.append(f"timestamp_ms {operator} ?")
+                arguments.append(boundary)
+        if start_ms is not None or end_ms is not None:
+            include({"startMs": start_ms, "endMsExclusive": end_ms})
         device_column = "device_id" if "device_id" in columns else "NULL"
         query = f"""SELECT timestamp_ms,{device_column},sample_count,waveform_json
-            FROM readings WHERE participant_id=?
+            FROM readings WHERE {' AND '.join(conditions)}
             ORDER BY timestamp_ms,{device_column},sample_count,waveform_json"""
         count = invalid_times = 0
         first = last = None
         devices = Counter()
-        for row in connection.execute(query, (participant,)):
+        for row in connection.execute(query, arguments):
             include([_sqlite_value(value) for value in row])
             count += 1
             if type(row[0]) is int and row[0] >= 0:
@@ -207,6 +221,8 @@ def inspect_archive(database: Path, participant: str | None = None,
                 invalid_times += 1
             device = row[1] if isinstance(row[1], str) and row[1] else None
             devices[device] += 1
+            if on_record is not None:
+                on_record(context, row)
         revision = digest.hexdigest()
     implementation = implementation_fingerprint()
     return {"contractVersion": CONTRACT_VERSION, "methodVersion": METHOD_VERSION,
@@ -216,6 +232,7 @@ def inspect_archive(database: Path, participant: str | None = None,
             "sourceRevision": revision, "analysisIdentity": analysis_identity(revision, spec, implementation),
             "implementationFingerprint": implementation, "python": list(sys.version_info[:3]),
             "spec": asdict(spec), "recordCount": count, "firstTimestampMs": first, "lastTimestampMs": last,
+            "range": {"startMs": start_ms, "endMsExclusive": end_ms},
             "invalidTimestampRecords": invalid_times,
             "deviceCounts": [{"deviceId": device, "records": devices[device]}
                              for device in sorted(devices, key=lambda value: (value is not None, value or ""))]}

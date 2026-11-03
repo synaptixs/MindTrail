@@ -20,25 +20,16 @@ from sklearn.mixture import GaussianMixture
 from sklearn.preprocessing import RobustScaler
 
 import app
+from analysis_quality import BANDS, power_spectrum
 
 SAMPLE_RATE = 256
 WINDOW_SECONDS = 4
-BANDS = ((1, 4), (4, 8), (8, 13), (13, 30), (30, 40.01))
 SEED = 17
 
 
 def features(samples: np.ndarray) -> tuple[list[float], list[float]]:
     """Return model inputs and descriptive 1–40 Hz band shares."""
-    n = samples.size
-    x = np.arange(n, dtype=np.float64) - (n - 1) / 2
-    centered = samples - samples.mean()
-    slope = np.dot(x, centered) / np.dot(x, x)
-    detrended = centered - slope * x
-    fft = np.fft.rfft(detrended * np.hanning(n))
-    power = np.abs(fft) ** 2
-    frequencies = np.fft.rfftfreq(n, 1 / SAMPLE_RATE)
-    band_power = np.array([power[(frequencies >= low) & (frequencies < high)].sum()
-                           for low, high in BANDS])
+    band_power = power_spectrum(samples, SAMPLE_RATE)["rawBandPower"]
     total = float(band_power.sum())
     shares = band_power / max(total, 1e-12)
     # Delta is implicit because the five shares sum to one. Log power keeps
