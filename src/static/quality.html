@@ -47,6 +47,8 @@
             <label>Sensitivity <select id="boundary-sensitivity"><option value="low">Low — fewer changes</option><option value="medium" selected>Medium</option><option value="high">High — more changes</option></select></label>
             <p>Run analysis to apply these settings, then open candidate periods on a daily chart in <a href="/#recorded-periods">Recorded periods</a>. Long runs use a coarser search grid; its resolution is shown there. Numerical analysis currently requires the source workspace.</p>
           </details>
+          <label><input type="checkbox" id="exploration"> Include feature exploration, PCA and representative windows</label>
+          <p><a href="/explore.html">Open feature explorer →</a> · Optional source-workspace analysis.</p>
           <div class="quality-actions"><button id="start" class="button primary" type="button">Run analysis</button><button id="cancel" class="button subtle" type="button" hidden>Cancel</button><a id="download" class="button subtle" href="/api/analysis/report" hidden>Download full JSON report</a></div>
           <label><input type="checkbox" id="auto"> Update automatically when saved recordings change (at most once a minute)</label>
           <p id="status" role="status" aria-live="polite">Loading analysis status…</p><progress id="progress" hidden aria-label="Current analysis stage"></progress>

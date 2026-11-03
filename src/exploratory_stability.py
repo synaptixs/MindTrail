@@ -201,7 +201,7 @@ def condition_summary(labels, windows, days, config):
                               'unassignedWindows': int(np.sum((day_array == d) & ~assigned))} for d in all_days]}
 
 
-def evaluate_group(group, sampling, config, grid):
+def evaluate_group(group, sampling, config, grid, check=lambda: None):
     windows = group['windows']
     zone = ZoneInfo(sampling['timezone'])
     days = [datetime.fromtimestamp(w['startMs']/1000, timezone.utc).astimezone(zone).date().isoformat() for w in windows]
@@ -221,6 +221,7 @@ def evaluate_group(group, sampling, config, grid):
         raw = raw_all if view == 'with_power' else raw_all[:, 1:] if len(raw_all) else raw_all
         candidates, full_labels = [], {}
         for candidate in grid:
+            check()
             fitted, labels, _ = fit_candidate(raw, candidate, sampling['minimumSelectedPerGroup'])
             entry = dict(candidate, **fitted)
             if labels is not None:
@@ -241,6 +242,7 @@ def evaluate_group(group, sampling, config, grid):
             keep = np.asarray(change['trainingIndices'], dtype=int)
             excluded = np.setdiff1d(np.arange(len(windows)), keep)
             for candidate in anchors:
+                check()
                 cid = candidate['candidateId']
                 if not len(excluded):
                     refits.append({'perturbationId': change['id'], 'candidateId': cid,
@@ -267,19 +269,26 @@ def evaluate_group(group, sampling, config, grid):
     return result
 
 
-def analyze_stability(report, sampling_config, stability_config):
+def analyze_stability(report, sampling_config, stability_config, *, check=lambda: None, progress=lambda stage, done, total: None):
     sampling = base.configuration(sampling_config)
     config = configuration(stability_config)
+    check()
     snapshot, groups = base.prepare_snapshot(report, sampling)
     grid = candidate_grid(sampling)
     with threadpool_limits(limits=1):
         environment = {'python': platform.python_version(), 'numpy': np.__version__, 'scipy': scipy.__version__,
             'sklearn': sklearn.__version__, 'threadpools': [{k: p.get(k) for k in ('internal_api', 'version', 'architecture', 'num_threads')} for p in threadpool_info()]}
+        evaluated = []
+        for index, group in enumerate(groups):
+            progress('exploring acquisition groups', index, len(groups))
+            evaluated.append(evaluate_group(group, sampling, config, grid, check))
+        check()
+        progress('exploring acquisition groups', len(groups), len(groups))
         result = {'version': 1, 'methodVersion': VERSION, 'snapshot': snapshot,
             'samplingConfiguration': sampling, 'stabilityConfiguration': config, 'candidateGrid': grid,
             'implementation': {'sources': {name: hashlib.sha256(Path(__file__).with_name(name).read_bytes()).hexdigest()
                 for name in ('exploratory_stability.py', 'exploratory_models.py', 'analysis_provenance.py', 'analysis_quality.py')}, 'environment': environment},
-            'groups': [evaluate_group(g, sampling, config, grid) for g in groups],
+            'groups': evaluated,
             'defaultMethod': None, 'limitations': [
                 'Exploratory signal groups are not activities, moods or clinical states',
                 'Only selected windows are fitted; original exclusions and sampling omissions remain in scope',
