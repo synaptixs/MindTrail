@@ -1019,6 +1019,9 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(200, recorded_intervals(participant, before_ms))
             if route.path == "/api/local-time":
                 return self._json(200,daily_review.wall_time(params.get("value",[""])[0]))
+            if route.path == "/api/daily-boundaries":
+                recording_day_bounds(params.get("date",[""])[0])
+                return self._json(200,self.server.analysis.daily_boundaries(self._selected(),params['date'][0]))
             if route.path == "/api/daily-quality":
                 lower,upper=recording_day_bounds(params.get("date",[""])[0])
                 start,end=utc_ms(params["start"][0]),utc_ms(params["end"][0])

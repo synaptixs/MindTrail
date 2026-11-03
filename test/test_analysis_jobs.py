@@ -42,6 +42,34 @@ class JobTests(unittest.TestCase):
         self.assertFalse(self.manager.running(),'worker did not finish')
         return self.manager.state('P')
 
+    @unittest.skipUnless(HAS_NUMPY,'optional NumPy')
+    def test_optional_boundary_sidecars_are_deterministic_scoped_and_stale(self):
+        self.add(0,120)
+        before=hashlib.sha256(self.database.read_bytes()).hexdigest()
+        config={'candidateBoundaries':{'minimumSeconds':12,'sensitivity':'medium'}}
+        self.manager.start('P',config);first=self.wait()
+        self.assertEqual(first['job']['state'],'completed',first)
+        value=self.manager.daily_boundaries('P','1969-12-31')
+        self.assertEqual(value['status'],'current');self.assertEqual(value['eligibleWindows'],30)
+        self.assertEqual(self.manager.daily_boundaries('Other','1969-12-31')['status'],'unavailable')
+        path=self.manager.report_path('P');cold=path.read_bytes()
+        sidecar=path.parent/'boundaries-1969-12-31.json';payload=sidecar.read_bytes()
+        self.manager.start('P',config);second=self.wait()
+        self.assertEqual(second['job']['state'],'completed',second)
+        path=self.manager.report_path('P')
+        self.assertEqual(cold,path.read_bytes());self.assertEqual(payload,(path.parent/sidecar.name).read_bytes())
+        self.assertEqual(hashlib.sha256(self.database.read_bytes()).hexdigest(),before)
+        sidecar=path.parent/sidecar.name
+        corrupt=json.loads(sidecar.read_text(encoding='utf-8'));corrupt['participantId']='Other'
+        sidecar.write_text(json.dumps(corrupt),encoding='utf-8')
+        self.assertEqual(self.manager.daily_boundaries('P','1969-12-31')['status'],'unavailable')
+        sidecar.write_bytes(payload)
+        self.add(120000,4)
+        self.assertEqual(self.manager.daily_boundaries('P','1969-12-31')['status'],'stale')
+        self.manager.start('P',{});self.wait()
+        self.assertEqual(self.manager.daily_boundaries('P','1969-12-31')['status'],'disabled')
+        self.assertFalse(list(self.manager.report_path('P').parent.glob('boundaries-*')))
+
     def test_stdlib_manager_unavailable_in_bundle_and_no_eager_files(self):
         self.assertFalse(self.manager.root.exists())
         with patch.dict(os.environ,{'AWEAR_BUNDLED_RUNTIME':'1'}):

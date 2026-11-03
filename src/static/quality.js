@@ -31,7 +31,7 @@ function draw(){
 function render(state){
   $('participant').textContent=state.demo?'Synthetic demo':(state.participantId||'No participant selected');
   $('source').textContent=state.demo?'Synthetic demo data · Cloud-format recordings · right-ear metadata. These are not personal EEG measurements.':'Cloud recordings · behind the right ear · RIGHT_TEMP · 256 Hz. Bluetooth captures are not included in this analysis.';
-  if(!initialized){if(state.settings)$('normalize').checked=state.settings.normalize;initialized=true;}
+  if(!initialized){if(state.settings){$('normalize').checked=state.settings.normalize;const b=state.settings.candidateBoundaries;$('boundaries').checked=!!b;if(b){$('boundary-minimum').value=b.minimumSeconds;$('boundary-sensitivity').value=b.sensitivity;}}initialized=true;}
   latest=state;const job=state.job;busy=!!job&&['running','canceling'].includes(job.state);
   $('start').disabled=busy||!state.available||!state.participantId;$('cancel').hidden=!busy||job?.external;$('cancel').disabled=job?.state==='canceling';
   $('progress').hidden=!busy;if(busy&&job.total>0){$('progress').max=job.total;$('progress').value=job.done;}else $('progress').removeAttribute('value');
@@ -57,7 +57,7 @@ function render(state){
   $('day').replaceChildren(new Option('All days','all'),...keys.map(k=>new Option(k,k)));$('day').value=keys.includes(selected)?selected:'all';draw();
 }
 async function refresh(){try{const state=await request('/api/analysis/state');render(state);if($('auto').checked&&!autoBlocked&&state.available&&state.stale&&!busy&&Date.now()-lastStart>60000)await start();}catch(e){$('status').textContent=e.message;}}
-async function start(){autoBlocked=false;lastStart=Date.now();$('start').disabled=true;try{await request('/api/analysis/start',{normalize:$('normalize').checked,timezone:Intl.DateTimeFormat().resolvedOptions().timeZone});await refresh();}catch(e){autoBlocked=true;$('status').textContent=e.message;$('start').disabled=false;}}
+async function start(){autoBlocked=false;lastStart=Date.now();$('start').disabled=true;try{await request('/api/analysis/start',{candidateBoundaries:$('boundaries').checked?{minimumSeconds:Number($('boundary-minimum').value),sensitivity:$('boundary-sensitivity').value}:null,normalize:$('normalize').checked,timezone:Intl.DateTimeFormat().resolvedOptions().timeZone});await refresh();}catch(e){autoBlocked=true;$('status').textContent=e.message;$('start').disabled=false;}}
 $('start').addEventListener('click',start);$('cancel').addEventListener('click',async()=>{autoBlocked=true;$('auto').checked=false;try{await request('/api/analysis/cancel',{});await refresh();}catch(e){$('status').textContent=e.message;}});$('day').addEventListener('change',draw);
 $('auto').addEventListener('change',()=>{autoBlocked=false;});
 refresh();setInterval(refresh,2000);

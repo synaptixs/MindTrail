@@ -2,6 +2,7 @@ const $ = (id) => document.getElementById(id);
 const state = { rangeHours: 168, mode: 'live', selected: '', refreshing: false, showSetup: false,
   labelGeneration:0,editingLabel: null, editingInputs: null, pendingLabelRange: null,
   activityItems: [], activitiesLoadedFor: null, activityRevision: null, activityTotal: 0, activityOffset: 0, activityHasMore: false, activityRequest: 0, activityEdit: null,
+  dayCandidates:new Map(),candidateOpen:new Set(),candidateMethods:new Map(),candidateLimits:new Map(),
   dayDrafts:new Map(),dayExactOpen:new Set(),dayQuality:new Map(),dayRanges: new Map(), dayViews: new Map(), dayDragging: null, dayRequest: 0,
   context: null, focus: null, rangeVersion: 0, refreshQueued: false, summary: null, view: null, dragging: null,
   intervals: [], days: [], expandedDays: new Set(), intervalSignature: '', nextBefore: null, intervalPages: 1, intervalLoading: false, intervalsFetchedAt: 0 };
@@ -327,6 +328,32 @@ function dayBrush(day,plot,width) {
   const handles=['start','end'].map(edge=>`<g class="brush-handle day-handle" data-day="${day.date}" data-day-handle="${edge}" transform="translate(${edge==='start'?left:right} 0)" role="slider" tabindex="0" aria-label="${day.date} ${edge} time handle" aria-orientation="horizontal" aria-valuemin="${(edge==='start'?Date.parse(day.start):range.start+minimum)/1000}" aria-valuemax="${(edge==='start'?range.end-minimum:Date.parse(day.end))/1000}" aria-valuenow="${range[edge]/1000}" aria-valuetext="${escapeHtml(dayStamp(day,range[edge]))}"><title>Drag ${edge} time, then release to zoom</title><rect class="brush-hit" x="-18" y="5" width="36" height="151"/><line class="brush-line" x1="0" x2="0" y1="8" y2="154"/><rect class="brush-grip" x="-7" y="57" width="14" height="29" rx="4"/><path class="brush-grip-mark" d="M-2 65v13 M2 65v13"/></g>`).join('');
   return `<svg class="day-range-brush" preserveAspectRatio="none" viewBox="0 0 ${width} 190" aria-label="Select a period on ${day.date}"><rect class="brush-dim day-before" x="4" y="8" width="${left-4}" height="146"/><rect class="brush-selected day-selected" x="${left}" y="8" width="${Math.max(0,right-left)}" height="146"/><rect class="brush-dim day-after" x="${right}" y="8" width="${width-4-right}" height="146"/>${handles}</svg>`;
 }
+function candidatePeriods(day) {
+  const value=state.dayCandidates.get(day.date);
+  if(value?.status!=='current'||value.participantId!==state.selected)return [];
+  const method=state.candidateMethods.get(day.date)||'pelt';
+  return value.runs.flatMap(run=>run.methods[method].segments.map((span,index)=>({...span,run,index,method})))
+    .filter(span=>span.startMs>=Date.parse(day.start)&&span.endMsExclusive<=Date.parse(day.end));
+}
+function candidatePanel(day) {
+  const open=state.candidateOpen.has(day.date),value=state.dayCandidates.get(day.date),periods=candidatePeriods(day);
+  const method=state.candidateMethods.get(day.date)||'pelt',limit=state.candidateLimits.get(day.date)||25,shown=periods.slice(0,limit);
+  const stateText=value?.loading?'Loading candidate periods…':value?.status==='stale'?'Recording data or analysis code changed. Run analysis again; previous proposals are withheld.':value?.status==='disabled'?'Candidate detection is off. Enable it in Recording quality and run analysis.':value?.status==='current'?'Provisional signal periods. Review the EEG and choose your own activity; no labels are saved automatically.':'No current candidate snapshot. Enable candidate periods and run analysis in Recording quality.';
+  return `<details class="day-candidates" data-date="${day.date}" ${open?'open':''}><summary>Optional candidate periods · provisional</summary>${open?`<p>${escapeHtml(stateText)} <a href="/quality.html">Settings &amp; run analysis ↗</a></p>${value?.status==='current'?`<label>Compare method <select data-candidate-method="${day.date}"><option value="pelt" ${method==='pelt'?'selected':''}>PELT</option><option value="baseline" ${method==='baseline'?'selected':''}>Simple split baseline</option></select></label><p>${value.eligibleWindows} unflagged input windows (${value.tooShortWindows} in runs shorter than the minimum);  ${value.excludedWindows} computed windows excluded by screening or midnight crossing. Minimum ${value.settings?.minimumSeconds??'—'}s · ${escapeHtml(value.settings?.sensitivity||'')} sensitivity. Unanalyzed records and gaps are outside these runs.</p><p>First ${shown.length} of ${periods.length} proposed periods, ordered by time. Run edges reflect recording/quality/day boundaries; internal edges are proposed mean changes. Short runs may have no eligible period.</p><div class="candidate-list">${shown.map((span,i)=>`<div><button class="button subtle" type="button" data-candidate-day="${day.date}" data-candidate-index="${i}">Inspect ${escapeHtml(dayStamp(day,span.startMs))} → ${escapeHtml(dayStamp(day,span.endMsExclusive))}</button><small>Search resolution ≤${span.run.maxResolutionMs/1000}s · log power ${span.meanFeatures[0].toFixed(2)} · alpha share ${(span.meanFeatures[2]*100).toFixed(1)}%</small></div>`).join('')}</div>${periods.length>shown.length?`<button class="button subtle" type="button" data-candidate-more="${day.date}">Show 25 more</button>`:''}<a href="/api/daily-boundaries?date=${day.date}" target="_blank" rel="noopener">Full candidate JSON ↗</a>`:''}`:''}</details>`;
+}
+async function loadDayCandidates(day) {
+  if(!state.candidateOpen.has(day.date))return;
+  const participant=state.selected,old=state.dayCandidates.get(day.date),token={};
+  if(old?.loading)return;
+  state.dayCandidates.set(day.date,{...old,loading:token});
+  try {
+    const value=await api('/api/daily-boundaries?'+new URLSearchParams({date:day.date}));
+    if(state.selected!==participant||value.participantId!==participant||state.dayCandidates.get(day.date)?.loading!==token)return;
+    state.dayCandidates.set(day.date,value);
+    if(JSON.stringify({...old,loading:undefined})!==JSON.stringify(value))renderIntervals();
+  }catch(e){if(state.dayCandidates.get(day.date)?.loading===token){state.dayCandidates.set(day.date,{status:'unavailable'});renderIntervals();}}
+  finally{const v=state.dayCandidates.get(day.date);if(v?.loading===token)state.dayCandidates.delete(day.date);}
+}
 function dailyPreview(period) {
   const pinned=state.dayRanges.has(period.date),view=state.dayViews.get(period.date);
   const plot=pinned&&view?.data?view.data:period;
@@ -353,9 +380,10 @@ function dailyPreview(period) {
   const clock=(stamp,seconds=false)=>new Date(stamp).toLocaleTimeString([],{timeZone:period.timezone,hour:'numeric',minute:'2-digit',...(seconds?{second:'2-digit'}:{})});
   const fractions=W<400?[0,1]:W<600?[0,.5,1]:[0,.25,.5,.75,1];
   const ticks=fractions.map((fraction,index)=>`<text x="${L+fraction*(R-L)}" y="178" text-anchor="${index===0?'start':index===fractions.length-1?'end':'middle'}" font-size="11" fill="#7a9184">${escapeHtml(clock(start+fraction*(end-start),fraction===0||fraction===1))}</text>`).join('');
+  const candidateMarks=state.candidateOpen.has(period.date)?candidatePeriods(period).filter(span=>span.index>0&&span.startMs>start&&span.startMs<end).map(span=>`<line class="candidate-mark" x1="${x(new Date(span.startMs).toISOString())}" x2="${x(new Date(span.startMs).toISOString())}" y1="8" y2="130"><title>Provisional ${escapeHtml(span.method)} mean change · ${escapeHtml(dayStamp(period,span.startMs))}</title></line>`).join(''):'';
   const empty=points.length?'':`<text x="${W/2}" y="72" text-anchor="middle" font-size="12" fill="#789080">No EEG records in this selection</text>`;
   const status=view?.loading?'Loading detailed view…':view?.error?view.error:pinned?'Zoomed view · range pinned':'Full day · follows new recordings';
-  return `<div class="interval-preview daily-preview" data-day="${period.date}" data-start="${period.start}" data-end="${period.end}" data-view-start="${plot.start}" data-view-end="${plot.end}" data-selected-start="${new Date(range.start).toISOString()}" data-selected-end="${new Date(range.end).toISOString()}"><div class="preview-heading"><span>AC RMS · drag either edge to zoom</span><span>0–${max.toFixed(1)} device units · auto scale</span></div><div class="daily-stage"><svg class="day-signal" viewBox="0 0 ${W} 190" preserveAspectRatio="none" role="group" aria-label="Daily amplitude, ${escapeHtml(clock(plot.start,true))} to ${escapeHtml(clock(plot.end,true))}; ${plot.records} source records; ${(plot.lanes?.recordedMs||0)/1000} seconds covered. Hover a point for details, click to open EEG."><rect x="${L}" y="8" width="${R-L}" height="122" fill="#f7faf8"/>${shade}<line x1="${L}" y1="130" x2="${R}" y2="130" stroke="#e2ebe5"/>${lines}${empty}<rect x="${L}" y="146" width="${R-L}" height="8" fill="#e9eeeb"/>${coverage}${hits}${ticks}</svg>${dayBrush(period,plot,W)}</div>${dailyLanes(period,plot)}<div class="preview-key"><span><i></i>Recorded</span><span><i class="missing"></i>Missing</span><span>${preview.bucketMs/1000}s buckets from whole-second amplitude summaries · activity shading · ${escapeHtml(period.timezone)}</span></div><div class="day-selection"><strong class="day-selection-times">${escapeHtml(dayStamp(period,range.start))} → ${escapeHtml(dayStamp(period,range.end))}</strong><span class="day-view-status">${escapeHtml(status)}</span></div><div class="day-selection-actions"><button class="button subtle" type="button" data-day-reset="${period.date}" ${pinned?'':'disabled'}>Show entire day</button><button class="button primary" type="button" data-day-assign="${period.date}" ${selection.blocked?'disabled':''}>Assign activity to selection</button></div><p class="day-selection-note">${escapeHtml(selection.message)}</p>${dailyExact(period,range)}</div>`;
+  return `<div class="interval-preview daily-preview" data-day="${period.date}" data-start="${period.start}" data-end="${period.end}" data-view-start="${plot.start}" data-view-end="${plot.end}" data-selected-start="${new Date(range.start).toISOString()}" data-selected-end="${new Date(range.end).toISOString()}"><div class="preview-heading"><span>AC RMS · drag either edge to zoom</span><span>0–${max.toFixed(1)} device units · auto scale</span></div><div class="daily-stage"><svg class="day-signal" viewBox="0 0 ${W} 190" preserveAspectRatio="none" role="group" aria-label="Daily amplitude, ${escapeHtml(clock(plot.start,true))} to ${escapeHtml(clock(plot.end,true))}; ${plot.records} source records; ${(plot.lanes?.recordedMs||0)/1000} seconds covered. Hover a point for details, click to open EEG."><rect x="${L}" y="8" width="${R-L}" height="122" fill="#f7faf8"/>${shade}<line x1="${L}" y1="130" x2="${R}" y2="130" stroke="#e2ebe5"/>${lines}${candidateMarks}${empty}<rect x="${L}" y="146" width="${R-L}" height="8" fill="#e9eeeb"/>${coverage}${hits}${ticks}</svg>${dayBrush(period,plot,W)}</div>${dailyLanes(period,plot)}<div class="preview-key"><span><i></i>Recorded</span><span><i class="missing"></i>Missing</span><span>${preview.bucketMs/1000}s buckets from whole-second amplitude summaries · activity shading · ${escapeHtml(period.timezone)}</span></div><div class="day-selection"><strong class="day-selection-times">${escapeHtml(dayStamp(period,range.start))} → ${escapeHtml(dayStamp(period,range.end))}</strong><span class="day-view-status">${escapeHtml(status)}</span></div><div class="day-selection-actions"><button class="button subtle" type="button" data-day-reset="${period.date}" ${pinned?'':'disabled'}>Show entire day</button><button class="button primary" type="button" data-day-assign="${period.date}" ${selection.blocked?'disabled':''}>Assign activity to selection</button></div><p class="day-selection-note">${escapeHtml(selection.message)}</p>${dailyExact(period,range)}${candidatePanel(period)}</div>`;
 }
 function renderIntervals() {
   if (state.dayDragging) return;
@@ -509,7 +537,7 @@ async function loadIntervals() {
       const view=state.dayViews.get(day.date);
       if(state.dayRanges.has(day.date)&&view&&!view.loading&&view.source!==JSON.stringify(day))loadDayView(day.date);
     }
-    for(const day of state.days)loadDayQuality(day);
+    for(const day of state.days){loadDayQuality(day);loadDayCandidates(day);}
     $('recorded-refreshed').textContent=`Checked ${new Date(state.intervalsFetchedAt).toLocaleTimeString([],{timeZone:'America/New_York',hour:'numeric',minute:'2-digit',second:'2-digit'})} · refreshes every 10 seconds`;
   } catch(error) {notice(error.message,'error');}
   finally {state.intervalLoading=false;}
@@ -558,7 +586,7 @@ async function refresh() {
       state.intervals=[];
       state.days=[];
       state.expandedDays.clear();
-      state.dayDrafts.clear();state.dayExactOpen.clear();state.dayQuality.clear();state.dayRanges.clear();state.dayViews.clear();state.pendingLabelRange=null;
+      state.dayCandidates.clear();state.candidateOpen.clear();state.candidateMethods.clear();state.candidateLimits.clear();state.dayDrafts.clear();state.dayExactOpen.clear();state.dayQuality.clear();state.dayRanges.clear();state.dayViews.clear();state.pendingLabelRange=null;
       for(const timer of dayKeyTimers.values())clearTimeout(timer);dayKeyTimers.clear();
       state.intervalSignature='';
       state.intervalsFetchedAt=0;
@@ -790,12 +818,23 @@ $('load-older').addEventListener('click',async()=>{
 });
 $('intervals-list').addEventListener('toggle',(event)=>{
   const details=event.target;
+  if(details.matches('.day-candidates')){const date=details.dataset.date;if(details.open&&!state.candidateOpen.has(date)){state.candidateOpen.add(date);const day=state.days.find(d=>d.date===date);if(day)loadDayCandidates(day);}else if(!details.open)state.candidateOpen.delete(date);return;}
   if(details.matches('.day-exact')){const date=details.closest('.daily-preview').dataset.day;if(details.open)state.dayExactOpen.add(date);else state.dayExactOpen.delete(date);return;}
   if (!details.matches('.daily-intervals')) return;
   if (details.open) state.expandedDays.add(details.dataset.day);
   else state.expandedDays.delete(details.dataset.day);
 },true);
+$('intervals-list').addEventListener('change',event=>{const date=event.target.dataset.candidateMethod;if(date){state.candidateMethods.set(date,event.target.value);renderIntervals();}});
 $('intervals-list').addEventListener('click',(event)=>{
+  const more=event.target.closest('[data-candidate-more]');
+  if(more){const date=more.dataset.candidateMore;state.candidateLimits.set(date,(state.candidateLimits.get(date)||25)+25);renderIntervals();return;}
+  const candidate=event.target.closest('[data-candidate-day]');
+  if(candidate){
+    const day=state.days.find(d=>d.date===candidate.dataset.candidateDay);if(!day)return;
+    const span=candidatePeriods(day)[Number(candidate.dataset.candidateIndex)];if(!span)return;
+    state.dayRanges.set(day.date,{start:span.startMs,end:span.endMsExclusive});state.dayDrafts.delete(day.date);
+    renderIntervals();loadDayView(day.date);return;
+  }
   const reset=event.target.closest('[data-day-reset]');
   if(reset) {
     const date=reset.dataset.dayReset;clearTimeout(dayKeyTimers.get(date));state.dayRanges.delete(date);state.dayViews.delete(date);state.dayDrafts.delete(date);state.dayQuality.delete(date);renderIntervals();const day=state.days.find(d=>d.date===date);if(day)loadDayQuality(day);return;

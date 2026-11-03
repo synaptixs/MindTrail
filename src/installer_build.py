@@ -21,7 +21,7 @@ from pathlib import Path, PurePosixPath
 
 VERSION = "0.2.7"
 ROOT = Path(__file__).resolve().parent.parent
-APP_FILES = ("app.py", "desktop.py", "desktop_runtime.py", "credential_store.py", "bluetooth_manager.py", "bluetooth_collector.py", "ble_protocol.py", "archive_paths.py", "analysis_manager.py", "personal_activities.py", "daily_review.py")
+APP_FILES = ("app.py", "desktop.py", "desktop_runtime.py", "credential_store.py", "bluetooth_manager.py", "bluetooth_collector.py", "ble_protocol.py", "archive_paths.py", "analysis_manager.py", "personal_activities.py", "daily_review.py", "candidate_boundaries.py")
 STATIC_FILES = tuple(name + extension for name in ("app", "data", "eeg", "patterns", "bluetooth", "welcome", "quality") for extension in (".js", ".css"))
 STATIC_FILES = tuple(name for name in STATIC_FILES if name != "app.css") + ("interval_time.js", "style.css", "index.html", "data.html", "eeg.html", "patterns.html", "scores.html", "bluetooth.html", "welcome.html", "quality.html")
 

@@ -71,3 +71,12 @@ main{flex:1;min-width:0}.topbar{height:66px;border-bottom:1px solid #e4eae7;disp
 svg.day-lane-track{width:100%;display:block}.lane-span.recorded,.lane-span.computed_unflagged{fill:#62a88d}.lane-span.missing,.lane-span.not_analyzed{fill:#e6ece8}.lane-span.flagged{fill:#dba85c}.lane-span.confirmed{fill:#c5e5cb}.lane-span.suggested{fill:#f3e4ba}.lane-span.uncertain{fill:#cbdde9}.day-lane-track a:focus rect{stroke:#164936;stroke-width:3}
 
 .daily-preview svg.day-lane-track{height:24px;margin:0;overflow:hidden}
+
+/* Provisional boundary review stays optional and separate from saved activities. */
+.day-candidates { margin-top: 18px; border-top: 1px solid #dfe8e2; padding-top: 14px; }
+.day-candidates summary { cursor: pointer; font-weight: 700; }
+.day-candidates p, .candidate-list small { color: #627d70; font-size: 12px; }
+.candidate-list { display: grid; gap: 10px; margin: 12px 0; }
+.candidate-list > div { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.candidate-list button { white-space: normal; text-align: left; }
+.candidate-mark { stroke: #9566ac; stroke-width: 2; stroke-dasharray: 4 4; vector-effect: non-scaling-stroke; pointer-events: none; }

@@ -63,6 +63,14 @@ def run(directory: Path) -> int:
                 atomic_json(directory/('quality-'+date+'.json'),{'version':1,'analysisIdentity':report['analysisIdentity'],'participantId':request['participant'],'runs':runs},check)
                 check()
             atomic_json(directory/'quality-index.json',{'version':1,'analysisIdentity':report['analysisIdentity'],'participantId':request['participant'],'dates':sorted(days)},check)
+            if request.get('candidateBoundaries'):
+                from candidate_boundaries import daily_candidates
+                progress('candidate boundaries',0,1)
+                candidates=daily_candidates(report,request['participant'],request['candidateBoundaries'],check)
+                for date,value in sorted(candidates.items()):
+                    atomic_json(directory/('boundaries-'+date+'.json'),value,check)
+                atomic_json(directory/'boundaries-index.json',{'version':1,'participantId':request['participant'],
+                    'analysisIdentity':report['analysisIdentity'],'dates':sorted(candidates)},check)
             check()
             atomic_json(directory/'status.json',{'state':'completed','stage':'completed','done':1,'total':1,
                 'reusedWindows':cache.hits,'computedFeatures':cache.misses,'analysisIdentity':report['analysisIdentity'],
