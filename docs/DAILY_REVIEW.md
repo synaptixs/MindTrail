@@ -36,7 +36,7 @@ millisecond values and **Apply time range** to pin the graph before assigning a 
 
 Daily controls and label datetime fields explicitly use New York time, regardless of the
 computer's timezone. UTC offsets appear beside the selection. The server resolves wall time
-with `zoneinfo`, returning both real instants when fall-back repeats an hour. The user must
+with `zoneinfo` (looked up when needed, not during stdlib startup), returning both real instants when fall-back repeats an hour. The user must
 choose EDT/EST independently for an ambiguous start or end. A spring-forward time that does
 not exist is rejected rather than shifted silently. End is exclusive. Typed daily ranges
 must lie within the day's recorded extent; the label editor can enter other historical

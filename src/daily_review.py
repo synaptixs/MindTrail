@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 import re
 from zoneinfo import ZoneInfo
 
-ZONE = ZoneInfo('America/New_York')
+ZONE = 'America/New_York'
 LOCAL = re.compile(r'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?')
 
 
@@ -21,19 +21,20 @@ def wall_time(value):
     """Return both real instants for a repeated hour; never normalize a missing hour."""
     if not isinstance(value,str) or not LOCAL.fullmatch(value):
         raise ValueError('Enter a New York date and time with seconds (optional milliseconds)')
+    zone=ZoneInfo(ZONE)
     wall=datetime.fromisoformat(value)
     if not 1969<=wall.year<=9998:raise ValueError('Choose a year from 1969 through 9998')
     choices={}
     for fold in (0,1):
-        local=wall.replace(tzinfo=ZONE,fold=fold)
+        local=wall.replace(tzinfo=zone,fold=fold)
         utc=local.astimezone(timezone.utc)
-        if utc.astimezone(ZONE).replace(tzinfo=None)!=wall:continue
+        if utc.astimezone(zone).replace(tzinfo=None)!=wall:continue
         stamp=epoch(utc.isoformat())
         offset=local.strftime('%z');offset=offset[:3]+':'+offset[3:]
         choices[stamp]={'ms':stamp,'utc':utc.isoformat(timespec='milliseconds').replace('+00:00','Z'),
                         'offset':offset,'label':local.strftime('%Z')+' (UTC'+offset+')'}
     if not choices:raise ValueError('This New York time does not exist during the daylight-saving change. Choose another time.')
-    return {'timezone':ZONE.key,'choices':[choices[key] for key in sorted(choices)]}
+    return {'timezone':ZONE,'choices':[choices[key] for key in sorted(choices)]}
 
 
 def partition(runs,start,end,default):
@@ -72,6 +73,7 @@ def lanes(preview,labels,start,end):
 
 def quality_days(report,check=lambda:None):
     """Exact union of canonical quality windows, split at New York calendar boundaries."""
+    zone=ZoneInfo(ZONE)
     events={}
     for index,window in enumerate(report['windows']):
         if index%2048==0:check()
@@ -84,8 +86,8 @@ def quality_days(report,check=lambda:None):
         if previous is not None and active and point>previous:
             a=previous;names=sorted(flag for flag,count in flags.items() if count>0)
             while a<point:
-                local=datetime.fromtimestamp(a/1000,ZONE)
-                midnight=datetime.combine(local.date()+timedelta(days=1),datetime.min.time(),ZONE)
+                local=datetime.fromtimestamp(a/1000,zone)
+                midnight=datetime.combine(local.date()+timedelta(days=1),datetime.min.time(),zone)
                 b=min(point,int(midnight.timestamp()*1000));key=local.date().isoformat()
                 runs=days.setdefault(key,[]);state='flagged' if names else 'computed_unflagged'
                 if runs and runs[-1]['endMsExclusive']==a and runs[-1]['flags']==names:
