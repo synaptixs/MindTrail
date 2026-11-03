@@ -3,6 +3,7 @@ import csv
 import json
 import struct
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
@@ -179,9 +180,24 @@ class StreamTests(unittest.IsolatedAsyncioTestCase):
                     self.message(7, struct.pack("<256h", *([7350]*256)), counter=3)
                     self.message(3, b"Saved EEG data deleted: 512 bytes")
         with tempfile.TemporaryDirectory() as folder:
-            recorder = collector.Recorder(Path(folder), "MAC-UUID", placement="left")
-            await collector.record_stream(ReplayPeer(), recorder, seconds=.02)
-            recorder.finish("completed")
+            completed=asyncio.Event()
+            class ReplayRecorder(collector.Recorder):
+                def received(self,*args):
+                    # Exercise slow notification persistence without a 20 ms throughput assumption.
+                    time.sleep(.01)
+                    super().received(*args)
+                def publish(self):
+                    super().publish()
+                    if self.status.get("savedMemoryDeletionReported"):completed.set()
+            recorder = ReplayRecorder(Path(folder), "MAC-UUID", placement="left")
+            task=asyncio.create_task(collector.record_stream(ReplayPeer(),recorder,seconds=10))
+            try:
+                await asyncio.wait_for(completed.wait(),3)
+            finally:
+                task.cancel()
+                try:await task
+                except asyncio.CancelledError:pass
+                recorder.finish("completed")
             rows = [json.loads(line) for line in (Path(folder)/"eeg.jsonl").read_text().splitlines()]
             self.assertEqual([row["placement"] for row in rows], ["left", "unknown", "left"])
             self.assertEqual(recorder.status["liveBlocks"], 2)

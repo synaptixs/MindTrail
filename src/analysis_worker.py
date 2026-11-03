@@ -44,6 +44,7 @@ def run(directory: Path) -> int:
         from analysis_quality import analyze_archive, QualityPolicy
         from analysis_provenance import AnalysisSpec
         from analysis_view import coverage_summary
+        from daily_review import quality_days
         request=json.loads((directory/'request.json').read_text(encoding='utf-8'))
         check()
         spec=AnalysisSpec(normalization='within-acquisition-group-robust' if request['normalize'] else 'none',
@@ -57,6 +58,11 @@ def run(directory: Path) -> int:
             atomic_json(directory/'report.json',report,check)
             check()
             atomic_json(directory/'summary.json',summary)
+            days=quality_days(report,check)
+            for date,runs in sorted(days.items()):
+                atomic_json(directory/('quality-'+date+'.json'),{'version':1,'analysisIdentity':report['analysisIdentity'],'participantId':request['participant'],'runs':runs},check)
+                check()
+            atomic_json(directory/'quality-index.json',{'version':1,'analysisIdentity':report['analysisIdentity'],'participantId':request['participant'],'dates':sorted(days)},check)
             check()
             atomic_json(directory/'status.json',{'state':'completed','stage':'completed','done':1,'total':1,
                 'reusedWindows':cache.hits,'computedFeatures':cache.misses,'analysisIdentity':report['analysisIdentity'],

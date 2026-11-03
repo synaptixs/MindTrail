@@ -137,3 +137,7 @@ validate EEG quality. The later inference phase must choose an explicit eligible
 The synthetic v1 SQL fixture was generated with the shipped main `da99ee4` implementation.
 Tests independently restore that fixture and verify the v2 migration, failure rollback,
 review/origin independence, precision validation, authenticated APIs and export round trips.
+
+Daily chart controls and the label editor now resolve explicit New York wall times, including
+EDT/EST choices and milliseconds. See [daily review](DAILY_REVIEW.md) for source coverage,
+quality/activity lanes, keyboard controls and precise saved-boundary contracts.

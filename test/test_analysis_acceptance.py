@@ -2,6 +2,7 @@
 from contextlib import closing
 import importlib.util
 import json
+import os
 from pathlib import Path
 import sqlite3
 import subprocess
@@ -76,7 +77,7 @@ assert state['available'] is False and state['summary'] is None
 assert not manager.root.exists()
 print(json.dumps({'stdlibImports':True,'unavailable':True}))
 """
-        result=subprocess.run([sys.executable,'-S','-c',script,str(source),str(self.root)],capture_output=True,text=True,check=True)
+        result=subprocess.run([sys.executable,'-S','-c',script,str(source),str(self.root)],capture_output=True,text=True,check=True,env={**os.environ,'PYTHONTZPATH':str(self.root/'no-zone-data')})
         self.assertEqual(json.loads(result.stdout),{'stdlibImports':True,'unavailable':True})
 
     def test_os_peak_memory_is_positive_and_monotonic(self):

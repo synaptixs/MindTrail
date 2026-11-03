@@ -20,7 +20,7 @@ from archive_paths import ArchivePaths
 
 
 JOB_ID=re.compile(r'^[0-9a-f]{32}$')
-SOURCE_FILES=('analysis_quality.py','analysis_provenance.py','analysis_worker.py','analysis_view.py','analysis_cache.py','analysis_resources.py')
+SOURCE_FILES=('analysis_quality.py','analysis_provenance.py','analysis_worker.py','analysis_view.py','analysis_cache.py','analysis_resources.py','daily_review.py')
 
 
 def write_json(path: Path, value: dict) -> None:
@@ -36,6 +36,11 @@ def read_json(path: Path, limit=2_000_000) -> dict:
     result=json.loads(path.read_text(encoding='utf-8'))
     if not isinstance(result,dict):raise ValueError('Invalid analysis metadata')
     return result
+
+
+def remove_quality_payloads(directory):
+    for path in directory.glob('quality-*'):
+        if re.fullmatch(r'quality-(?:index|\d{4}-\d{2}-\d{2})\.(?:json|tmp)',path.name) and not path.is_symlink():path.unlink()
 
 
 class AnalysisManager:
@@ -63,7 +68,10 @@ class AnalysisManager:
         parts=[('python',list(sys.version_info[:3])),('numpy',numpy_version)]
         for path in (self.database,Path(str(self.database)+'-wal')):
             try:
-                s=path.stat();parts.append((str(path),s.st_size,s.st_mtime_ns,s.st_ctime_ns,s.st_ino))
+                s=path.stat()
+                # Reader-only WAL connections can create/remove an empty file. It holds no frames.
+                if path.name.endswith('-wal') and s.st_size==0:parts.append((str(path),None))
+                else:parts.append((str(path),s.st_size,s.st_mtime_ns,s.st_ctime_ns,s.st_ino))
             except FileNotFoundError:parts.append((str(path),None))
         for name in SOURCE_FILES:
             path=Path(__file__).parent/name
@@ -197,6 +205,9 @@ class AnalysisManager:
                             except OSError:self.job['warning']='Older generated payloads could not be pruned.'
                         except (OSError,ValueError,KeyError):self.job.update(state='failed',stage='failed',error='Could not publish complete analysis')
                     else:self.job.update(state='failed',stage='failed',error=status.get('error','Analysis stopped unexpectedly. Retry analysis.'))
+                    if self.job['state']!='completed':
+                        try:remove_quality_payloads(directory)
+                        except OSError:self.job['warning']='Incomplete generated quality lanes could not be removed.'
                     try:
                         write_json(directory/'status.json',{k:v for k,v in self.job.items() if k not in ('database','participant','signature')})
                         (self.root/'active.json').unlink(missing_ok=True)
@@ -221,6 +232,7 @@ class AnalysisManager:
                 try:self.directory(report.parent.name)
                 except ValueError:continue
                 report.unlink()
+                remove_quality_payloads(report.parent)
 
     def cancel(self):
         with self.lock:
@@ -253,6 +265,33 @@ class AnalysisManager:
                 if path.is_symlink() or not path.is_file():raise ValueError('Missing report')
                 return path
             except (OSError,ValueError,KeyError):raise ValueError('No completed report for this source') from None
+
+    def daily_quality(self,participant,date,start,end):
+        from daily_review import partition
+        result={'participantId':participant,'date':date,'startMs':start,'endMsExclusive':end,
+                'status':'unavailable','analysisIdentity':None,'runs':partition([],start,end,'not_analyzed')}
+        if not participant:return result
+        with self.lock:
+            try:
+                pointer=read_json(self.root/(self.scope(participant)+'.json'))
+                if pointer['signature']!=self.signature():return {**result,'status':'stale'}
+                directory=self.directory(pointer['id'])
+                index=read_json(directory/'quality-index.json')
+                if index['version']!=1 or index['participantId']!=participant:raise ValueError('Invalid quality scope')
+                if read_json(directory/'summary.json')['analysisIdentity']!=index['analysisIdentity']:raise ValueError('Invalid completed quality identity')
+                result['analysisIdentity']=index['analysisIdentity']
+                runs=[]
+                if date in index['dates']:
+                    value=read_json(directory/('quality-'+date+'.json'),limit=8_000_000)
+                    if value['version']!=1 or value['participantId']!=participant or value['analysisIdentity']!=index['analysisIdentity']:raise ValueError('Invalid quality identity')
+                    for run in value['runs']:
+                        if any(type(run[k]) is not int for k in ('startMs','endMsExclusive')) or run['startMs']>=run['endMsExclusive']:raise ValueError('Invalid quality range')
+                        if run['state'] not in ('flagged','computed_unflagged') or not isinstance(run['flags'],list) or any(not isinstance(f,str) for f in run['flags']):raise ValueError('Invalid quality flags')
+                        if bool(run['flags'])!=(run['state']=='flagged'):raise ValueError('Invalid quality state')
+                    runs=value['runs']
+                if pointer['signature']!=self.signature():return {**result,'status':'stale'}
+                return {**result,'status':'current','runs':partition(runs,start,end,'not_analyzed')}
+            except (OSError,ValueError,KeyError,TypeError):return result
 
     def close(self):
         with self.lock:
