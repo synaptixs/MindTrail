@@ -78,6 +78,12 @@ while the app is running.
 3. Click **Assign activity to selection**, enter an activity name, and save.
 4. To change a label later, click **Edit** beside it.
 
+In the source workspace, expand **Your activities** in Activity log to manage your own
+names, categories, context and favorites. Rename keeps saved periods and their original
+names in history; archive hides an activity from new choices. Export the vocabulary and
+history as JSON, or current assignments with IDs as CSV. These Phase 2 changes are not
+in the 0.2.6 downloads above yet. See [personal activity details](docs/PERSONAL_ACTIVITIES.md).
+
 Use **Show entire day** to reset a daily graph. New recordings extend the day's
 unzoomed graph automatically. A selected zoom stays pinned while data refreshes.
 

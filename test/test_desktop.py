@@ -263,11 +263,13 @@ class DesktopTests(unittest.TestCase):
         import sqlite3
         from contextlib import closing
         source = self.directory / "legacy.sqlite3"
-        with closing(sqlite3.connect(app.DB_PATH)) as origin, closing(sqlite3.connect(source)) as copy:
-            origin.backup(copy)
-            copy.execute("ALTER TABLE readings DROP COLUMN device_id")
-            for name in ("source", "reviewed", "batch_id"):
-                copy.execute("ALTER TABLE labels DROP COLUMN " + name)
+        with closing(sqlite3.connect(source)) as copy:
+            copy.executescript("""CREATE TABLE settings(key TEXT PRIMARY KEY,value TEXT NOT NULL);
+                CREATE TABLE readings(participant_id TEXT NOT NULL,timestamp_ms INTEGER NOT NULL,
+                    waveform_json TEXT NOT NULL,sample_count INTEGER NOT NULL,mean REAL NOT NULL,rms REAL NOT NULL,peak_to_peak REAL NOT NULL,
+                    PRIMARY KEY(participant_id,timestamp_ms));
+                CREATE TABLE labels(id INTEGER PRIMARY KEY AUTOINCREMENT,participant_id TEXT NOT NULL,
+                    label TEXT NOT NULL,note TEXT NOT NULL DEFAULT '',start_ms INTEGER NOT NULL,end_ms INTEGER);""")
             copy.execute("INSERT INTO labels(participant_id,label,note,start_ms,end_ms) VALUES('P','Personal activity','Original note',1000,3000)")
             copy.execute("INSERT INTO readings(participant_id,timestamp_ms,waveform_json,sample_count,mean,rms,peak_to_peak) VALUES('P',1000,?,256,0,0,0)",(json.dumps([0]*256),))
             copy.commit()
@@ -307,6 +309,73 @@ class DesktopTests(unittest.TestCase):
                 self.assertEqual(status, 400)
                 self.assertIn(b"empty workspace", body)
                 session.rmdir()
+
+    def test_personal_activity_http_contract_and_participant_isolation(self):
+        self.assertEqual(self.request("/api/activities")[0],403)
+        self.assertEqual(self.request("/api/activities",{"name":"Own"})[0],403)
+        self.launch()
+        self.assertEqual(self.request("/api/activities",{"name":"Own"})[0],400)
+        self.request("/api/desktop/bluetooth",{})
+        with app.db() as c:participant=app.setting(c,"participant_id")
+        self.assertEqual(json.loads(self.request("/api/activities")[1])["total"],0)
+        self.assertEqual(self.request("/api/activities",{"name":"Own"},extra_headers={"Origin":"https://example.com"})[0],403)
+        status,body,_,_=self.request("/api/activities",{"name":"Reading α 🧠","category":"Own category","context":"Technical docs","favorite":True,"participantId":participant})
+        self.assertEqual(status,201);activity=json.loads(body)
+        status,body,_,_=self.request("/api/labels",{"label":activity["name"],"activityId":activity["id"],"participantId":participant,"start":app.iso(1000),"end":app.iso(2000)})
+        self.assertEqual(status,201);label_id=json.loads(body)["id"]
+        status,body,_,_=self.request(f"/api/activities/{activity['id']}/edit",{"name":"Ontology review","version":activity["version"],"participantId":participant})
+        self.assertEqual(status,200);renamed=json.loads(body)
+        self.assertEqual(self.request(f"/api/activities/{activity['id']}/edit",{"name":"Stale","version":1})[0],400)
+        status,body,_,_=self.request("/api/export/activity-assignments.csv")
+        self.assertEqual(status,200)
+        import csv,io
+        rows=list(csv.DictReader(io.StringIO(body.decode('utf-8'))))
+        self.assertEqual(rows[0]["activity_id"],activity["id"]);self.assertEqual(rows[0]["recorded_label"],"Reading α 🧠")
+        self.assertEqual(self.request("/api/export/labels.csv")[1].decode('utf-8').splitlines()[0],'label,start_utc,end_utc,note')
+        history=json.loads(self.request(f"/api/activities/{activity['id']}/history")[1])
+        self.assertEqual(history["total"],2)
+        export=json.loads(self.request("/api/export/activities.json")[1])
+        self.assertEqual(export["assignments"][0]["id"],label_id)
+        self.assertEqual(export["assignments"][0]["label"],"Ontology review")
+        with app.db() as c:app.put_setting(c,"participant_id","SECOND-PERSON")
+        self.assertEqual(json.loads(self.request("/api/activities")[1])["total"],0)
+        self.assertEqual(self.request("/api/activities",{"name":"Old tab","participantId":participant})[0],400)
+        self.assertEqual(self.request("/api/labels",{"label":"Old tab","participantId":participant,"start":app.iso(3000),"end":app.iso(4000)})[0],400)
+        self.assertEqual(self.request(f"/api/activities/{activity['id']}/history")[0],400)
+        self.assertEqual(self.request(f"/api/activities/{activity['id']}/edit",{"name":"Cross scope","version":renamed["version"]})[0],400)
+        self.assertEqual(self.request("/api/labels",{"label":"Cross scope","activityId":activity['id'],"start":app.iso(3000),"end":app.iso(4000)})[0],400)
+        self.assertEqual(self.request("/api/activities",{"name":"Ontology review"})[0],201)
+        export_b=json.loads(self.request("/api/export/activities.json")[1])
+        self.assertEqual(export_b["assignments"],[])
+        self.assertNotEqual(export_b["activities"][0]["id"],activity['id'])
+        self.assertNotIn('Technical docs',json.dumps(export_b))
+
+    def test_restore_preserves_personal_ids_name_history_and_archived_state(self):
+        import sqlite3
+        from contextlib import closing
+        source=self.directory/'personal-source.sqlite3'
+        with closing(sqlite3.connect(app.DB_PATH)) as origin,closing(sqlite3.connect(source)) as copy:
+            origin.backup(copy);copy.row_factory=sqlite3.Row
+            with copy:
+                label_id=copy.execute("INSERT INTO labels(participant_id,label,start_ms,end_ms) VALUES('P','Original name',1000,2000)").lastrowid
+                activity_id=copy.execute('SELECT activity_id FROM labels WHERE id=?',(label_id,)).fetchone()[0]
+                activity=app.personal_activities.get(copy,'P',activity_id)
+                app.personal_activities.update(copy,'P',activity_id,{'name':'Renamed α','archived':True,'version':activity['version']})
+        original=source.read_bytes();self.launch()
+        self.assertEqual(self.request('/api/desktop/import',original)[0],200)
+        with app.db() as c:
+            row=c.execute('SELECT activity_id,label,recorded_label FROM labels WHERE id=?',(label_id,)).fetchone()
+            self.assertEqual(tuple(row),(activity_id,'Renamed α','Original name'))
+            self.assertEqual(app.personal_activities.get(c,'P',activity_id)['archived'],1)
+            self.assertEqual(app.personal_activities.history(c,'P',activity_id)['total'],2)
+        self.assertEqual(source.read_bytes(),original)
+
+    def test_restore_is_blocked_by_personal_vocabulary_even_without_periods(self):
+        self.launch()
+        with app.db() as c:app.personal_activities.create(c,'P',{'name':'Preserve my vocabulary'})
+        status,body,_,_=self.request('/api/desktop/import',b'not-sqlite'*20)
+        self.assertEqual(status,400);self.assertIn(b'empty workspace',body)
+        with app.db() as c:self.assertEqual(app.personal_activities.page(c,'P')['total'],1)
 
     def test_quality_api_auth_setup_and_responsiveness(self):
         self.assertEqual(self.request("/api/analysis/state")[0], 403)

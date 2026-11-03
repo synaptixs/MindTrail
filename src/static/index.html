@@ -98,11 +98,26 @@
           <div class="section-head activity-heading"><div><div class="eyebrow">ADD CONTEXT</div><h2>Activity log</h2><p>Add an activity here, or click Edit beside a label in Recorded periods to change its name, note, or times.</p></div></div>
           <div class="activity-grid">
             <div class="card label-editor"><div class="editor-tabs" role="tablist" aria-label="Label mode"><button id="live-tab" class="selected" type="button" role="tab" aria-selected="true">Live activity</button><button id="past-tab" type="button" role="tab" aria-selected="false">Past interval</button></div>
-              <form id="label-form"><div class="form-fields"><label>Activity name<input id="label-name" maxlength="80" placeholder="e.g. Reading, walking, focused work" required></label><label>Note <span class="optional">optional</span><input id="label-note" maxlength="500" placeholder="What was happening?" /></label><div id="interval-fields" class="interval-fields" hidden><label>Start<input id="label-start" type="datetime-local" step="1"></label><label>End<input id="label-end" type="datetime-local" step="1"></label></div></div><button id="label-submit" class="button primary full" type="submit">Start activity <span>→</span></button><button id="delete-label-edit" class="button subtle delete-edit" type="button" hidden>Delete activity</button><button id="cancel-label-edit" class="button subtle cancel-edit" type="button" hidden>Cancel editing</button></form>
+              <form id="label-form"><div class="form-fields"><label>Activity name<input id="label-name" list="personal-activities" maxlength="80" placeholder="e.g. Reading, walking, focused work" required></label><datalist id="personal-activities"></datalist><label>Note <span class="optional">optional</span><input id="label-note" maxlength="500" placeholder="What was happening?" /></label><div id="interval-fields" class="interval-fields" hidden><label>Start<input id="label-start" type="datetime-local" step="1"></label><label>End<input id="label-end" type="datetime-local" step="1"></label></div></div><button id="label-submit" class="button primary full" type="submit">Start activity <span>→</span></button><button id="delete-label-edit" class="button subtle delete-edit" type="button" hidden>Delete activity</button><button id="cancel-label-edit" class="button subtle cancel-edit" type="button" hidden>Cancel editing</button></form>
               <div id="active-activity" class="active-activity" hidden></div>
             </div>
 
           </div>
+          <details class="personal-activities card" id="personal-activity-manager">
+            <summary>Your activities <span id="activity-total" class="small-badge">Loading…</span></summary>
+            <p>Use names that fit your life. Favorites appear first, followed by recently labeled or edited activities. Archived activities keep their existing periods and history.</p>
+            <form id="activity-definition-form">
+              <div class="personal-fields"><label>Name<input id="activity-definition-name" maxlength="80" required placeholder="Your activity name"></label><label>Category <small>optional</small><input id="activity-definition-category" maxlength="80" placeholder="Your grouping"></label><label>Context <small>optional</small><input id="activity-definition-context" maxlength="500" placeholder="Description of this activity"></label></div>
+              <label class="personal-checkbox"><input id="activity-definition-favorite" type="checkbox"> Favorite</label>
+              <p id="activity-definition-impact" role="status">Add an activity here, or type a new name when labeling a period.</p>
+              <div class="personal-actions"><button class="button primary" id="activity-definition-save" type="submit">Add activity</button><button class="button subtle" id="activity-definition-cancel" type="button" hidden>Cancel editing</button><button class="button subtle" id="activity-refresh" type="button">Refresh list</button></div>
+            </form>
+            <p id="activity-list-status" role="status"></p>
+            <div class="personal-table-scroll"><table class="personal-table"><thead><tr><th>Activity</th><th>Periods</th><th>Manage</th></tr></thead><tbody id="personal-activity-list"></tbody></table></div>
+            <button class="button subtle" id="activity-load-more" type="button" hidden>Load more activities</button>
+            <div id="activity-name-history" class="personal-history" aria-live="polite"></div>
+            <div class="personal-actions"><a class="button subtle" href="/api/export/activity-assignments.csv">↓ Assignments with IDs · CSV</a><a class="button subtle" href="/api/export/activities.json">↓ Activities &amp; history · JSON</a></div>
+          </details>
         </section>
 
         <section id="recorded-periods" class="recorded-section card" aria-labelledby="recorded-title">

@@ -29,6 +29,7 @@ must use this helper instead of independently guessing directory names.
 | Bluetooth captures | `data/raw/bluetooth/session-*` | Read/download `data/bluetooth/session-*` in place |
 | Pattern reports | `data/processed/patterns/*` | Read `data/patterns/*` when no new report exists |
 | Activity backfill reports/backups | `data/processed/activity-backfill/*` | Leave historical output unchanged |
+| Personal activity migration backups | `data/processed/activity-migrations/*` | Retain pre-migration databases |
 | Database, labels, settings, key and locks | Existing profile root | No move or identity change |
 
 Cloud snapshots are searched newest-name first across both layouts. For duplicate names,
@@ -78,3 +79,8 @@ The source-only `analysis_acceptance.py` runner checks a frozen private archive 
 `config/analysis-acceptance.json`. `analysis_resources.py` owns OS peak-memory measurement,
 which belongs to job metadata rather than deterministic feature reports. See
 [Phase 1 acceptance](PHASE1_ACCEPTANCE.md) for scope, preservation and resource ceilings.
+
+`personal_activities.py` owns participant vocabulary, stable activity IDs and immutable
+assignment/name history. It maintains legacy label names through a compatibility projection
+and backs up nonempty archives before its additive migration. See
+[personal activities](PERSONAL_ACTIVITIES.md) for identity, exports and restore contracts.

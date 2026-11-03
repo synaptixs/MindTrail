@@ -36,6 +36,10 @@ def wait_for_workspace(process, profile):
                 overview = response.read().decode()
             assert 'href="/scores.html"' not in overview, "Mobile score navigation must be removed"
             assert 'id="recorded-periods"' in overview
+            assert 'id="personal-activity-manager"' in overview
+            with opener.open(url.split("/launch")[0] + "/api/activities", timeout=1) as response:
+                vocabulary = json.load(response)
+            assert vocabulary['activities'] == [] and vocabulary['total'] == 0
             with opener.open(url.split("/launch")[0] + "/scores.html", timeout=1) as response:
                 archive = response.read().decode()
             assert 'id="legacy-scores-archive"' in archive and '/api/export/mobile-scores.csv' in archive
@@ -153,12 +157,18 @@ for session in manager.status()['sessions']:
                 with closing(sqlite3.connect(profile / 'awear_data.sqlite3')) as db:
                     with db:
                         db.execute("INSERT INTO labels(participant_id,label,start_ms,end_ms) VALUES('qa-only','Windows upgrade QA',1000,2000)")
+                        activity_id = db.execute("SELECT activity_id FROM labels WHERE participant_id='qa-only'").fetchone()[0]
+                        assert activity_id
+                        db.execute("UPDATE activities SET favorite=1,archived=1,version=version+1,updated_ms=2000 WHERE id=?",(activity_id,))
                         db.execute("INSERT INTO mobile_scores(participant_id,observed_ms,score,state,created_ms,updated_ms) VALUES('qa-only',1000,42,'calm',1000,1000)")
                 subprocess.run(f'"{args.installer.resolve()}" /S /D={root}', check=True, env=environment, timeout=120)
                 assert process.wait(timeout=10) == 0
                 with closing(sqlite3.connect(profile / 'awear_data.sqlite3')) as db:
                     assert db.execute("SELECT label FROM labels WHERE participant_id='qa-only'").fetchone() == ('Windows upgrade QA',)
                     assert db.execute("SELECT score FROM mobile_scores WHERE participant_id='qa-only'").fetchone() == (42,)
+                    assert db.execute("SELECT activity_id,recorded_label FROM labels WHERE participant_id='qa-only'").fetchone() == (activity_id,'Windows upgrade QA')
+                    assert db.execute("SELECT favorite,archived FROM activities WHERE id=?",(activity_id,)).fetchone() == (1,1)
+                    assert db.execute("SELECT COUNT(*) FROM activity_history WHERE activity_id=?",(activity_id,)).fetchone() == (2,)
                 process = subprocess.Popen(command, env=environment)
                 wait_for_workspace(process, profile)
                 subprocess.run([str(executable), '-c', archive_check, str(profile)], check=True, env=environment, timeout=30)
@@ -182,12 +192,16 @@ for session in manager.status()['sessions']:
             with closing(sqlite3.connect(profile / 'awear_data.sqlite3')) as db:
                 assert db.execute("SELECT label FROM labels WHERE participant_id='qa-only'").fetchone() == ('Windows upgrade QA',)
                 assert db.execute("SELECT score FROM mobile_scores WHERE participant_id='qa-only'").fetchone() == (42,)
+                assert db.execute("SELECT activity_id,recorded_label FROM labels WHERE participant_id='qa-only'").fetchone() == (activity_id,'Windows upgrade QA')
+                assert db.execute("SELECT favorite,archived FROM activities WHERE id=?",(activity_id,)).fetchone() == (1,1)
+                assert db.execute("SELECT COUNT(*) FROM activity_history WHERE activity_id=?",(activity_id,)).fetchone() == (2,)
+            checks['personalActivityIdentityAndHistoryPreserved'] = True
             checks['uninstallPreservesArchive'] = True
             checks['legacyMobileScoresPreserved'] = True
         assert all(path.read_text(encoding='utf-8') == contents for path, contents in archive_files.items())
         checks['archiveLayoutsPreserved'] = True
         checks['archivePathCompatibility'] = True
-        result = {**checks, "singleInstance": True, "shutdown": True, "setupPageAndGuide": True, "mobileScoresRetired": True, "qualityPageAndUnavailableState": True,
+        result = {**checks, "singleInstance": True, "shutdown": True, "setupPageAndGuide": True, "mobileScoresRetired": True, "qualityPageAndUnavailableState": True, "personalActivityPageAndEmptyVocabulary": True,
                   "installerExercised": installed, "platform": platform.platform(),
                   "signaturesVerified": args.require_signed,
                   "installerSha256": hashlib.sha256(args.installer.read_bytes()).hexdigest() if installed else None}
