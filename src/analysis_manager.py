@@ -22,7 +22,7 @@ from archive_paths import ArchivePaths
 
 JOB_ID=re.compile(r'^[0-9a-f]{32}$')
 SOURCE_FILES=('analysis_quality.py','analysis_provenance.py','analysis_worker.py','analysis_view.py','analysis_cache.py','analysis_resources.py','daily_review.py','candidate_boundaries.py',
-              'exploratory_models.py','exploratory_stability.py','exploratory_views.py','exploration_access.py',
+              'exploratory_models.py','exploratory_stability.py','exploratory_views.py','exploration_access.py','similar_periods.py',
               '../config/exploration.json','../config/exploration-stability.json')
 
 

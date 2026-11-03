@@ -93,5 +93,5 @@ Native Windows validation checks installed assets and honest numerical unavailab
 
 Pooled recurrence and shared-training refit ARI remain exploratory; they are not independent
 replication or activity accuracy. Session/contact limitations and power-ablation sensitivity
-remain visible. Similar-period retrieval and confirmed-activity comparisons are W4/W5. This
+remain visible. [Similar-period retrieval](SIMILAR_PERIODS.md) is available in W4; confirmed-activity comparisons remain W5. This
 increment does not select a default method or complete the Phase 3 evidence-review gate.

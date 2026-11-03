@@ -823,7 +823,7 @@ def label_review(participant: str, scope: str, limit: int = 100) -> dict:
 
 
 def add_label(participant: str, label: str, note: str, start_ms: int, end_ms: int | None,
-              label_id: int | None = None, activity_id: str | None = None, expected_participant: str | None = None, evidence: dict | None = None, expected_version: int | None = None, review_key: str | None = None, candidate_provider=None) -> int:
+              label_id: int | None = None, activity_id: str | None = None, expected_participant: str | None = None, evidence: dict | None = None, expected_version: int | None = None, review_key: str | None = None, candidate_provider=None, origin="manual", context_provider=None) -> int:
     """Save a human activity, protecting confirmed labels and splitting pending suggestions."""
     label = label.strip()
     if not participant or not label or len(label) > 80 or len(note) > 500:
@@ -836,7 +836,8 @@ def add_label(participant: str, label: str, note: str, start_ms: int, end_ms: in
         connection.execute("BEGIN IMMEDIATE")
         if expected_participant is not None and (expected_participant != participant or setting(connection,"participant_id") != expected_participant):
             raise ValueError("Participant changed. Refresh before saving this activity.")
-        context={}
+        if origin not in ('manual','model'):raise ValueError('Invalid activity origin')
+        context=context_provider(connection) if context_provider else {}
         if review_key is not None:
             matches=episode_review.queue(connection,participant,candidates=candidate_provider(participant) if candidate_provider else (),task_key=review_key)['items']
             if not matches:raise ValueError('This review item changed. Refresh the queue before saving.')
@@ -888,8 +889,8 @@ def add_label(participant: str, label: str, note: str, start_ms: int, end_ms: in
                                (label, note.strip(), start_ms, end_ms,int(review=="confirmed"),activity["id"],recorded_label,review,precision,start_uncertainty,end_uncertainty,label_id))
             episode_review.record(connection,participant,'edit',before,context=context)
             return label_id
-        cursor = connection.execute("INSERT INTO labels(participant_id,label,note,start_ms,end_ms,activity_id,recorded_label,reviewed,review_state,timing_precision,start_uncertainty_ms,end_uncertainty_ms) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
-                                    (participant, label, note.strip(), start_ms, end_ms,activity["id"],recorded_label,int(review=="confirmed"),review,precision,start_uncertainty,end_uncertainty))
+        cursor = connection.execute("INSERT INTO labels(participant_id,label,note,start_ms,end_ms,activity_id,recorded_label,reviewed,review_state,timing_precision,start_uncertainty_ms,end_uncertainty_ms,source) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                                    (participant, label, note.strip(), start_ms, end_ms,activity["id"],recorded_label,int(review=="confirmed"),review,precision,start_uncertainty,end_uncertainty,origin))
         episode_review.record(connection,participant,'create',before,context=context)
         return cursor.lastrowid
 
@@ -1132,7 +1133,7 @@ class Handler(BaseHTTPRequestHandler):
             if name not in {"index.html", "app.js", "interval_time.js", "style.css", "data.html", "data.js", "data.css",
                             "eeg.html", "eeg.js", "eeg.css", "patterns.html", "patterns.js", "patterns.css",
                             "scores.html", "bluetooth.html", "bluetooth.js", "bluetooth.css",
-                            "welcome.html", "welcome.js", "welcome.css", "quality.html", "quality.js", "quality.css", "review.html", "review.js", "review.css", "explore.html", "explore.js", "explore.css"}:
+                            "welcome.html", "welcome.js", "welcome.css", "quality.html", "quality.js", "quality.css", "review.html", "review.js", "review.css", "explore.html", "explore.js", "explore.css", "similarity.js"}:
                 return self._json(404, {"error": "Not found"})
             path = SOURCE_ROOT / "static" / name
             body = path.read_bytes()
@@ -1145,7 +1146,7 @@ class Handler(BaseHTTPRequestHandler):
                     "welcome.js": "text/javascript", "welcome.css": "text/css",
                     "quality.html": "text/html", "quality.js": "text/javascript", "quality.css": "text/css",
                     "review.html":"text/html","review.js":"text/javascript","review.css":"text/css",
-                    "explore.html":"text/html","explore.js":"text/javascript","explore.css":"text/css"}[name]
+                    "explore.html":"text/html","explore.js":"text/javascript","explore.css":"text/css","similarity.js":"text/javascript"}[name]
             self.send_response(200)
             self.send_header("Content-Type", mime + "; charset=utf-8")
             self.send_header("Content-Length", str(len(body)))
@@ -1240,6 +1241,28 @@ class Handler(BaseHTTPRequestHandler):
                 return
             if desktop and not desktop.ready():
                 raise ValueError("Complete desktop setup first.")
+            if route in ('/api/similarity/search','/api/similarity/accept'):
+                import similar_periods
+                participant=self._selected()
+                result=similar_periods.search(self.server.analysis,participant,body)
+                if route.endswith('/search'):return self._json(200,result)
+                item=similar_periods.proposal(result,body)
+                reference=result['reference']['label']
+                label=str(body.get('label','')).strip()
+                if not label:raise ValueError('Enter the activity you performed')
+                adopted=label==reference['label']
+                def validate_proposal(connection):
+                    current=similar_periods.search(self.server.analysis,participant,body,connection)
+                    verified=similar_periods.proposal(current,body)
+                    return {'kind':'similar-period-review','retrievalVersion':similar_periods.VERSION,
+                            'explorationIdentity':result['explorationIdentity'],'acquisition':result['acquisition'],
+                            'view':result['view'],'metric':result['metric'],'reference':result['reference'],
+                            'spacingMinutes':result['spacingMinutes'],'guardMs':result['guardMs'],'match':verified}
+                saved=add_label(participant,label,'',item['startMs'],item['endMsExclusive'],
+                    activity_id=reference['activity_id'] if adopted else None,expected_participant=participant,
+                    evidence={'reviewState':'confirmed','timingPrecision':'unknown'},
+                    origin='model' if adopted else 'manual',context_provider=validate_proposal)
+                return self._json(201,{'id':saved,'message':'Activity saved. Undo is available in Episode review history. Run analysis to refresh the changed archive.'})
             if route in ('/api/review/action','/api/review/split','/api/review/undo'):
                 participant=self._selected()
                 candidates=self._review_candidates(participant) if body.get('cues') is True else []
