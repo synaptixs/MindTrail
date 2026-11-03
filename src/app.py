@@ -957,6 +957,33 @@ class Handler(BaseHTTPRequestHandler):
                 return
             if route.path == "/api/export/activity-assignments.csv":
                 return self._export_labels(extended=True)
+            if route.path == "/api/discovery/review":
+                from discovery_review_access import page
+                cues=params.get('cues',['0'])[0]
+                if cues not in ('0','1'):raise ValueError('Invalid cues choice')
+                return self._json(200,page(self.server.analysis,self._selected(),cues=='1'))
+            if route.path == "/api/discovery/review/waveform":
+                from discovery_review_access import waveform
+                return self._json(200,waveform(self.server.analysis,self._selected(),{k:v[0] for k,v in params.items()}))
+            if route.path == "/api/discovery/context":
+                import discovery_context
+                manager=self.server.analysis;participant=self._selected();key=params.get('windowId',[None])[0]
+                if key is None:return self._json(200,discovery_context.listing(manager,participant,int(params.get('offset',['0'])[0])))
+                value=discovery_context.entry(manager,participant,key,int(params.get('offset',['0'])[0]),int(params.get('limit',['25'])[0]))
+                value['hasContext']=value['record'] is not None
+                if params.get('reveal',['0'])[0]!='1':value.update(record=None,history=[])
+                return self._json(200,value)
+            if route.path in ('/api/export/discovery-context.json','/api/export/discovery-context.csv'):
+                from discovery_context import export
+                participant=self._selected()
+                if not participant:raise ValueError('Select a participant first')
+                format='csv' if route.path.endswith('.csv') else 'json'
+                chunks=export(self.server.analysis,participant,format,safe_csv);first=next(chunks)
+                self.send_response(200);self.send_header('Content-Type','text/csv; charset=utf-8' if format=='csv' else 'application/json; charset=utf-8')
+                self.send_header('Content-Disposition','attachment; filename="mindtrail-discovery-context.'+format+'"');self.send_header('Cache-Control','no-store');self.end_headers()
+                self.wfile.write(first)
+                for chunk in chunks:self.wfile.write(chunk)
+                return
             if route.path == "/api/discovery/recurrence":
                 from recurrence_access import page
                 return self._json(200,page(self.server.analysis,self._selected(),{k:v[0] for k,v in params.items()}))
@@ -1157,7 +1184,7 @@ class Handler(BaseHTTPRequestHandler):
             if name not in {"index.html", "app.js", "interval_time.js", "style.css", "data.html", "data.js", "data.css",
                             "eeg.html", "eeg.js", "eeg.css", "patterns.html", "patterns.js", "patterns.css",
                             "scores.html", "bluetooth.html", "bluetooth.js", "bluetooth.css",
-                            "welcome.html", "welcome.js", "welcome.css", "quality.html", "quality.js", "quality.css", "review.html", "review.js", "review.css", "explore.html", "explore.js", "explore.css", "similarity.js", "compare.html", "compare.js", "compare.css", "discover.html", "discover.js", "discover.css", "discovery_daily.js", "recurrence.html", "recurrence.js", "recurrence.css"}:
+                            "welcome.html", "welcome.js", "welcome.css", "quality.html", "quality.js", "quality.css", "review.html", "review.js", "review.css", "explore.html", "explore.js", "explore.css", "similarity.js", "compare.html", "compare.js", "compare.css", "discover.html", "discover.js", "discover.css", "discovery_daily.js", "recurrence.html", "recurrence.js", "recurrence.css", "context.html", "context.js", "context.css"}:
                 return self._json(404, {"error": "Not found"})
             path = SOURCE_ROOT / "static" / name
             body = path.read_bytes()
@@ -1170,7 +1197,7 @@ class Handler(BaseHTTPRequestHandler):
                     "welcome.js": "text/javascript", "welcome.css": "text/css",
                     "quality.html": "text/html", "quality.js": "text/javascript", "quality.css": "text/css",
                     "review.html":"text/html","review.js":"text/javascript","review.css":"text/css",
-                    "explore.html":"text/html","explore.js":"text/javascript","explore.css":"text/css","similarity.js":"text/javascript","compare.html":"text/html","compare.js":"text/javascript","compare.css":"text/css","discover.html":"text/html","discover.js":"text/javascript","discover.css":"text/css","discovery_daily.js":"text/javascript","recurrence.html":"text/html","recurrence.js":"text/javascript","recurrence.css":"text/css"}[name]
+                    "explore.html":"text/html","explore.js":"text/javascript","explore.css":"text/css","similarity.js":"text/javascript","compare.html":"text/html","compare.js":"text/javascript","compare.css":"text/css","discover.html":"text/html","discover.js":"text/javascript","discover.css":"text/css","discovery_daily.js":"text/javascript","recurrence.html":"text/html","recurrence.js":"text/javascript","recurrence.css":"text/css","context.html":"text/html","context.js":"text/javascript","context.css":"text/css"}[name]
             self.send_response(200)
             self.send_header("Content-Type", mime + "; charset=utf-8")
             self.send_header("Content-Length", str(len(body)))
@@ -1265,6 +1292,9 @@ class Handler(BaseHTTPRequestHandler):
                 return
             if desktop and not desktop.ready():
                 raise ValueError("Complete desktop setup first.")
+            if route in ('/api/discovery/context/save','/api/discovery/context/undo'):
+                from discovery_context import mutate
+                return self._json(200,mutate(self.server.analysis,self._selected(),body,route.endswith('/undo')))
             if route in ('/api/similarity/search','/api/similarity/accept'):
                 import similar_periods
                 participant=self._selected()
