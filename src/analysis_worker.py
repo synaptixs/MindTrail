@@ -44,7 +44,7 @@ def run(directory: Path) -> int:
         from analysis_quality import analyze_archive, QualityPolicy
         from analysis_provenance import AnalysisSpec
         from analysis_view import coverage_summary
-        request=json.loads((directory/'request.json').read_text())
+        request=json.loads((directory/'request.json').read_text(encoding='utf-8'))
         check()
         spec=AnalysisSpec(normalization='within-acquisition-group-robust' if request['normalize'] else 'none',
                           quality_policy_version=QualityPolicy().version)
@@ -70,7 +70,7 @@ def run(directory: Path) -> int:
     except Exception:
         (directory/'report.tmp').unlink(missing_ok=True)
         (directory/'report.json').unlink(missing_ok=True)
-        with (directory/'error.log').open('w') as output:
+        with (directory/'error.log').open('w',encoding='utf-8') as output:
             os.chmod(directory/'error.log',0o600)
             traceback.print_exc(file=output)
         atomic_json(directory/'status.json',{'state':'failed','stage':'failed','error':'Analysis failed. Retry or inspect the local analysis log.'})

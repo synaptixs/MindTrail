@@ -190,3 +190,7 @@ these changes do not claim new analysis functionality in current public installe
 Worker-generated JSON uses canonical key ordering, so cold and cached reports are
 byte-identical in the pinned numerical environment. OS peak memory is exposed as
 `peakMemoryBytes` in completed job status, outside the deterministic report.
+
+Analysis requests, status, summaries and report readers use explicit UTF-8, matching
+the writer on Windows as well as Mac. Non-ASCII participant/channel metadata is
+preserved rather than interpreted using the machine’s default text encoding.

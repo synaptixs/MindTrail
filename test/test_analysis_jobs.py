@@ -68,7 +68,7 @@ class JobTests(unittest.TestCase):
         self.assertIsNone(self.manager.state('Other')['summary'])
         self.manager.start('P',{});warm=self.wait()
         self.assertEqual(warm['job']['reusedWindows'],10)
-        self.assertEqual(cold,json.loads(self.manager.report_path('P').read_text()))
+        self.assertEqual(cold,json.loads(self.manager.report_path('P').read_text(encoding='utf-8')))
         self.assertEqual(cold_bytes,self.manager.report_path('P').read_bytes())
         self.add(40000,4);self.assertTrue(self.manager.state('P')['stale'])
         self.manager.start('P',{});updated=self.wait()
@@ -101,7 +101,7 @@ class JobTests(unittest.TestCase):
     def test_interrupted_recovery_does_not_adopt_partial_output(self):
         self.add(0,4);self.manager.start('P',{});self.wait()
         # Simulate crash after request persistence, before current-pointer adoption.
-        request=json.loads((self.manager.directory(self.manager.job['id'])/'request.json').read_text())
+        request=json.loads((self.manager.directory(self.manager.job['id'])/'request.json').read_text(encoding='utf-8'))
         from analysis_manager import write_json
         write_json(self.manager.root/'active.json',request)
         os.utime(self.manager.directory(request['id'])/'heartbeat',(time.time()-30,time.time()-30))

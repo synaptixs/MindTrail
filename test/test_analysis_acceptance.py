@@ -11,6 +11,7 @@ import unittest
 
 from analysis_acceptance import (changed_snapshot, check_coverage, check_windows, coverage_html,
                                  digest_file, label_digest, percentile95, run_acceptance, validate_budget)
+from analysis_manager import read_json
 from analysis_resources import peak_memory_bytes
 from analysis_worker import AnalysisCancelled, atomic_json, run
 
@@ -54,7 +55,7 @@ class AcceptanceTests(unittest.TestCase):
 
     def test_budget_preflight_rejects_uninterpretable_protocol(self):
         path=Path(__file__).resolve().parent.parent/'config'/'analysis-acceptance.json'
-        budget=json.loads(path.read_text())
+        budget=json.loads(path.read_text(encoding='utf-8'))
         validate_budget(budget)
         for patch in ({'coldSeconds':False},{'workerPeakBytes':float('nan')},{'jobTimeoutSeconds':1},{'version':2}):
             with self.assertRaises(ValueError):validate_budget({**budget,**patch})
@@ -97,6 +98,13 @@ print(json.dumps({'stdlibImports':True,'unavailable':True}))
         with self.assertRaises(AnalysisCancelled):atomic_json(path,{'large':list(range(10000))},cancel)
         self.assertEqual(path.read_bytes(),original)
 
+    def test_unicode_job_metadata_uses_utf8_on_every_platform(self):
+        path=self.root/'unicode.json'
+        value={'participant':'Person α','channel':'30–40 Hz','note':'Reading 🧠'}
+        atomic_json(path,value)
+        self.assertEqual(read_json(path),value)
+        self.assertEqual(json.loads(path.read_bytes()),value)
+
     def test_navigation_percentile_uses_all_samples_and_rejects_empty(self):
         self.assertEqual(percentile95([100]+[1]*19),1)
         self.assertEqual(percentile95([100]+[1]*18),100)
@@ -113,17 +121,17 @@ print(json.dumps({'stdlibImports':True,'unavailable':True}))
             return directory
         completed=job('completed',self.database)
         self.assertEqual(run(completed),0)
-        status=json.loads((completed/'status.json').read_text())
+        status=json.loads((completed/'status.json').read_text(encoding='utf-8'))
         self.assertEqual(status['state'],'completed')
         self.assertGreater(status['peakMemoryBytes'],0)
         self.assertEqual(status['computedFeatures'],2)
         canceled=job('canceled',self.database);(canceled/'cancel').touch()
         self.assertEqual(run(canceled),2)
-        self.assertEqual(json.loads((canceled/'status.json').read_text())['state'],'canceled')
+        self.assertEqual(json.loads((canceled/'status.json').read_text(encoding='utf-8'))['state'],'canceled')
         self.assertFalse((canceled/'report.json').exists())
         failed=job('failed',self.root/'missing.sqlite3')
         self.assertEqual(run(failed),1)
-        self.assertEqual(json.loads((failed/'status.json').read_text())['state'],'failed')
+        self.assertEqual(json.loads((failed/'status.json').read_text(encoding='utf-8'))['state'],'failed')
         self.assertFalse((failed/'report.json').exists())
 
     @unittest.skipUnless(HAS_NUMPY,'optional NumPy')
@@ -150,7 +158,7 @@ print(json.dumps({'stdlibImports':True,'unavailable':True}))
         from analysis_view import coverage_summary
         summary=coverage_summary(analyze_archive(self.database,'P'),timezone='UTC',demo=True)
         path=self.root/'coverage.html';coverage_html([summary],path)
-        page=path.read_text()
+        page=path.read_text(encoding='utf-8')
         self.assertNotIn('src="http',page)
         self.assertNotIn('<script',page)
         self.assertIn('Cloud EEG only',page)

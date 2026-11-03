@@ -33,7 +33,7 @@ def write_json(path: Path, value: dict) -> None:
 
 def read_json(path: Path, limit=2_000_000) -> dict:
     if path.is_symlink() or path.stat().st_size>limit:raise ValueError('Invalid analysis metadata')
-    result=json.loads(path.read_text())
+    result=json.loads(path.read_text(encoding='utf-8'))
     if not isinstance(result,dict):raise ValueError('Invalid analysis metadata')
     return result
 

@@ -79,7 +79,7 @@ def check_coverage(summary: dict, expected_records: int) -> None:
 
 def check_windows(report_path: Path, database: Path, participant: str) -> int | None:
     """Independently check every emitted interval against persisted timestamp/device rows."""
-    report = json.loads(report_path.read_text())
+    report = json.loads(report_path.read_text(encoding='utf-8'))
     with closing(sqlite3.connect(database.as_uri() + '?mode=ro', uri=True)) as connection:
         columns = {row[1] for row in connection.execute('PRAGMA table_info(readings)')}
         device = 'device_id' if 'device_id' in columns else 'NULL'
@@ -346,7 +346,7 @@ def main() -> None:
     parser.add_argument('--budget', type=Path, default=Path(__file__).resolve().parent.parent / 'config' / 'analysis-acceptance.json')
     args = parser.parse_args()
     try:
-        result = run_acceptance(args.database, args.output, json.loads(args.budget.read_text()))
+        result = run_acceptance(args.database, args.output, json.loads(args.budget.read_text(encoding='utf-8')))
     except (OSError, ValueError, sqlite3.Error) as error:
         parser.exit(1, f'Acceptance stopped: {error}\n')
     print(json.dumps({'passed': result['passed'], 'failures': result['failures']}))
