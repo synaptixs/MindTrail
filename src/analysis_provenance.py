@@ -164,7 +164,8 @@ def _sqlite_value(value: object) -> object:
 def inspect_archive(database: Path, participant: str | None = None,
                     spec: AnalysisSpec | None = None, *,
                     on_record: Callable[[AcquisitionContext, tuple], None] | None = None,
-                    start_ms: int | None = None, end_ms: int | None = None) -> dict:
+                    start_ms: int | None = None, end_ms: int | None = None,
+                    on_start: Callable[[int], None] | None = None) -> dict:
     """Stream a consistent cloud-source snapshot without setup/migrations or key access.
 
     Every selected record, including invalid waveform text, affects the revision.
@@ -208,6 +209,8 @@ def inspect_archive(database: Path, participant: str | None = None,
         query = f"""SELECT timestamp_ms,{device_column},sample_count,waveform_json
             FROM readings WHERE {' AND '.join(conditions)}
             ORDER BY timestamp_ms,{device_column},sample_count,waveform_json"""
+        if on_start is not None:
+            on_start(connection.execute(f"SELECT COUNT(*) FROM readings WHERE {' AND '.join(conditions)}",arguments).fetchone()[0])
         count = invalid_times = 0
         first = last = None
         devices = Counter()

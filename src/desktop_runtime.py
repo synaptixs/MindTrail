@@ -184,8 +184,8 @@ class DesktopController:
     def idle(self, server) -> None:
         # Also prevents the polling thread starting between checking and disabling.
         with self.collector.lock:
-            if self.collector.running or server.bluetooth.running() or server.bluetooth.scanning:
-                raise ValueError("Finish the current sync or Bluetooth operation before changing setup.")
+            if self.collector.running or server.bluetooth.running() or server.bluetooth.scanning or (getattr(server, "analysis", None) and server.analysis.running()):
+                raise ValueError("Finish the current analysis, sync or Bluetooth operation before changing setup.")
             self.collector.enabled = False
 
     def connect(self, handler, body: dict) -> None:

@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101b23">
+  <title>Recording quality · MindTrail Lab</title>
+  <meta name="description" content="Explore quality flags and recurring patterns in personal AWEAR recordings.">
+  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/quality.css">
+  <script src="/quality.js" defer></script>
+</head>
+<body>
+  <div class="shell">
+    <aside class="rail">
+      <div class="brand"><div class="brand-mark">M<span>·</span></div><div><strong>MindTrail</strong><small>LAB</small></div></div>
+      <div class="rail-rule"></div>
+      <nav aria-label="Sections">
+        <a class="nav-link" href="/"><span class="nav-icon">◫</span> Overview</a>
+        <a class="nav-link" href="/#activity"><span class="nav-icon">◷</span> Activity log</a>
+        <a class="nav-link" href="/#recorded-periods"><span class="nav-icon">▤</span> Recorded periods</a>
+        <a class="nav-link" href="/eeg.html"><span class="nav-icon">∿</span> EEG signal</a>
+        <a class="nav-link" href="/bluetooth.html"><span class="nav-icon">ᛒ</span> Bluetooth</a>
+        <a class="nav-link active" aria-current="page" href="/quality.html"><span class="nav-icon">✓</span> Recording quality</a>
+        <a class="nav-link" href="/patterns.html"><span class="nav-icon">◩</span> Signal patterns</a>
+        <a class="nav-link" href="/data.html"><span class="nav-icon">▦</span> Data tables</a>
+        <a class="nav-link" href="/#exports"><span class="nav-icon">⇩</span> Exports</a>
+      </nav>
+      <div class="rail-bottom"><div class="local-card"><span class="green-dot"></span><div><strong>Private workspace</strong><small>Data stored on this computer</small></div></div><div class="rail-foot">AWEAR data · Local dashboard<br>Exploratory signal analysis</div></div>
+    </aside>
+    <main>
+      <header class="topbar"><div class="breadcrumb">Personal lab <span>/</span> Recording quality</div><div class="top-actions"><span id="participant" class="pill">Loading source…</span></div></header>
+      <div class="content quality-content">
+        <div class="eyebrow">DATA AND QUALITY FOUNDATION</div>
+        <h1>Recording quality<span class="title-dot">.</span></h1>
+        <p class="lead">Check recording coverage and signal screening cues before exploring patterns or assigning activities.</p>
+        <p id="source">Cloud recordings · behind the right ear · RIGHT_TEMP · 256 Hz. Bluetooth captures are not included in this analysis.</p>
+        <section class="card quality-card">
+          <h2>Analyze saved recordings</h2>
+          <p>Four continuous seconds per window. This analysis reads your local cloud archive; it preserves samples and activity labels.</p>
+          <label><input type="checkbox" id="normalize"> Include robust deviations within each acquisition group</label>
+          <div class="quality-actions"><button id="start" class="button primary" type="button">Run analysis</button><button id="cancel" class="button subtle" type="button" hidden>Cancel</button><a id="download" class="button subtle" href="/api/analysis/report" hidden>Download full JSON report</a></div>
+          <label><input type="checkbox" id="auto"> Update automatically when saved recordings change (at most once a minute)</label>
+          <p id="status" role="status" aria-live="polite">Loading analysis status…</p><progress id="progress" hidden aria-label="Current analysis stage"></progress>
+          <p id="freshness"></p>
+        </section>
+        <div id="report" hidden>
+          <section class="quality-metrics" id="metrics" aria-label="Record accounting"></section>
+          <section class="card quality-card"><div class="eyebrow">ELAPSED TIME</div><h2>Analysis coverage over time</h2>
+            <p>Each bar spans the stated local period. Computed intervals are combined without double counting. Unanalyzed time includes gaps, exclusions and incomplete windows.</p>
+            <label>Show day <select id="day"><option value="all">All days</option></select></label>
+            <p class="quality-legend"><span>● Computed, unflagged</span><span>● Computed, flagged</span><span>● Not analyzed / gaps</span></p>
+            <p id="time-total"></p><div id="timeline"></div><p id="unplaced"></p>
+          </section>
+          <section class="card quality-card"><h2>Screening cues and exclusions</h2><p>Flags can overlap. Unflagged does not mean artifact-free; these cues do not identify activities or clinical states.</p><div class="quality-tables"><div><h3>Flag occurrences</h3><table><tbody id="flags"></tbody></table></div><div><h3>Excluded records (one primary reason)</h3><table><tbody id="exclusions"></tbody></table></div></div><p id="references"></p></section>
+        </div>
+      </div>
+    </main>
+  </div>
+</body>
+</html>

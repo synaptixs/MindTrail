@@ -63,3 +63,13 @@ Windows copies an explicit application/static allowlist, including `archive_path
 Mac packaging follows imports and an explicit static-data selection. Neither packages
 source configuration, tests, local archives, or keys. Native upgrade tests use isolated
 synthetic profiles and must preserve both legacy and new capture/report paths.
+
+
+The source dashboard's `analysis_manager.py` is a stdlib process supervisor.
+`analysis_worker.py` alone imports numerical extraction and content-addressed
+`analysis_cache.py`; `analysis_view.py` derives bounded elapsed-time coverage facts
+from the report. HTTP/desktop setup changes consult the manager before changing
+sources. Jobs and current pointers live under `ArchivePaths.quality`; raw storage
+and existing installer profile/credential identities remain unchanged. See
+[background analysis contracts](ANALYSIS_QUALITY.md#source-workspace-background-analysis)
+for cancellation, freshness, retention, and packaged-runtime limitations.

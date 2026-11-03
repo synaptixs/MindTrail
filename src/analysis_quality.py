@@ -1,6 +1,6 @@
 """Read-only cloud EEG feature extraction and auditable screening (NumPy required).
 
-No clustering, activity inference, cache, background jobs or desktop UI is added.
+No clustering or activity inference is performed.
 Quality flags are screening cues, not verified artifact diagnoses.
 """
 from __future__ import annotations
@@ -76,6 +76,16 @@ def feature_summary(samples: np.ndarray, sample_rate: int) -> dict:
         return result
 
 
+def valid_features(value: dict) -> bool:
+    scalars = {"acRms", "peakToPeak", "maxStep", "linearSlopePerSecond",
+               "linearTrendFraction", "mainsLikePowerFraction", "power1to40Hz", "log10Power1to40Hz"}
+    if set(value) != scalars | {"bandPowers", "bandShares"}:return False
+    def finite(v):return type(v) in (int,float) and math.isfinite(v)
+    return all(finite(value[k]) for k in scalars) and all(
+        isinstance(value[k],list) and len(value[k])==5 and all(finite(v) for v in value[k])
+        for k in ("bandPowers","bandShares"))
+
+
 @dataclass(frozen=True)
 class QualityPolicy:
     version: str = "relative-screen-v1"
@@ -106,13 +116,18 @@ def implementation_identity() -> dict:
 class QualityExtractor:
     """Acquisition-aware core; the CLI currently supplies cloud records only."""
     def __init__(self, spec: provenance.AnalysisSpec, policy: QualityPolicy,
-                 implementation: str, end_ms: int | None = None):
+                 implementation: str, end_ms: int | None = None, *, feature_cache=None,
+                 check_cancel=None, progress=None):
         if spec.quality_policy_version != policy.version:
             raise ValueError("Specification and screening policy versions differ")
         if spec.sample_rate / 2 < 40:
             raise ValueError("Sample rate cannot represent the requested 1–40 Hz features")
         self.spec, self.policy, self.implementation = spec, policy, implementation
         self.end_ms = end_ms
+        self.feature_cache = feature_cache
+        self.check_cancel = check_cancel or (lambda: None)
+        self.progress = progress or (lambda stage,done,total: None)
+        self.total_records = 0
         self.source_records = self.eligible_records = self.failure_windows = 0
         self.excluded = Counter()
         self.boundaries = Counter()
@@ -131,7 +146,10 @@ class QualityExtractor:
                                       record.sample_count, record.waveform_json))
 
     def feed_raw(self, context: provenance.AcquisitionContext, row: tuple) -> None:
+        self.check_cancel()
         self.source_records += 1
+        if self.source_records % 128 == 0 or self.source_records == self.total_records:
+            self.progress("extracting",self.source_records,self.total_records)
         timestamp = row[0]
         if type(timestamp) is not int or timestamp < 0:
             self._flush_pending()
@@ -217,8 +235,18 @@ class QualityExtractor:
             return
         window = provenance.make_window_provenance(self.run, self.spec, self.implementation)
         try:
-            samples = np.concatenate([np.asarray(json.loads(item.waveform_json), dtype=np.float64) for item in self.run])
-            window["features"] = feature_summary(samples, self.spec.sample_rate)
+            self.check_cancel()
+            cached = self.feature_cache.get(window["windowId"]) if self.feature_cache else None
+            if cached is not None and not valid_features(cached):
+                self.feature_cache.hits -= 1
+                self.feature_cache.misses += 1
+                cached = None
+            if cached is None:
+                samples = np.concatenate([np.asarray(json.loads(item.waveform_json), dtype=np.float64) for item in self.run])
+                cached = feature_summary(samples, self.spec.sample_rate)
+                self.check_cancel()
+                if self.feature_cache:self.feature_cache.put(window["windowId"],cached)
+            window["features"] = cached
         except (FloatingPointError, OverflowError, ValueError):
             self.failure_windows += 1
             self.failures.append({"provenance":window,"reason":"numeric_range"})
@@ -227,6 +255,7 @@ class QualityExtractor:
         self.run.clear()
 
     def finish(self) -> dict:
+        self.check_cancel()
         self._flush_pending()
         self._break("end_of_selected_input")
         groups = defaultdict(list)
@@ -234,7 +263,9 @@ class QualityExtractor:
             groups[window["acquisitionGroupId"]].append(window)
         summaries = []
         occurrences = Counter()
-        for group_id in sorted(groups):
+        for group_number,group_id in enumerate(sorted(groups)):
+            self.check_cancel()
+            self.progress("screening",group_number,len(groups))
             windows = groups[group_id]
             sufficient = len(windows) >= self.policy.minimum_reference_windows
             cutoffs = {}
@@ -245,7 +276,8 @@ class QualityExtractor:
                     mad = float(np.median(np.abs(values - median)))
                     scale = max(1.4826 * mad, 1e-9 * max(abs(median), 1))
                     cutoffs[name] = median + self.policy.relative_mad_multiplier * scale
-            for window in windows:
+            for index,window in enumerate(windows):
+                if index % 128 == 0:self.check_cancel()
                 values = window["features"]
                 flags = []
                 if values["peakToPeak"] <= self.policy.flatline_peak_to_peak: flags.append("flatline")
@@ -263,7 +295,8 @@ class QualityExtractor:
                     median = float(np.median(values))
                     mad = float(np.median(np.abs(values-median)))
                     normalization[name] = {"median": median, "scale": max(1.4826*mad,1e-9*max(abs(median),1))}
-            for window in windows:
+            for index,window in enumerate(windows):
+                if index % 128 == 0:self.check_cancel()
                 window["normalizedFeatures"] = {name:(window["features"][name]-ref["median"])/ref["scale"]
                     for name,ref in normalization.items()} or None
             summaries.append({"acquisitionGroupId":group_id,"acquisition":windows[0]["acquisition"],
@@ -271,6 +304,8 @@ class QualityExtractor:
                 "normalizationReferenceWindows":len(baseline) if normalization else 0,"normalization":normalization,
                 "referenceWindowRevision":provenance.fingerprint([window["windowId"] for window in windows])})
         computed = len(self.windows)
+        self.progress("screening",len(groups),len(groups))
+        self.check_cancel()
         flagged = sum(bool(window["qualityFlags"]) for window in self.windows)
         remainder = self.eligible_records-(computed+self.failure_windows)*self.spec.window_seconds
         coverage = {"sourceRecords":self.source_records,"excludedRecords":sum(self.excluded.values()),
@@ -291,13 +326,18 @@ class QualityExtractor:
 
 def analyze_archive(database: Path, participant: str | None = None, *,
                     spec: provenance.AnalysisSpec | None = None, policy: QualityPolicy | None = None,
-                    start_ms: int | None = None, end_ms: int | None = None) -> dict:
+                    start_ms: int | None = None, end_ms: int | None = None,
+                    feature_cache=None, check_cancel=None, progress=None) -> dict:
     policy = policy or QualityPolicy()
     spec = spec or provenance.AnalysisSpec(quality_policy_version=policy.version)
     implementation = implementation_identity()
     implementation_key = provenance.fingerprint({"implementation":implementation,"policy":asdict(policy),"method":METHOD_VERSION})
-    extractor = QualityExtractor(spec,policy,implementation_key,end_ms)
-    inventory = provenance.inspect_archive(database,participant,spec,on_record=extractor.feed_raw,start_ms=start_ms,end_ms=end_ms)
+    extractor = QualityExtractor(spec,policy,implementation_key,end_ms,feature_cache=feature_cache,check_cancel=check_cancel,progress=progress)
+    def started(total):
+        extractor.total_records=total
+        extractor.check_cancel()
+        extractor.progress("extracting",0,total)
+    inventory = provenance.inspect_archive(database,participant,spec,on_record=extractor.feed_raw,start_ms=start_ms,end_ms=end_ms,on_start=started)
     if inventory["recordCount"] != extractor.source_records:
         raise RuntimeError("Source inventory and extraction snapshot differ")
     result = extractor.finish()

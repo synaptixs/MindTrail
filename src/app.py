@@ -30,6 +30,7 @@ from pathlib import Path
 from typing import Iterator
 from zoneinfo import ZoneInfo
 
+from analysis_manager import AnalysisManager
 from bluetooth_manager import BluetoothManager
 from archive_paths import ArchivePaths
 
@@ -884,6 +885,22 @@ class Handler(BaseHTTPRequestHandler):
         try:
             if self.server.desktop and self.server.desktop.get(self, route):
                 return
+            if route.path == "/api/analysis/state":
+                return self._json(200, self.server.analysis.state(self._selected()))
+            if route.path == "/api/analysis/report":
+                path = self.server.analysis.report_path(self._selected())
+                # Open before stat: retention may unlink an old path during a new job.
+                with path.open("rb") as source:
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/json; charset=utf-8")
+                    self.send_header("Content-Disposition", 'attachment; filename="mindtrail-recording-quality.json"')
+                    self.send_header("Content-Length", str(os.fstat(source.fileno()).st_size))
+                    self.send_header("Cache-Control", "no-store")
+                    self.send_header("X-Content-Type-Options", "nosniff")
+                    self.end_headers()
+                    while block := source.read(65536):
+                        self.wfile.write(block)
+                return
             if route.path == "/api/status":
                 with db() as connection:
                     participant = setting(connection, "participant_id")
@@ -998,7 +1015,7 @@ class Handler(BaseHTTPRequestHandler):
             if name not in {"index.html", "app.js", "style.css", "data.html", "data.js", "data.css",
                             "eeg.html", "eeg.js", "eeg.css", "patterns.html", "patterns.js", "patterns.css",
                             "scores.html", "bluetooth.html", "bluetooth.js", "bluetooth.css",
-                            "welcome.html", "welcome.js", "welcome.css"}:
+                            "welcome.html", "welcome.js", "welcome.css", "quality.html", "quality.js", "quality.css"}:
                 return self._json(404, {"error": "Not found"})
             path = SOURCE_ROOT / "static" / name
             body = path.read_bytes()
@@ -1008,7 +1025,8 @@ class Handler(BaseHTTPRequestHandler):
                     "data.css": "text/css", "eeg.css": "text/css", "patterns.css": "text/css",
                     "scores.html": "text/html",
                     "bluetooth.html": "text/html", "bluetooth.js": "text/javascript", "bluetooth.css": "text/css", "welcome.html": "text/html",
-                    "welcome.js": "text/javascript", "welcome.css": "text/css"}[name]
+                    "welcome.js": "text/javascript", "welcome.css": "text/css",
+                    "quality.html": "text/html", "quality.js": "text/javascript", "quality.css": "text/css"}[name]
             self.send_response(200)
             self.send_header("Content-Type", mime + "; charset=utf-8")
             self.send_header("Content-Length", str(len(body)))
@@ -1088,9 +1106,13 @@ class Handler(BaseHTTPRequestHandler):
                 return
             if desktop and not desktop.ready():
                 raise ValueError("Complete desktop setup first.")
+            if route == "/api/analysis/start":
+                return self._json(202, self.server.analysis.start(self._selected(), body))
+            if route == "/api/analysis/cancel":
+                return self._json(200, self.server.analysis.cancel())
             if route == "/api/select":
-                if self.server.collector.running:
-                    raise ValueError("Wait for the current sync to finish before changing the source")
+                if self.server.collector.running or self.server.analysis.running():
+                    raise ValueError("Wait for the current analysis or sync to finish before changing the source")
                 participant = str(body.get("participantId", ""))
                 if participant not in {m.get("participantId") for m in self.server.collector.participants()}:
                     raise ValueError("Choose a participant returned by your AWEAR key")
@@ -1161,6 +1183,7 @@ class AppServer(ThreadingHTTPServer):
     def __init__(self, address: tuple[str, int], collector: Collector, desktop=None, worker_command=None):
         self.collector = collector
         self.desktop = desktop
+        self.analysis = AnalysisManager(data_root(), DB_PATH, demo=collector.demo)
         self.bluetooth = BluetoothManager(ROOT, data_directory=data_root(), worker_command=worker_command)
         super().__init__(address, Handler)
 
@@ -1171,6 +1194,7 @@ class AppServer(ThreadingHTTPServer):
         self.server_port = self.server_address[1]
 
     def server_close(self) -> None:
+        self.analysis.close()
         self.bluetooth.close()
         super().server_close()
 
