@@ -275,6 +275,45 @@ class DesktopTests(unittest.TestCase):
                 self.assertIn(b"empty workspace", body)
                 session.rmdir()
 
+    def test_quality_api_auth_setup_and_responsiveness(self):
+        self.assertEqual(self.request("/api/analysis/state")[0], 403)
+        self.assertEqual(self.request("/api/analysis/start", {})[0], 403)
+        self.launch()
+        self.assertEqual(self.request("/api/analysis/start", {})[0], 400)
+        self.request("/api/desktop/bluetooth", {})
+        self.assertEqual(self.request("/quality.html")[0], 200)
+        self.assertEqual(self.request("/quality.js")[0], 200)
+        self.assertEqual(self.request("/quality.css")[0], 200)
+        self.assertEqual(self.request("/api/analysis/start", {}, extra_headers={"Origin":"https://example.com"})[0], 403)
+        self.assertEqual(self.request("/api/analysis/start", {}, extra_headers={"X-Awear-Local":""})[0], 403)
+        with patch.dict(os.environ, {"AWEAR_BUNDLED_RUNTIME":"1"}):
+            status,body,_,_=self.request("/api/analysis/state")
+            self.assertEqual(status,200)
+            self.assertFalse(json.loads(body)["available"])
+            self.assertEqual(self.request("/api/analysis/start", {})[0], 400)
+        with patch.object(self.server.analysis,"running",return_value=True):
+            self.assertEqual(self.request("/api/desktop/bluetooth", {})[0],400)
+            self.assertEqual(self.request("/api/status")[0],200)
+            self.assertEqual(self.request("/eeg.html")[0],200)
+
+    @unittest.skipUnless(__import__('importlib.util').util.find_spec('numpy'), 'optional NumPy')
+    def test_quality_http_worker_and_report_download(self):
+        self.launch()
+        self.request("/api/desktop/bluetooth", {})
+        self.assertEqual(self.request("/api/analysis/start", {})[0],202)
+        import time
+        deadline=time.monotonic()+15
+        while time.monotonic()<deadline:
+            state=json.loads(self.request("/api/analysis/state")[1])
+            if not self.server.analysis.running():break
+            self.assertEqual(self.request("/eeg.html")[0],200)
+            time.sleep(.03)
+        self.assertEqual(state["job"]["state"],"completed",state)
+        status,body,_,_=self.request("/api/analysis/report")
+        self.assertEqual(status,200)
+        self.assertEqual(json.loads(body)["coverage"]["sourceRecords"],0)
+        self.assertEqual(self.request("/api/analysis/cancel", {})[0],200)
+
     def test_setup_is_blocked_during_capture(self):
         self.launch()
         with patch.object(self.server.bluetooth, "running", return_value=True):

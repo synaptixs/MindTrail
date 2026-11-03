@@ -106,6 +106,7 @@ Keep keys out of GitHub, screenshots, bug reports, and command-line arguments.
 | Zoom into a day and assign or edit labels | **Activity log** |
 | Examine waveforms, spectra, and recording gaps | **EEG signal** |
 | Inspect raw samples, sessions, and stats | **Data tables** |
+| Review analysis coverage and screening cues (source workspace) | **Recording quality** |
 | Review optional offline clustering results | **Signal patterns** |
 | Scan and record directly from a device | **Bluetooth** |
 
@@ -531,3 +532,17 @@ in the [installer guide](installer/README.md#verify-before-distribution).
 
 When reporting a problem, include your operating system, the step you tried, and
 the error message. Keep API keys and personal recordings out of reports.
+
+
+### Recording quality in the source workspace
+
+With the optional [analysis dependencies](config/requirements/analysis.txt) installed,
+open **Recording quality** and click **Run analysis**. The page shows coverage,
+quality screening cues, exclusions and incomplete windows. Jobs run in a separate
+process, can be canceled, and reuse unchanged feature windows. Previous complete
+results remain available while a new run is working. Automatic updates are opt-in.
+
+This currently analyzes saved cloud EEG with right-ear metadata. Bluetooth-file
+analysis and the packaged numerical runtime are still pending; current installer
+builds show this analysis as unavailable. See the [analysis contracts](docs/ANALYSIS_QUALITY.md)
+for exact accounting, units and limitations.

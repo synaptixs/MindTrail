@@ -42,6 +42,12 @@ def wait_for_workspace(process, profile):
             with opener.open(url.split("/launch")[0] + "/eeg.html", timeout=1) as response:
                 eeg = response.read().decode()
             assert 'log-mobile-score' not in eeg and 'mobile-score-list' not in eeg
+            with opener.open(url.split("/launch")[0] + "/quality.html", timeout=1) as response:
+                quality = response.read().decode()
+            assert 'id="timeline"' in quality and '/quality.js' in quality
+            with opener.open(url.split("/launch")[0] + "/api/analysis/state", timeout=1) as response:
+                analysis = json.load(response)
+            assert analysis['available'] is False, "Numerical analysis must not start in the stdlib bundle"
             return
         except (OSError, ValueError, KeyError):
             time.sleep(.1)
@@ -181,7 +187,7 @@ for session in manager.status()['sessions']:
         assert all(path.read_text(encoding='utf-8') == contents for path, contents in archive_files.items())
         checks['archiveLayoutsPreserved'] = True
         checks['archivePathCompatibility'] = True
-        result = {**checks, "singleInstance": True, "shutdown": True, "setupPageAndGuide": True, "mobileScoresRetired": True,
+        result = {**checks, "singleInstance": True, "shutdown": True, "setupPageAndGuide": True, "mobileScoresRetired": True, "qualityPageAndUnavailableState": True,
                   "installerExercised": installed, "platform": platform.platform(),
                   "signaturesVerified": args.require_signed,
                   "installerSha256": hashlib.sha256(args.installer.read_bytes()).hexdigest() if installed else None}

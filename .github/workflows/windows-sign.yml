@@ -40,6 +40,8 @@ jobs:
         run: node --check src/static/eeg.js
       - name: Check first-run JavaScript
         run: node --check src/static/welcome.js
+      - name: Check recording quality JavaScript
+        run: node --check src/static/quality.js
       - name: Install NSIS compiler
         run: choco install nsis --yes --no-progress
       - name: Verify pinned signing tools

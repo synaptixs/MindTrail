@@ -3,7 +3,7 @@
 This P1-W3 source command reads one participant's cloud archive in a consistent,
 read-only SQLite transaction. It emits non-overlapping feature windows, quality
 screening cues, and reconciled coverage. It does not change raw samples or labels,
-access keys, infer activities, run clustering, or start a desktop background job.
+access keys, infer activities, or run clustering. The source dashboard also runs this extractor as an isolated background job.
 
 ```bash
 python -m pip install -r config/requirements/analysis.txt
@@ -123,7 +123,66 @@ uncommitted code changes instead of trusting only a Git commit ID.
 
 A window ID identifies its local input/configuration. Quality flags and normalization
 also depend on the group's reference population: use the report's analysis identity,
-not a window ID alone, to identify those derived results. No cache is implemented yet.
+not a window ID alone, to identify those derived results. Raw numeric features can be cached by window ID. Quality flags and normalization references are always recalculated for the complete selected snapshot.
 
-Background jobs, cancellation, incremental feature reuse, dashboard coverage views,
-full-archive performance budgets and complete Phase 1 acceptance remain pending.
+Full-archive performance budgets, Bluetooth-file ingestion and complete Phase 1 acceptance remain pending.
+
+
+## Source-workspace background analysis
+
+Open **Recording quality** in the source dashboard and click **Run analysis**.
+The worker runs separately from the HTTP server. Stage progress counts records
+while extracting and acquisition groups while screening; it is not an estimated
+whole-job percentage. Cancel stops publication and preserves the last complete
+report. Closing the server cancels its own worker. After a crash, its heartbeat
+expires in 15 seconds and the next launcher offers a retry; no stored PID is killed.
+A fresh lease prevents another launcher from taking over an active job.
+
+Outputs use `ArchivePaths.quality`: `data/processed/quality/`. Each private job
+folder contains a request, progress, complete summary/report or safe failure
+status, and a local diagnostic log on failure. The worker does not read `.env`,
+receive the API key environment variable, synchronize, or access Bluetooth.
+Requests are scoped to the server's selected database and participant; clients
+cannot choose filesystem paths. Desktop cookie, host, origin and local-request
+header checks apply to the new API routes. Setup changes wait for active analysis.
+
+`analysis_cache.py` stores raw feature dictionaries in a content-addressed SQLite
+cache. Checksums, finite-number/schema validation and implementation/configuration
+hashes reject incompatible entries. Every run scans the read-only source snapshot,
+so edited/deleted historical rows are detected as well as new arrivals. A cadence
+change can shift subsequent windows and legitimately invalidate many entries.
+Cache hits and runtime progress are job metadata, outside deterministic reports.
+A warm run must produce exactly the same canonical report as a cold run.
+
+A successful process exit and complete report/summary are required before the
+manager atomically changes the current pointer. Failed/canceled jobs never replace
+it. Database/WAL stat signatures, Python/NumPy versions and relevant source-file bytes conservatively
+mark freshness; they are captured before the job starts. Changes during a job
+leave its completed snapshot marked stale. Changes unrelated to EEG may also mark
+it stale; a rerun verifies the exact revision and reuses valid features. Report
+identity is the authoritative result identity, not the cheap freshness signal.
+The dashboard exposes full-history analysis; optional bounded ranges are available
+through the start API and CLI. Report settings are returned with status. Automatic
+updates are opt-in, at most once a minute; failures/cancellation require an explicit
+retry or re-enabling updates. This work does not download new records itself.
+
+The coverage view combines computed intervals as an elapsed-time union, with
+flagged intervals taking precedence where they overlap. It does not turn record
+counts into wearing duration. Time with no computed interval includes exclusions,
+incomplete windows, failures and gaps. Invalid timestamp exclusions remain unplaced.
+At most 1,500 time bins cover the entire observed extent, with wider bins for long
+archives. The sections show proportions within each bin, not precise gap positions.
+The summary retains up to 200 acquisition-group details with full group totals;
+full JSON retains all windows, groups and accounting. Time geometry uses epoch
+milliseconds; local labels include timezone offsets across daylight-saving changes.
+
+The manager retains each participant/database's current full report plus one extra
+recent payload, and all small job summaries/status records. Only generated
+`jobs/<validated-id>/report.json` payloads are pruned after success; downloaded/user
+exports and raw data are untouched. Cache/metadata cleanup and full archive resource
+budgets remain Phase 1 acceptance work.
+
+This increment enables numerical jobs in the **source workspace** with NumPy.
+Packaged apps include the page and stdlib lifecycle API but show analysis as
+unavailable. Bundling/validating the numerical runtime remains release work;
+these changes do not claim new analysis functionality in current public installers.
