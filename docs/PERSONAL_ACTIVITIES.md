@@ -27,22 +27,24 @@ the original device collection date.
 
 Archiving hides an activity from new assignment choices but retains its periods and history.
 Existing periods can still be edited without reassignment. Restore reuses the same identity.
-Definitions cannot be deleted. Episode undo, splitting, precision/provenance controls and
-candidate-boundary review are subsequent Phase 2 work.
+Definitions cannot be deleted. Episode undo, splitting and candidate-boundary review are subsequent Phase 2 work.
 
 ## Migration and restore
 
-`app.setup_db` applies schema version 1 after the existing additive base-schema upgrades.
+`app.setup_db` applies schema version 2 after the existing additive base-schema upgrades.
 For nonempty archives it first creates a SQLite backup in
 `ArchivePaths.activity_migrations` (`data/processed/activity-migrations/`). Backup files
 are private to the local user. Raw recordings, credential namespaces and profile locations
 are unchanged. Distinct exact `(participant_id, label)` pairs receive deterministic UUID5
 identities; all original label columns are preserved. New definitions receive UUID4 IDs.
-The schema marker makes repeated startup idempotent. The migration transaction rolls back
+The schema marker makes repeated startup idempotent. Version 1 archives are validated against the
+exact shipped definitions before a backed-up, transactional v2 upgrade. Existing IDs and
+all original history fields survive; timing defaults to unknown and review state maps only
+from the existing reviewed flag. The migration transaction rolls back
 on failure and retains its backup for recovery.
 
-Desktop restore accepts legacy archives without views/triggers or version 1 archives with
-only the exact supported activity trigger definitions and required columns. It refuses
+Desktop restore accepts legacy archives without views/triggers or version 1 or 2 archives with
+only the exact supported activity trigger definitions for their version and required columns. It refuses
 unknown schema versions or modified triggers. Future trigger changes require an explicit
 versioned migration. Restoring into a vocabulary-only workspace is blocked, as it already
 contains personal data. Use a new empty workspace for recovery.
@@ -67,7 +69,9 @@ participant ID on writes and uses optimistic definition versions; stale writes a
 
 Existing label APIs keep their fields and add `activityId` and `recordedLabel`. Existing
 `/api/export/labels.csv` retains its exact four columns. The new JSON export streams all
-rows in one SQLite read snapshot and is not clipped by UI paging. All endpoints retain
+rows in one SQLite read snapshot and is not clipped by UI paging. JSON format version 2 adds the evidence fields to current assignments and history;
+extended assignment CSV appends them, while the legacy four-column CSV is unchanged.
+All endpoints retain
 the desktop authentication, setup and CSRF gates. Exports contain the selected participant
 only. The JSON is a portable audit export, not a substitute for SQLite archive restore.
 
@@ -83,3 +87,53 @@ transaction rollback/retry and restore trigger validation. HTTP tests exercise t
 contracts behind desktop authentication. Native Windows validation checks fresh startup,
 installation, upgrade and uninstall while retaining activity identity/settings/history.
 Private archive migration validation stays outside the public repository.
+
+## Label evidence: source, review and timing
+
+These are separate facts on each period, not properties of an activity definition or EEG
+quality metrics:
+
+| Field | Contract |
+| --- | --- |
+| `source` | Original origin, e.g. manual, schedule or model. Human review does not change it; in-place source changes are rejected. Existing source strings are retained. |
+| `review_state` | confirmed, needs_review or uncertain (unsure of the activity). `reviewed` remains the compatibility projection: 1 only for confirmed. |
+| `timing_precision` | unknown, exact (known entered boundaries), or approximate. This is a person's declaration, not verified physiological alignment. |
+| `start_uncertainty_ms`, `end_uncertainty_ms` | Nonnegative whole milliseconds, maximum 24 hours; null means unknown, not zero. A running activity has no end uncertainty. |
+
+Unknown timing has null uncertainties. Exact timing requires zero at each known boundary.
+Approximate timing requires at least one positive uncertainty; the other boundary may
+remain unknown. These symmetric ± ranges describe entered estimates, not statistical
+confidence intervals. A person's label confidence and timing precision are independent.
+
+The label editor explicitly selects a review state and timing declaration. Editing a
+suggestion initially keeps **Needs review**; saving a note alone does not confirm it in
+this UI. Its original source and note remain visible. New manually entered labels default
+to **Confirmed by me**, with timing unknown. Changing a typed boundary resets the editor's
+old timing declaration. Legacy API callers omitting evidence retain their prior explicit-save
+confirmation behavior; unchanged boundaries retain timing, changed boundaries reset it.
+The live Stop action records its click time as the end; it preserves unknown or approximate
+start timing and closes a known-boundary interval with zero declared end uncertainty.
+
+`POST /api/labels` and `/api/labels/<id>/edit` accept an optional `evidence` object:
+
+```json
+{"reviewState":"confirmed","timingPrecision":"approximate","startUncertaintyMs":30000,"endUncertaintyMs":60000}
+```
+
+Public labels add `reviewState`, `timingPrecision`, `startUncertaintyMs` and
+`endUncertaintyMs`. Full JSON history and extended CSV use the storage field names above.
+`/api/labels?scope=` accepts all, suggested, needs_review, uncertain or confirmed, retaining
+its shown/total bound. Suggested selects needs-review schedule/model origins only.
+Uncertain human decisions remain protected from suggestion replacement. Automatic splitting
+of pending schedule/model suggestions preserves origin, batch, activity ID and review status;
+new fragment boundaries have unknown timing. No model classifier is added by this package.
+
+The activity comparison separates source/review groups, so unreviewed and uncertain periods
+are not pooled with confirmed periods of the same activity. Daily shading tooltips and
+period labels expose the review, origin and timing facts. A label review does not alter
+signal-quality flags, sampling gaps or feature extraction, and confirming a label does not
+validate EEG quality. The later inference phase must choose an explicit eligible-label policy.
+
+The synthetic v1 SQL fixture was generated with the shipped main `da99ee4` implementation.
+Tests independently restore that fixture and verify the v2 migration, failure rollback,
+review/origin independence, precision validation, authenticated APIs and export round trips.

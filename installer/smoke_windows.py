@@ -37,6 +37,7 @@ def wait_for_workspace(process, profile):
             assert 'href="/scores.html"' not in overview, "Mobile score navigation must be removed"
             assert 'id="recorded-periods"' in overview
             assert 'id="personal-activity-manager"' in overview
+            assert 'id="label-review"' in overview and 'id="label-precision"' in overview
             with opener.open(url.split("/launch")[0] + "/api/activities", timeout=1) as response:
                 vocabulary = json.load(response)
             assert vocabulary['activities'] == [] and vocabulary['total'] == 0
@@ -159,6 +160,7 @@ for session in manager.status()['sessions']:
                         db.execute("INSERT INTO labels(participant_id,label,start_ms,end_ms) VALUES('qa-only','Windows upgrade QA',1000,2000)")
                         activity_id = db.execute("SELECT activity_id FROM labels WHERE participant_id='qa-only'").fetchone()[0]
                         assert activity_id
+                        db.execute("UPDATE labels SET review_state='uncertain',timing_precision='approximate',start_uncertainty_ms=5000 WHERE participant_id='qa-only'")
                         db.execute("UPDATE activities SET favorite=1,archived=1,version=version+1,updated_ms=2000 WHERE id=?",(activity_id,))
                         db.execute("INSERT INTO mobile_scores(participant_id,observed_ms,score,state,created_ms,updated_ms) VALUES('qa-only',1000,42,'calm',1000,1000)")
                 subprocess.run(f'"{args.installer.resolve()}" /S /D={root}', check=True, env=environment, timeout=120)
@@ -169,6 +171,7 @@ for session in manager.status()['sessions']:
                     assert db.execute("SELECT activity_id,recorded_label FROM labels WHERE participant_id='qa-only'").fetchone() == (activity_id,'Windows upgrade QA')
                     assert db.execute("SELECT favorite,archived FROM activities WHERE id=?",(activity_id,)).fetchone() == (1,1)
                     assert db.execute("SELECT COUNT(*) FROM activity_history WHERE activity_id=?",(activity_id,)).fetchone() == (2,)
+                    assert db.execute("SELECT source,review_state,timing_precision,start_uncertainty_ms FROM labels WHERE participant_id='qa-only'").fetchone() == ('manual','uncertain','approximate',5000)
                 process = subprocess.Popen(command, env=environment)
                 wait_for_workspace(process, profile)
                 subprocess.run([str(executable), '-c', archive_check, str(profile)], check=True, env=environment, timeout=30)
@@ -195,7 +198,9 @@ for session in manager.status()['sessions']:
                 assert db.execute("SELECT activity_id,recorded_label FROM labels WHERE participant_id='qa-only'").fetchone() == (activity_id,'Windows upgrade QA')
                 assert db.execute("SELECT favorite,archived FROM activities WHERE id=?",(activity_id,)).fetchone() == (1,1)
                 assert db.execute("SELECT COUNT(*) FROM activity_history WHERE activity_id=?",(activity_id,)).fetchone() == (2,)
+                assert db.execute("SELECT source,review_state,timing_precision,start_uncertainty_ms FROM labels WHERE participant_id='qa-only'").fetchone() == ('manual','uncertain','approximate',5000)
             checks['personalActivityIdentityAndHistoryPreserved'] = True
+            checks['labelEvidencePreserved'] = True
             checks['uninstallPreservesArchive'] = True
             checks['legacyMobileScoresPreserved'] = True
         assert all(path.read_text(encoding='utf-8') == contents for path, contents in archive_files.items())

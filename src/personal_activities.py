@@ -15,7 +15,7 @@ import uuid
 
 from archive_paths import ArchivePaths
 
-VERSION = 1
+VERSION = 2
 NAMESPACE = uuid.UUID('d48680ee-7319-4d93-88ae-f5f41104f88a')
 NOW = "CAST(strftime('%s','now') AS INTEGER)*1000"
 LABEL_FIELDS = 'label_id,participant_id,activity_id,label,recorded_label,note,start_ms,end_ms,source,reviewed,batch_id'
@@ -84,6 +84,50 @@ for _table in ('activity_history', 'activity_label_history'):
         TRIGGERS[f'mt_{_table}_no_{_operation.lower()}'] = f"BEFORE {_operation} ON {_table} BEGIN SELECT RAISE(ABORT,'Activity history is append only'); END"
 
 
+# Freeze the shipped v1 definitions: restore validates them before upgrading.
+V1_TRIGGERS = dict(TRIGGERS)
+V1_LABEL_FIELDS = LABEL_FIELDS
+EVIDENCE_COLUMNS = {
+    'review_state': "TEXT CHECK(review_state IN ('confirmed','needs_review','uncertain'))",
+    'timing_precision': "TEXT NOT NULL DEFAULT 'unknown' CHECK(timing_precision IN ('unknown','exact','approximate'))",
+    'start_uncertainty_ms': "INTEGER CHECK(start_uncertainty_ms IS NULL OR (typeof(start_uncertainty_ms)='integer' AND start_uncertainty_ms BETWEEN 0 AND 86400000))",
+    'end_uncertainty_ms': "INTEGER CHECK(end_uncertainty_ms IS NULL OR (typeof(end_uncertainty_ms)='integer' AND end_uncertainty_ms BETWEEN 0 AND 86400000))",
+}
+LABEL_FIELDS += ',' + ','.join(EVIDENCE_COLUMNS)
+
+
+def evidence_snapshot(prefix):
+    return _snapshot(prefix) + ',' + ','.join(prefix+'.'+key for key in EVIDENCE_COLUMNS)
+
+
+# History snapshots retain timing/review independently from the original source.
+for name, event, when, action in (
+    ('mt_label_created','AFTER INSERT','NEW.activity_id IS NOT NULL',"'created'"),
+    ('mt_label_before_update','BEFORE UPDATE','OLD.activity_id IS NOT NULL',"'before-update'"),
+    ('mt_label_updated','AFTER UPDATE','NEW.activity_id IS NOT NULL',"CASE WHEN OLD.activity_id IS NULL THEN 'created' ELSE 'updated' END"),
+    ('mt_label_deleted','BEFORE DELETE','OLD.activity_id IS NOT NULL',"'deleted'")):
+    prefix='OLD' if event.startswith('BEFORE') else 'NEW'
+    TRIGGERS[name]=f"{event} ON labels WHEN {when} BEGIN INSERT INTO activity_label_history({LABEL_FIELDS},action,changed_ms) VALUES({evidence_snapshot(prefix)},{action},{NOW}); END"
+TRIGGERS.update({
+    'mt_review_insert': """AFTER INSERT ON labels WHEN NEW.review_state IS NULL OR NEW.reviewed!=(NEW.review_state='confirmed') BEGIN
+        UPDATE labels SET review_state=COALESCE(NEW.review_state,CASE WHEN NEW.reviewed THEN 'confirmed' ELSE 'needs_review' END),
+            reviewed=CASE WHEN COALESCE(NEW.review_state,CASE WHEN NEW.reviewed THEN 'confirmed' ELSE 'needs_review' END)='confirmed' THEN 1 ELSE 0 END WHERE id=NEW.id; END""",
+    'mt_review_legacy_update': """AFTER UPDATE OF reviewed ON labels WHEN NEW.reviewed!=OLD.reviewed AND NEW.review_state IS OLD.review_state BEGIN
+        UPDATE labels SET review_state=CASE WHEN NEW.reviewed THEN 'confirmed' ELSE 'needs_review' END WHERE id=NEW.id; END""",
+    'mt_review_state_update': """AFTER UPDATE OF review_state ON labels WHEN NEW.review_state IS NULL OR NEW.reviewed!=(NEW.review_state='confirmed') BEGIN
+        UPDATE labels SET review_state=COALESCE(NEW.review_state,CASE WHEN NEW.reviewed THEN 'confirmed' ELSE 'needs_review' END),
+            reviewed=CASE WHEN COALESCE(NEW.review_state,CASE WHEN NEW.reviewed THEN 'confirmed' ELSE 'needs_review' END)='confirmed' THEN 1 ELSE 0 END WHERE id=NEW.id; END""",
+    'mt_label_origin': """BEFORE UPDATE OF source ON labels WHEN NEW.source!=OLD.source BEGIN SELECT RAISE(ABORT,'Original label source is immutable'); END""",
+})
+for operation in ('INSERT','UPDATE'):
+    TRIGGERS['mt_timing_'+operation.lower()]=f"""BEFORE {operation} ON labels WHEN
+        (NEW.end_ms IS NULL AND NEW.end_uncertainty_ms IS NOT NULL) OR
+        (NEW.timing_precision='unknown' AND (NEW.start_uncertainty_ms IS NOT NULL OR NEW.end_uncertainty_ms IS NOT NULL)) OR
+        (NEW.timing_precision='exact' AND (NEW.start_uncertainty_ms IS NOT 0 OR (NEW.end_ms IS NOT NULL AND NEW.end_uncertainty_ms IS NOT 0))) OR
+        (NEW.timing_precision='approximate' AND NOT(COALESCE(NEW.start_uncertainty_ms,0)>0 OR COALESCE(NEW.end_uncertainty_ms,0)>0))
+        BEGIN SELECT RAISE(ABORT,'Timing precision and uncertainty do not agree'); END"""
+
+
 def trigger_sql(name: str) -> str:
     return 'CREATE TRIGGER ' + name + ' ' + TRIGGERS[name]
 
@@ -96,16 +140,18 @@ def validate_archive_objects(connection: sqlite3.Connection) -> None:
         if objects: raise ValueError('This archive contains unsupported triggers or views')
         return
     versions = connection.execute('SELECT version FROM activity_schema').fetchall()
-    if len(versions) != 1 or versions[0][0] != VERSION:
+    if len(versions) != 1 or versions[0][0] not in (1,VERSION):
         raise ValueError('This archive needs a different activity schema version')
+    supported = V1_TRIGGERS if versions[0][0] == 1 else TRIGGERS
     normalize = lambda value: ' '.join(value.split()).rstrip(';')
-    if {row[1] for row in objects} != set(TRIGGERS) or any(
-            row[0] != 'trigger' or normalize(row[2]) != normalize(trigger_sql(row[1])) for row in objects):
+    if {row[1] for row in objects} != set(supported) or any(
+            row[0] != 'trigger' or normalize(row[2]) != normalize('CREATE TRIGGER '+row[1]+' '+supported[row[1]]) for row in objects):
         raise ValueError('Activity archive triggers differ from the supported schema')
     required = {'activities': {'id','participant_id','name','category','context','favorite','archived','version','created_ms','updated_ms','origin'},
                 'activity_history': {'activity_id','participant_id','version','name','category','context','favorite','archived','changed_ms','origin'},
-                'activity_label_history': set(LABEL_FIELDS.split(',')) | {'event_id','action','changed_ms'},
+                'activity_label_history': set((V1_LABEL_FIELDS if versions[0][0]==1 else LABEL_FIELDS).split(',')) | {'event_id','action','changed_ms'},
                 'labels': {'activity_id','recorded_label'}}
+    if versions[0][0] == VERSION: required['labels'].update(EVIDENCE_COLUMNS)
     for table, fields in required.items():
         if not fields <= {row[1] for row in connection.execute(f'PRAGMA table_info({table})')}:
             raise ValueError('Activity archive schema is incomplete')
@@ -115,19 +161,13 @@ def migrate(connection: sqlite3.Connection, database: Path, profile: Path) -> No
     tables = {r[0] for r in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")}
     if 'activity_schema' in tables:
         validate_archive_objects(connection)
+        if connection.execute('SELECT version FROM activity_schema').fetchone()[0] == 1:
+            _upgrade_v1(connection,database,profile)
         return
     if tables & {'activities','activity_history','activity_label_history'}:
         raise ValueError('Unversioned activity tables already exist; preserve this archive before upgrading')
     connection.commit()  # Finish the pre-existing additive base-schema upgrade.
-    backup_name = None
-    if any(connection.execute(f'SELECT 1 FROM {table} LIMIT 1').fetchone() for table in ('readings','labels','mobile_scores')):
-        directory = ArchivePaths(profile).activity_migrations
-        directory.mkdir(parents=True, exist_ok=True, mode=0o700)
-        backup_name = 'before-activities-v1-' + uuid.uuid4().hex + '.sqlite3'
-        path = directory / backup_name
-        with closing(sqlite3.connect(database.resolve().as_uri() + '?mode=ro', uri=True)) as source, closing(sqlite3.connect(path)) as target:
-            os.chmod(path,0o600)
-            source.backup(target)
+    backup_name = _backup(connection,database,profile)
     connection.execute('BEGIN IMMEDIATE')
     # Another launcher may have completed migration while this one made a backup.
     if connection.execute("SELECT 1 FROM sqlite_master WHERE name='activity_schema'").fetchone():
@@ -149,6 +189,7 @@ def migrate(connection: sqlite3.Connection, database: Path, profile: Path) -> No
     connection.execute('ALTER TABLE labels ADD COLUMN activity_id TEXT')
     connection.execute('ALTER TABLE labels ADD COLUMN recorded_label TEXT')
     connection.execute('CREATE INDEX labels_activity ON labels(participant_id,activity_id)')
+    _add_evidence_columns(connection)
     now = int(time.time()*1000)
     for participant, name in connection.execute('SELECT DISTINCT participant_id,label FROM labels ORDER BY participant_id,label').fetchall():
         activity_id = uuid.uuid5(NAMESPACE,json.dumps([participant,name],ensure_ascii=False,separators=(',',':'))).hex
@@ -156,10 +197,65 @@ def migrate(connection: sqlite3.Connection, database: Path, profile: Path) -> No
                            (activity_id,participant,name,now,now,'migration'))
         connection.execute('INSERT INTO activity_history VALUES(?,?,?,?,?,?,?,?,?,?)',(activity_id,participant,1,name,'','',0,0,now,'migration'))
         connection.execute('UPDATE labels SET activity_id=?,recorded_label=label WHERE participant_id=? AND label=?',(activity_id,participant,name))
-    connection.execute(f"INSERT INTO activity_label_history({LABEL_FIELDS},action,changed_ms) SELECT id,participant_id,activity_id,label,recorded_label,note,start_ms,end_ms,source,reviewed,batch_id,'migrated',? FROM labels",(now,))
+    connection.execute(f"INSERT INTO activity_label_history({LABEL_FIELDS},action,changed_ms) SELECT id,participant_id,activity_id,label,recorded_label,note,start_ms,end_ms,source,reviewed,batch_id,review_state,timing_precision,start_uncertainty_ms,end_uncertainty_ms,'migrated',? FROM labels",(now,))
     for name in TRIGGERS: connection.execute(trigger_sql(name))
     connection.execute('CREATE TABLE activity_schema(version INTEGER PRIMARY KEY,applied_ms INTEGER NOT NULL,backup_name TEXT)')
     connection.execute('INSERT INTO activity_schema VALUES(?,?,?)',(VERSION,now,backup_name))
+
+
+def _backup(connection,database,profile):
+    connection.commit()
+    if not any(connection.execute(f'SELECT 1 FROM {table} LIMIT 1').fetchone() for table in ('readings','labels','mobile_scores','activities') if connection.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?",(table,)).fetchone()):
+        return None
+    directory=ArchivePaths(profile).activity_migrations
+    directory.mkdir(parents=True,exist_ok=True,mode=0o700)
+    name=f'before-activities-v{VERSION}-'+uuid.uuid4().hex+'.sqlite3'
+    path=directory/name
+    with closing(sqlite3.connect(database.resolve().as_uri()+'?mode=ro',uri=True)) as source, closing(sqlite3.connect(path)) as target:
+        os.chmod(path,0o600);source.backup(target)
+    return name
+
+
+def _add_evidence_columns(connection):
+    for table in ('labels','activity_label_history'):
+        for name,definition in EVIDENCE_COLUMNS.items():
+            connection.execute(f'ALTER TABLE {table} ADD COLUMN {name} {definition}')
+        connection.execute(f"UPDATE {table} SET review_state=CASE WHEN reviewed THEN 'confirmed' ELSE 'needs_review' END")
+
+
+def _upgrade_v1(connection,database,profile):
+    backup_name=_backup(connection,database,profile)
+    connection.execute('BEGIN IMMEDIATE')
+    validate_archive_objects(connection)
+    if connection.execute('SELECT version FROM activity_schema').fetchone()[0] == VERSION:return
+    for name in V1_TRIGGERS:connection.execute('DROP TRIGGER '+name)
+    _add_evidence_columns(connection)
+    for name in TRIGGERS:connection.execute(trigger_sql(name))
+    connection.execute('UPDATE activity_schema SET version=?,applied_ms=?,backup_name=?',(VERSION,int(time.time()*1000),backup_name))
+
+
+def label_evidence(current,body,start_ms,end_ms):
+    """Validate human evidence; precision is declared, never inferred from EEG or a clock."""
+    if body is not None and (not isinstance(body,dict) or set(body)-{'reviewState','timingPrecision','startUncertaintyMs','endUncertaintyMs'}):
+        raise ValueError('Invalid label evidence fields')
+    # Old callers explicitly saving an interval retain their confirmation behavior.
+    review=(body or {}).get('reviewState','confirmed')
+    if review not in ('confirmed','needs_review','uncertain'):raise ValueError('Choose a valid review state')
+    unchanged=current is not None and current['start_ms']==start_ms and current['end_ms']==end_ms
+    base={'timingPrecision':current['timing_precision'],'startUncertaintyMs':current['start_uncertainty_ms'],'endUncertaintyMs':current['end_uncertainty_ms']} if unchanged else {'timingPrecision':'unknown','startUncertaintyMs':None,'endUncertaintyMs':None}
+    base.update(body or {})
+    precision=base['timingPrecision']
+    if precision not in ('unknown','exact','approximate'):raise ValueError('Choose a valid timing precision')
+    start,end=base['startUncertaintyMs'],base['endUncertaintyMs']
+    for value in (start,end):
+        if value is not None and (type(value) is not int or not 0<=value<=86400000):raise ValueError('Timing uncertainty must be whole milliseconds from 0 to 24 hours, or unknown')
+    if precision=='unknown':
+        if start is not None or end is not None:raise ValueError('Unknown timing must leave uncertainty unknown')
+    elif precision=='exact':
+        if start != 0 or (end_ms is not None and end != 0):raise ValueError('Exact timing requires zero uncertainty at each known boundary')
+    elif not ((start or 0)>0 or (end or 0)>0):raise ValueError('Approximate timing needs a positive uncertainty at one or both boundaries')
+    if end_ms is None and end is not None:raise ValueError('An active interval has no end uncertainty yet')
+    return review,precision,start,end
 
 
 def _text(value, limit: int, *, required=False) -> str:
@@ -252,7 +348,7 @@ def history(connection,participant,activity_id,*,offset=0,limit=50):
 
 def export_json(connection,participant):
     """Stream one consistent complete export, retaining all names and assignment history."""
-    yield ('{"formatVersion":1,"participantId":'+json.dumps(participant)+',').encode()
+    yield ('{"formatVersion":2,"participantId":'+json.dumps(participant)+',').encode()
     sections=(('activities','SELECT * FROM activities WHERE participant_id=? ORDER BY id'),
               ('activityHistory','SELECT * FROM activity_history WHERE participant_id=? ORDER BY activity_id,version'),
               ('assignments','SELECT * FROM labels WHERE participant_id=? ORDER BY id'),

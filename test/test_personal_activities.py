@@ -221,6 +221,100 @@ class ActivityTests(unittest.TestCase):
         with closing(sqlite3.connect(':memory:')) as c:
             self.assertIsNone(activities.revision(c,'A'))
 
+    def test_v1_upgrade_preserves_rows_history_identity_and_is_backed_up(self):
+        profile=self.root/'version-one';profile.mkdir();database=profile/'awear_data.sqlite3'
+        with closing(sqlite3.connect(database)) as c:
+            c.executescript((Path(__file__).parent/'fixtures'/'activities-v1.sql').read_text(encoding='utf-8'))
+            before=[dict(zip([d[0] for d in c.execute('SELECT * FROM labels').description],r)) for r in c.execute('SELECT * FROM labels ORDER BY id')]
+            names=list(c.execute('SELECT activity_id,version,name FROM activity_history ORDER BY activity_id,version'))
+        app.configure_storage(profile);app.setup_db()
+        with app.db() as c:
+            self.assertEqual(c.execute('SELECT version FROM activity_schema').fetchone()[0],2)
+            for old,new in zip(before,c.execute('SELECT * FROM labels ORDER BY id')):
+                self.assertEqual(old,{k:new[k] for k in old})
+                self.assertEqual(new['timing_precision'],'unknown')
+                self.assertIsNone(new['start_uncertainty_ms'])
+                self.assertEqual(new['review_state'],'confirmed' if old['reviewed'] else 'needs_review')
+            self.assertEqual([tuple(r) for r in c.execute('SELECT activity_id,version,name FROM activity_history ORDER BY activity_id,version')],names)
+        backups=list(ArchivePaths(profile).activity_migrations.glob('*.sqlite3'));self.assertEqual(len(backups),1)
+        with closing(sqlite3.connect(backups[0])) as c:self.assertEqual(c.execute('SELECT version FROM activity_schema').fetchone()[0],1)
+        app.setup_db();self.assertEqual(list(ArchivePaths(profile).activity_migrations.glob('*.sqlite3')),backups)
+
+    def test_v1_failed_upgrade_rolls_back_and_keeps_usable_v1_backup(self):
+        profile=self.root/'failure-one';profile.mkdir();database=profile/'awear_data.sqlite3'
+        with closing(sqlite3.connect(database)) as c:c.executescript((Path(__file__).parent/'fixtures'/'activities-v1.sql').read_text(encoding='utf-8'))
+        app.configure_storage(profile)
+        with patch.object(activities,'trigger_sql',side_effect=RuntimeError('Synthetic upgrade failure')):
+            with self.assertRaises(RuntimeError):app.setup_db()
+        with closing(sqlite3.connect(database)) as c:
+            activities.validate_archive_objects(c)
+            self.assertEqual(c.execute('SELECT version FROM activity_schema').fetchone()[0],1)
+            self.assertNotIn('timing_precision',{r[1] for r in c.execute('PRAGMA table_info(labels)')})
+        app.setup_db()
+
+    def test_review_origin_timing_and_history_are_independent(self):
+        with app.db() as c:
+            label_id=c.execute("INSERT INTO labels(participant_id,label,start_ms,end_ms,source,reviewed,batch_id) VALUES('A','Suggested',1000,9000,'model',0,'model-run-1')").lastrowid
+        row=self.label(label_id);self.assertEqual(row['review_state'],'needs_review')
+        self.assertEqual(app.label_review('A','suggested')['total'],1)
+        app.add_label('A','Suggested','Human review',1000,9000,label_id,evidence={'reviewState':'confirmed','timingPrecision':'approximate','startUncertaintyMs':5000,'endUncertaintyMs':None})
+        row=self.label(label_id)
+        self.assertEqual((row['source'],row['batch_id'],row['review_state'],row['reviewed']),('model','model-run-1','confirmed',1))
+        self.assertEqual(row['timing_precision'],'approximate');self.assertEqual(row['start_uncertainty_ms'],5000)
+        self.assertEqual(app.label_review('A','suggested')['total'],0)
+        app.add_label('A','Suggested','Unsure',1000,9000,label_id,evidence={'reviewState':'uncertain'})
+        row=self.label(label_id);self.assertEqual(row['reviewed'],0);self.assertEqual(row['start_uncertainty_ms'],5000)
+        history=self.export('A')['assignmentHistory'];self.assertTrue(any(r['review_state']=='confirmed' and r['start_uncertainty_ms']==5000 for r in history))
+        with app.db() as c:
+            with self.assertRaises(sqlite3.IntegrityError):c.execute("UPDATE labels SET source='manual' WHERE id=?",(label_id,))
+        with self.assertRaisesRegex(ValueError,'overlaps'):app.add_label('A','Other','',2000,4000)
+
+    def test_timing_validation_boundary_edits_and_active_end(self):
+        invalid=[{'timingPrecision':'approximate'}, {'timingPrecision':'exact'}, {'timingPrecision':'unknown','startUncertaintyMs':1},
+                 {'timingPrecision':'approximate','startUncertaintyMs':True},{'reviewState':'invented'}, {'source':'model'},
+                 {'timingPrecision':'approximate','startUncertaintyMs':86400001},{'timingPrecision':'approximate','startUncertaintyMs':1.5}]
+        for body in invalid:
+            with self.subTest(body=body),self.assertRaises(ValueError):app.add_label('A','New','',1000,2000,evidence=body)
+        self.assertEqual(self.export('A')['activities'],[])
+        label_id=app.add_label('A','Known','',1000,2000,evidence={'timingPrecision':'exact','startUncertaintyMs':0,'endUncertaintyMs':0})
+        app.add_label('A','Known','Note only',1000,2000,label_id)
+        self.assertEqual(self.label(label_id)['timing_precision'],'exact')
+        app.add_label('A','Known','Boundary changed',1000,2500,label_id)
+        self.assertEqual(self.label(label_id)['timing_precision'],'unknown')
+        with self.assertRaises(ValueError):app.add_label('A','Live','',3000,None,evidence={'timingPrecision':'approximate','startUncertaintyMs':1000,'endUncertaintyMs':1000})
+        app.add_label('A','Live','',3000,None,evidence={'timingPrecision':'exact','startUncertaintyMs':0})
+
+    def test_legacy_review_projection_and_quality_stays_separate(self):
+        label_id=app.add_label('A','Personal','',1000,2000,evidence={'reviewState':'uncertain'})
+        with app.db() as c:
+            c.execute('UPDATE labels SET reviewed=1 WHERE id=?',(label_id,))
+        self.assertEqual(self.label(label_id)['review_state'],'confirmed')
+        with app.db() as c:c.execute("UPDATE labels SET review_state='needs_review' WHERE id=?",(label_id,))
+        self.assertEqual(self.label(label_id)['reviewed'],0)
+        with app.db() as c:
+            for query in ("UPDATE labels SET timing_precision='exact' WHERE id=?", "UPDATE labels SET start_uncertainty_ms=10 WHERE id=?"):
+                with self.assertRaises(sqlite3.IntegrityError):c.execute(query,(label_id,))
+        self.assertNotIn('quality',json.dumps(self.export('A')['assignments'][0]))
+
+    def test_summary_separates_confirmed_and_unsure_periods_with_same_activity(self):
+        app.add_label('A','Read','',1000,2000)
+        app.add_label('A','Read','',2000,3000,evidence={'reviewState':'uncertain'})
+        with app.db() as c:
+            c.executemany("INSERT INTO readings(participant_id,timestamp_ms,waveform_json,sample_count,mean,rms,peak_to_peak) VALUES('A',?,'[-1,1]',2,0,1,2)",[(1000,),(2000,),(3000,)])
+        groups=app.summary('A',0,4000)['activities']
+        self.assertEqual(sum(r['records'] for r in groups),3)
+        self.assertEqual({r['reviewState'] for r in groups if not r['unassigned']},{'confirmed','uncertain'})
+        self.assertEqual(sum(r['records'] for r in groups if r['unassigned']),1)
+
+    def test_model_suggestion_fragments_preserve_origin_batch_and_pending_state(self):
+        with app.db() as c:
+            c.execute("INSERT INTO labels(participant_id,label,start_ms,end_ms,source,reviewed,batch_id,timing_precision,start_uncertainty_ms,end_uncertainty_ms) VALUES('A','Proposed',1000,9000,'model',0,'run-one','approximate',1000,1000)")
+        app.add_label('A','Human activity','',3000,5000)
+        with app.db() as c:rows=c.execute("SELECT * FROM labels WHERE source='model' ORDER BY start_ms").fetchall()
+        self.assertEqual([(r['start_ms'],r['end_ms']) for r in rows],[(1000,3000),(5000,9000)])
+        self.assertTrue(all(r['review_state']=='needs_review' and r['batch_id']=='run-one' and r['timing_precision']=='unknown' for r in rows))
+        self.assertEqual(rows[0]['activity_id'],rows[1]['activity_id'])
+
     def test_restore_schema_allows_only_exact_owned_triggers(self):
         with app.db() as c:
             activities.validate_archive_objects(c)

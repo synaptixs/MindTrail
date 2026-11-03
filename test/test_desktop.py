@@ -350,6 +350,53 @@ class DesktopTests(unittest.TestCase):
         self.assertNotEqual(export_b["activities"][0]["id"],activity['id'])
         self.assertNotIn('Technical docs',json.dumps(export_b))
 
+    def test_label_evidence_http_scoping_export_and_live_stop(self):
+        self.assertEqual(self.request('/api/labels',{'evidence':{}})[0],403)
+        self.launch();self.request('/api/desktop/bluetooth',{})
+        with app.db() as c:
+            participant=app.setting(c,'participant_id')
+            label_id=c.execute("INSERT INTO labels(participant_id,label,start_ms,end_ms,source,reviewed,batch_id) VALUES(?, 'Work',1000,9000,'schedule',0,'original-batch')",(participant,)).lastrowid
+        body={'label':'Work','start':app.iso(1000),'end':app.iso(9000),'participantId':participant,
+              'evidence':{'reviewState':'needs_review','timingPrecision':'approximate','startUncertaintyMs':30000,'endUncertaintyMs':60000}}
+        self.assertEqual(self.request(f'/api/labels/{label_id}/edit',body)[0],200)
+        data=json.loads(self.request('/api/labels?scope=suggested')[1])
+        self.assertEqual(data['labels'][0]['startUncertaintyMs'],30000)
+        self.assertEqual(data['labels'][0]['reviewState'],'needs_review')
+        body['evidence']['reviewState']='confirmed'
+        self.assertEqual(self.request(f'/api/labels/{label_id}/edit',body)[0],200)
+        export=json.loads(self.request('/api/export/activities.json')[1])
+        self.assertEqual(export['formatVersion'],2)
+        row=export['assignments'][0];self.assertEqual((row['source'],row['batch_id'],row['review_state']),('schedule','original-batch','confirmed'))
+        self.assertTrue(any(h['review_state']=='needs_review' and h['start_uncertainty_ms']==30000 for h in export['assignmentHistory']))
+        import csv,io
+        rows=list(csv.DictReader(io.StringIO(self.request('/api/export/activity-assignments.csv')[1].decode('utf-8'))))
+        self.assertEqual(rows[0]['end_uncertainty_ms'],'60000');self.assertEqual(rows[0]['timing_precision'],'approximate')
+        self.assertEqual(self.request('/api/export/labels.csv')[1].decode().splitlines()[0],'label,start_utc,end_utc,note')
+        body['evidence']={'reviewState':'confirmed','timingPrecision':'approximate','startUncertaintyMs':-1}
+        self.assertEqual(self.request(f'/api/labels/{label_id}/edit',body)[0],400)
+        body['evidence']={'reviewState':'confirmed'};body['participantId']='Other'
+        self.assertEqual(self.request(f'/api/labels/{label_id}/edit',body)[0],400)
+        live={'label':'Live','start':app.iso(10000),'evidence':{'timingPrecision':'exact','startUncertaintyMs':0}}
+        status,data,_,_=self.request('/api/labels',live);self.assertEqual(status,201);live_id=json.loads(data)['id']
+        self.assertEqual(self.request(f'/api/labels/{live_id}/stop',{'end':app.iso(11000)})[0],200)
+        with app.db() as c:
+            row=c.execute('SELECT timing_precision,end_uncertainty_ms FROM labels WHERE id=?',(live_id,)).fetchone();self.assertEqual(tuple(row),('exact',0))
+            app.put_setting(c,'participant_id','Other')
+        self.assertEqual(json.loads(self.request('/api/export/activities.json')[1])['assignmentHistory'],[])
+
+    def test_restore_shipped_v1_archive_upgrades_review_without_inventing_timing(self):
+        import sqlite3
+        from contextlib import closing
+        source=self.directory/'version-one.sqlite3'
+        with closing(sqlite3.connect(source)) as c:c.executescript((Path(__file__).parent/'fixtures'/'activities-v1.sql').read_text(encoding='utf-8'))
+        original=source.read_bytes();self.launch()
+        self.assertEqual(self.request('/api/desktop/import',original)[0],200)
+        with app.db() as c:
+            self.assertEqual(c.execute('SELECT version FROM activity_schema').fetchone()[0],2)
+            rows=c.execute('SELECT source,review_state,timing_precision FROM labels ORDER BY id').fetchall()
+            self.assertEqual([tuple(r) for r in rows],[('manual','confirmed','unknown'),('schedule','needs_review','unknown')])
+        self.assertEqual(source.read_bytes(),original)
+
     def test_restore_preserves_personal_ids_name_history_and_archived_state(self):
         import sqlite3
         from contextlib import closing

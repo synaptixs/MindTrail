@@ -37,7 +37,8 @@ the new layout takes precedence. Pattern writers always use the new path; reader
 fall back to a legacy report. Bluetooth file downloads retain session/file validation in
 both layouts and prefer a new-layout duplicate session.
 
-No archive files are automatically migrated or deleted. Raw captures and human annotations
+No archive files are automatically moved or deleted. SQLite annotation schemas use explicit
+backed-up migrations described below. Raw captures and human annotations
 are not disposable caches. The current SQLite database contains recordings and annotations;
 physically splitting it requires a separately tested migration.
 
