@@ -1,8 +1,9 @@
 # Analysis provenance foundation
 
-This first Phase 1 increment defines acquisition/window identities and provides a
-read-only cloud-source inventory. Quality/feature extraction, incremental feature
-caching, background jobs and the coverage dashboard are subsequent increments.
+This Phase 1 module defines acquisition/window identities and provides a read-only
+cloud-source inventory. [Quality/feature extraction](ANALYSIS_QUALITY.md) now shares
+the source snapshot through an optional record callback. Incremental feature caching,
+background jobs and the coverage dashboard remain subsequent increments.
 No existing clustering behavior, raw records or personal labels are changed here.
 
 ## Inspect an archive
@@ -57,8 +58,13 @@ out-of-order times, source/participant/device/session/placement changes and inva
 waveforms are rejected. Local daylight-saving transitions do not change UTC continuity.
 Start is inclusive; end is exclusive. Each window retains its source-record digests.
 
+Optional programmatic range bounds select record starts in a half-open UTC range
+and participate in its source revision. The optional `on_record` callback runs
+inside the same read transaction as inventory hashing; the default inventory behavior
+is unchanged. A failing callback aborts the inspection rather than publish partial counts.
+
 The cloud inventory is not a waveform-validity or eligibility report: `recordCount`
 includes invalid waveforms. It explicitly lists uninspected Bluetooth captures,
 labels and mobile observations. Unknown device counts do not establish that records
-come from one device. Full exclusion/coverage reconciliation belongs to the next
-quality/extraction increment; no Phase 1 acceptance gate is claimed complete yet.
+come from one device. The separate quality/extraction report reconciles exclusions
+and complete windows; no full Phase 1 acceptance gate is claimed complete yet.

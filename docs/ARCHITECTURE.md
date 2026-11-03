@@ -55,6 +55,9 @@ retain their existing OS/legacy-profile discovery behavior.
 Phase 1 source-provenance contracts and the read-only inventory command live in
 `src/analysis_provenance.py`; see [analysis provenance](ANALYSIS_PROVENANCE.md).
 They are not yet integrated into the desktop analysis UI or runtime bundle.
+`src/analysis_quality.py` owns the shared spectral primitive and source-only
+quality/extraction core; see [quality analysis](ANALYSIS_QUALITY.md). The existing
+clustering feature wrapper reuses its primitive while preserving old outputs.
 
 Windows copies an explicit application/static allowlist, including `archive_paths.py`.
 Mac packaging follows imports and an explicit static-data selection. Neither packages
