@@ -79,6 +79,17 @@ def run(directory: Path) -> int:
                     check()
                     atomic_json(directory/f'exploration-{group}-{view}.json',payload,check)
                 atomic_json(directory/'exploration-index.json',index,check)
+            if request.get('activityComparisons'):
+                from activity_comparisons import build
+                from analysis_provenance import canonical_json
+                index,payloads=build(report,Path(request['database']),request['timezone'],check=check,progress=progress)
+                index['demo']=request['demo']
+                if len(canonical_json(index).encode('utf-8'))>2_000_000:raise ValueError('Comparison manifest exceeds its output bound')
+                for group,payload in payloads.items():
+                    check()
+                    if len(canonical_json(payload).encode('utf-8'))>8_000_000:raise ValueError('Comparison context exceeds its output bound')
+                    atomic_json(directory/f'activities-{group}.json',payload,check)
+                atomic_json(directory/'activities-index.json',index,check)
             check()
             atomic_json(directory/'status.json',{'state':'completed','stage':'completed','done':1,'total':1,
                 'reusedWindows':cache.hits,'computedFeatures':cache.misses,'analysisIdentity':report['analysisIdentity'],

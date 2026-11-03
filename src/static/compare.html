@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101b23">
+  <title>Activity comparisons · MindTrail Lab</title>
+  <meta name="description" content="Explore quality flags and recurring patterns in personal AWEAR recordings.">
+  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/explore.css">
+  <link rel="stylesheet" href="/compare.css">
+  <script src="/compare.js" defer></script>
+
+</head>
+<body>
+  <div class="shell">
+    <aside class="rail">
+      <div class="brand"><div class="brand-mark">M<span>·</span></div><div><strong>MindTrail</strong><small>LAB</small></div></div>
+      <div class="rail-rule"></div>
+      <nav aria-label="Sections">
+        <a class="nav-link" href="/"><span class="nav-icon">◫</span> Overview</a>
+        <a class="nav-link" href="/#activity"><span class="nav-icon">◷</span> Activity log</a>
+        <a class="nav-link" href="/#recorded-periods"><span class="nav-icon">▤</span> Recorded periods</a>
+        <a class="nav-link" href="/eeg.html"><span class="nav-icon">∿</span> EEG signal</a>
+        <a class="nav-link" href="/bluetooth.html"><span class="nav-icon">ᛒ</span> Bluetooth</a>
+        <a class="nav-link" href="/quality.html"><span class="nav-icon">✓</span> Recording quality</a>
+        <a class="nav-link" href="/review.html"><span class="nav-icon">☷</span> Episode review</a>
+        <a class="nav-link" href="/explore.html"><span class="nav-icon">◌</span> Feature explorer</a>
+        <a class="nav-link active" aria-current="page" href="/compare.html"><span class="nav-icon">▥</span> Activity comparisons</a>
+        <a class="nav-link" href="/patterns.html"><span class="nav-icon">◩</span> Signal patterns</a>
+        <a class="nav-link" href="/data.html"><span class="nav-icon">▦</span> Data tables</a>
+        <a class="nav-link" href="/#exports"><span class="nav-icon">⇩</span> Exports</a>
+      </nav>
+      <div class="rail-bottom"><div class="local-card"><span class="green-dot"></span><div><strong>Private workspace</strong><small>Data stored on this computer</small></div></div><div class="rail-foot">AWEAR data · Local dashboard<br>Exploratory signal analysis</div></div>
+    </aside>
+    <main>
+      <header class="topbar"><div class="breadcrumb">Personal lab <span>/</span> Activity comparisons</div><div class="top-actions"><span id="participant" class="pill">Loading source…</span></div></header>
+      <div class="content explore-content">
+        <div class="eyebrow">YOUR ACTIVITIES · ACROSS RECORDINGS</div><h1>Activity comparisons<span class="title-dot">.</span></h1>
+        <p class="lead">Compare daily signal distributions for activities you confirmed. See how much usable data supports each view before interpreting differences.</p>
+        <p id="source">Cloud EEG · right ear · RIGHT_TEMP · 256 Hz. Bluetooth file ingestion remains separate.</p>
+        <section class="card explore-card"><div class="explore-actions"><button id="run" class="button primary">Analyze activities</button><button id="cancel" class="button subtle" hidden>Cancel</button><button id="refresh" class="button subtle">Refresh</button><a href="/review.html">Review activities →</a><a href="/explore.html">Unnamed patterns and features →</a></div><label><input id="include-exploration" type="checkbox" checked> Also refresh the feature explorer (requires its optional environment)</label><p id="status" role="status" aria-live="polite">Loading comparisons…</p><p id="freshness"></p><p id="availability"></p></section>
+        <div id="report" hidden>
+          <section class="card explore-card"><h2>Choose comparable recordings</h2><div class="explore-controls"><label>Recording context <select id="group"></select></label><label>Review policy <select id="review"><option value="confirmed">Confirmed only</option><option value="uncertain">Uncertain only — separate</option><option value="needs_review">Needs review only — separate</option></select></label><label>Label origin <select id="origin"><option value="all">All origins, kept separate</option><option value="manual">Manual</option><option value="schedule">Schedule</option><option value="model">Model / retrieval suggestion</option><option value="other">Other retained origins</option></select></label><label>Personal activity <select id="activity"><option value="">All activities</option></select></label></div><p id="context"></p><p id="accounting"></p><p>Different devices, ears, sources, clocks, rates and units stay separate. Within a context, actual sessions, activity origins and review states retain separate rows. Coverage is within each exact context's observed extent, not known device-wearing time.</p></section>
+          <section class="compare-summary" id="support"></section>
+          <section class="card explore-card"><h2>Daily feature distributions</h2><label>Feature <select id="feature"></select></label><p id="chart-note"></p><svg id="daily-chart" viewBox="0 0 1100 400" role="img" aria-label="Daily activity medians and within-day feature quartiles"></svg><div id="legend" class="compare-legend"></div><p>Dots are daily medians; whiskers are the 25th–75th percentiles of fully contained, unflagged windows. They describe window distributions, not confidence intervals or independent trials. No line fills gaps or implies activity recognition. Colors may repeat; table and hover labels identify each activity/origin/session.</p></section>
+          <section class="card explore-card"><h2>Daily coverage and support</h2><p id="row-count"></p><div class="table-scroll"><table><thead><tr><th>Day · activity · context</th><th>Recorded / label span in context</th><th>Usable / flagged windows</th><th>Coverage</th><th>Feature Q1 / median / Q3</th></tr></thead><tbody id="days"></tbody></table></div><div class="explore-actions"><button id="previous" class="button subtle">← Previous days</button><button id="next" class="button subtle">Next days →</button></div><p>Coverage: usable (green), flagged (amber), other recorded (gray), missing (pale). Other recorded includes extraction exclusions, remainders, label boundaries and midnight-crossing windows. Unknown/overlapping annotations do not receive feature assignments. Session-specific coverage denominators must not be added together. Usable window minutes sum source-window duration; they are not unique device-wearing time.</p></section>
+          <section class="card explore-card"><h2>Recorded-session summaries</h2><p id="session-note"></p><div class="table-scroll"><table><thead><tr><th>Actual session · activity · origin</th><th>Usable days / windows / duration</th><th>Feature Q1 / median / Q3</th></tr></thead><tbody id="sessions"></tbody></table></div></section>
+          <section class="card explore-card"><h2>Inspect ordinary and screened examples</h2><p id="example-note"></p><div id="examples"></div><p id="waveform-note" role="status" aria-live="polite">Select an example to verify its exact raw samples.</p><svg id="waveform" viewBox="0 0 1100 260" role="img" aria-label="Verified example waveform in source units"></svg></section>
+          <section class="card explore-card"><h2>What the current support can establish</h2><p>Descriptive exploration only. A larger window count cannot establish independent evidence or remove activity/day/contact confounding.</p><ul id="readiness"></ul><p id="method-decision"></p><p>Next evidence review: compare independently selected examples with your recollection, assess stable versus condition-related patterns, and choose whether clustering is useful before selecting inferential questions. No statistical effect or clustering default has been approved by this page.</p></section>
+        </div>
+      </div>
+    </main>
+  </div>
+</body>
+</html>
