@@ -99,3 +99,8 @@ See [episode review](EPISODE_REVIEW.md) and [Phase 2 acceptance](PHASE2_ACCEPTAN
 write the archive or replace the legacy Patterns API/UI. See
 [exploratory models](EXPLORATORY_MODELS.md) for sampling, acquisition isolation and candidate
 method contracts. Packaged numerical runtime remains Phase 5 work.
+
+`exploratory_stability.py` reuses that module's canonical snapshot, sampling and feature
+primitives for bounded parameter, feature-ablation and temporal/day-refit diagnostics. See
+[stability contracts](EXPLORATORY_STABILITY.md); it does not replace the existing Patterns
+API/UI or infer session/contact measurements from recording paths.
