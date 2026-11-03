@@ -36,12 +36,13 @@ def pca_projection(raw):
     rank = int(np.sum(singular > max(n, d)*np.finfo(float).eps*singular[0])) if singular[0] else 0
     for row in components:
         if row[np.argmax(np.abs(row))] < 0:row *= -1
-    axes = components[:2]
-    with threadpool_limits(limits=1):coordinates = centered @ axes.T
+    axes = components[:min(2, rank)]
+    coordinates = np.zeros((n, 2))
+    with threadpool_limits(limits=1):coordinates[:, :len(axes)] = centered @ axes.T
     total = float(np.sum(singular**2))
-    ratios = (singular[:2]**2/total).tolist() if total else [0., 0.]
+    ratios = [float(singular[i]**2/total) if i < rank else 0. for i in range(2)]
     tied = any(abs(singular[i]**2-singular[i+1]**2) <= max(total, 1e-30)*1e-8
-               for i in range(min(2, len(singular)-1)) if singular[i] > 0)
+               for i in range(min(2, rank-1)))
     return {'status': 'projected' if rank else 'constant_features', 'rank': rank,
             'coordinates': coordinates.tolist() if rank else [[0., 0.]]*n,
             'components': axes.tolist(), 'explainedVarianceRatio': ratios,

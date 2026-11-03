@@ -64,7 +64,11 @@ class ExplorerTests(unittest.TestCase):
         for axis in axes:self.assertGreaterEqual(axis[np.argmax(abs(axis))],0)
         self.assertEqual(p,views.pca_projection(raw))
         self.assertEqual(views.pca_projection(np.ones((8,5)))['status'],'constant_features')
-        self.assertEqual(views.pca_projection(np.arange(8)[:,None]*np.ones((1,5)))['rank'],1)
+        rank_one=views.pca_projection(np.arange(8)[:,None]*np.ones((1,5)))
+        self.assertEqual(rank_one['rank'],1)
+        self.assertEqual(rank_one['explainedVarianceRatio'][1],0)
+        self.assertTrue(all(point[1]==0 for point in rank_one['coordinates']))
+        self.assertEqual(len(rank_one['components']),1)
         self.assertTrue(views.pca_projection(np.r_[np.eye(4),-np.eye(4)])['axisAmbiguity'])
         with self.assertRaises(ValueError):views.pca_projection(np.full((8,5),np.nan))
 
