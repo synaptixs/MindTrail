@@ -340,6 +340,24 @@ class MacInstallTests(unittest.TestCase):
 
 
 class MobileScoreArchivePackagingTests(unittest.TestCase):
+    def test_packaged_html_dependencies_are_present_in_the_offline_asset_manifest(self):
+        from html.parser import HTMLParser
+        from urllib.parse import urlsplit
+        from installer_build import STATIC_FILES
+        source=Path(__file__).resolve().parent.parent/'src'/'static'
+        class Dependencies(HTMLParser):
+            def __init__(self):super().__init__();self.paths=[]
+            def handle_starttag(self,tag,attrs):
+                attrs=dict(attrs)
+                value=attrs.get('src') if tag=='script' else attrs.get('href') if tag=='link' and attrs.get('rel')=='stylesheet' else None
+                if value and value.startswith('/'):self.paths.append(urlsplit(value).path.lstrip('/'))
+        for name in STATIC_FILES:
+            self.assertTrue((source/name).is_file(),name)
+            if not name.endswith('.html'):continue
+            parser=Dependencies();parser.feed((source/name).read_text(encoding='utf-8'))
+            for dependency in parser.paths:
+                with self.subTest(page=name,dependency=dependency):self.assertIn(dependency,STATIC_FILES)
+
     def test_package_check_rejects_mobile_navigation_and_keeps_archive_exports(self):
         from installer.smoke_windows import wait_for_workspace
         source = Path(__file__).resolve().parent.parent / "src" / "static"
