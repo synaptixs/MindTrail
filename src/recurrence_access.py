@@ -138,4 +138,5 @@ def validate_files(directory,participant,identity):
         value=read_json(directory/f'recurrence-{key}.json',limit=MAX_PAYLOAD)
         if (fingerprint(value)!=g['payloadHash'] or value['version']!=1 or value['participantId']!=participant
                 or value['analysisIdentity']!=identity or value['compatibilityId']!=key
-                or value['acquisition']!=g['acquisition'] or value['contexts']!=g['contexts']):raise ValueError('Incomplete recurrence payload')
+                or value['acquisition']!=g['acquisition'] or value['contexts']!=g['contexts']
+                or value['scaler']['identity']!=g['scalerIdentity']):raise ValueError('Incomplete recurrence payload')
