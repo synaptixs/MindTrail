@@ -31,6 +31,7 @@ from typing import Iterator
 from zoneinfo import ZoneInfo
 
 from bluetooth_manager import BluetoothManager
+from archive_paths import ArchivePaths
 
 SOURCE_ROOT = Path(__file__).resolve().parent
 ROOT = SOURCE_ROOT if getattr(sys, "frozen", False) else SOURCE_ROOT.parent
@@ -550,9 +551,9 @@ def mobile_score_export(participant: str, format_name: str, start_ms: int | None
     return output.getvalue().encode()
 
 
-def pattern_report_path(participant: str) -> Path:
+def pattern_report_path(participant: str, *, for_write: bool = False) -> Path:
     digest = hashlib.sha256(f"{DB_PATH.name}:{participant}".encode()).hexdigest()[:16]
-    return data_root() / "data" / "patterns" / f"{digest}.json"
+    return ArchivePaths(data_root()).pattern_report(f"{digest}.json", for_write=for_write)
 
 
 def pattern_report(participant: str) -> dict:
@@ -766,7 +767,7 @@ def saved_snapshot_tables(participant: str) -> dict:
     """Read sessions and stats exactly as saved by the most recent complete export."""
     if not re.fullmatch(r"[A-Za-z0-9_-]{1,80}", participant):
         raise ValueError("Invalid participant ID")
-    for snapshot in sorted((data_root() / "data").glob("export-*"), reverse=True):
+    for snapshot in ArchivePaths(data_root()).snapshots():
         manifest_path = snapshot / "manifest.json"
         sessions_path = snapshot / participant / "sessions.json"
         stats_path = snapshot / participant / "stats.json"

@@ -19,9 +19,9 @@ import zipfile
 import zlib
 from pathlib import Path, PurePosixPath
 
-VERSION = "0.2.6"
+VERSION = "0.2.7"
 ROOT = Path(__file__).resolve().parent.parent
-APP_FILES = ("app.py", "desktop.py", "desktop_runtime.py", "credential_store.py", "bluetooth_manager.py", "bluetooth_collector.py", "ble_protocol.py")
+APP_FILES = ("app.py", "desktop.py", "desktop_runtime.py", "credential_store.py", "bluetooth_manager.py", "bluetooth_collector.py", "ble_protocol.py", "archive_paths.py")
 STATIC_FILES = tuple(name + extension for name in ("app", "data", "eeg", "patterns", "bluetooth", "welcome") for extension in (".js", ".css"))
 STATIC_FILES = tuple(name for name in STATIC_FILES if name != "app.css") + ("style.css", "index.html", "data.html", "eeg.html", "patterns.html", "scores.html", "bluetooth.html", "welcome.html")
 

@@ -12,6 +12,7 @@ import threading
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
+from archive_paths import ArchivePaths
 
 SESSION_NAME = re.compile(r"session-\d{8}T\d{6}Z-[0-9a-f]{8}")
 DOWNLOAD_FILES = {"raw-notifications.jsonl", "eeg.jsonl", "eeg.csv", "events.jsonl", "session.json", "collector.log"}
@@ -20,7 +21,8 @@ DOWNLOAD_FILES = {"raw-notifications.jsonl", "eeg.jsonl", "eeg.csv", "events.jso
 class BluetoothManager:
     def __init__(self, root: Path, data_directory: Path | None = None, worker_command: list[str] | None = None):
         self.root = root
-        self.directory = (data_directory or root) / "data" / "bluetooth"
+        self.paths = ArchivePaths(data_directory or root)
+        self.directory = self.paths.bluetooth
         self.python = root / ".venv-bluetooth" / ("Scripts/python.exe" if sys.platform == "win32" else "bin/python")
         self.worker_command = worker_command
         self.lock = threading.Lock()
@@ -135,8 +137,13 @@ class BluetoothManager:
             return {}
 
     def status(self) -> dict:
-        folders = sorted([folder for folder in self.directory.glob("session-*")
-                          if folder.is_dir() and SESSION_NAME.fullmatch(folder.name)], reverse=True)
+        by_id = {}
+        for directory in self.paths.bluetooth_roots:
+            for folder in directory.glob("session-*"):
+                if (folder.is_dir() and SESSION_NAME.fullmatch(folder.name)
+                        and folder.resolve().parent == directory.resolve()):
+                    by_id.setdefault(folder.name, folder)
+        folders = [by_id[name] for name in sorted(by_id, reverse=True)]
         sessions = []
         for folder in folders[:20]:
             summary = self.read_json(folder / "session.json") or self.read_json(folder / "status.json")
@@ -158,8 +165,13 @@ class BluetoothManager:
             raise ValueError("Choose a valid Bluetooth session file")
         if self.running() and session == self.session:
             raise ValueError("Stop the Bluetooth recording before downloading its session files")
-        folder = (self.directory / session).resolve()
-        path = (folder / name).resolve()
-        if folder.parent != self.directory.resolve() or path.parent != folder or not path.is_file():
-            raise ValueError("Bluetooth session file not found")
-        return path
+        for directory in self.paths.bluetooth_roots:
+            folder = (directory / session).resolve()
+            if not folder.is_dir():
+                continue
+            path = (folder / name).resolve()
+            if folder.parent == directory.resolve() and path.parent == folder and path.is_file():
+                return path
+            # Never fall through from an invalid modern copy to a legacy one.
+            break
+        raise ValueError("Bluetooth session file not found")

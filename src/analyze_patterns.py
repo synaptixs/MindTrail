@@ -222,7 +222,7 @@ def main() -> None:
                                            "log relative 30–40 Hz power"], "seed": SEED},
                    "extraction": extraction})
     app.DB_PATH = database
-    path = app.pattern_report_path(participant)
+    path = app.pattern_report_path(participant, for_write=True)
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_suffix(".tmp")
     with temporary.open("w", encoding="utf-8") as output:

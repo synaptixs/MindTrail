@@ -16,6 +16,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from app import data_root, Collector, ROOT, iso, read_api_key, safe_csv, utc_ms
+from archive_paths import ArchivePaths
 
 RAW_WINDOW_MS = 60 * 60 * 1000
 SESSIONS_WINDOW_MS = 30 * 24 * 60 * 60 * 1000
@@ -258,7 +259,8 @@ def main() -> None:
     parser.add_argument("--participant", help="Export only one accessible participant ID")
     parser.add_argument("--start", help="ISO 8601 start; defaults to each participant's firstSeen")
     parser.add_argument("--end", help="ISO 8601 end; defaults to now")
-    parser.add_argument("--data-dir", type=Path, default=data_root() / "data", help="Snapshot parent directory")
+    parser.add_argument("--data-dir", type=Path, default=ArchivePaths(data_root()).cloud,
+                        help="Snapshot parent directory; defaults to data/raw/cloud/ in the selected archive")
     args, extras = parser.parse_known_args()
     if extras:
         parser.exit(2, "Unexpected argument. Enter the API key only after the hidden --key-prompt.\n")
