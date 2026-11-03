@@ -52,6 +52,10 @@ retain their existing OS/legacy-profile discovery behavior.
 
 ## Distribution
 
+Phase 1 source-provenance contracts and the read-only inventory command live in
+`src/analysis_provenance.py`; see [analysis provenance](ANALYSIS_PROVENANCE.md).
+They are not yet integrated into the desktop analysis UI or runtime bundle.
+
 Windows copies an explicit application/static allowlist, including `archive_paths.py`.
 Mac packaging follows imports and an explicit static-data selection. Neither packages
 source configuration, tests, local archives, or keys. Native upgrade tests use isolated
