@@ -32,6 +32,12 @@ def wait_for_workspace(process, profile):
             with opener.open(url.split("/launch")[0] + "/welcome.html", timeout=1) as response:
                 page = response.read().decode()
             assert 'id="api-key-guide"' in page and 'MindTrail Lab' in page
+            with opener.open(url.split("/launch")[0] + "/scores.html", timeout=1) as response:
+                scores = response.read().decode()
+            assert scores.index('id="mobile-chart-title"') < scores.index('id="score-form"'), "Mobile chart must appear before the entry form"
+            with opener.open(url.split("/launch")[0] + "/scores.js", timeout=1) as response:
+                chart_script = response.read().decode()
+            assert 'SCORE (0–100)' in chart_script and 'No phone scores recorded' in chart_script
             return
         except (OSError, ValueError, KeyError):
             time.sleep(.1)
@@ -135,7 +141,7 @@ assert CredentialStore(Path(sys.argv[1])).get() == ''
             with closing(sqlite3.connect(profile / 'awear_data.sqlite3')) as db:
                 assert db.execute("SELECT label FROM labels WHERE participant_id='qa-only'").fetchone() == ('Windows upgrade QA',)
             checks['uninstallPreservesArchive'] = True
-        result = {**checks, "singleInstance": True, "shutdown": True, "setupPageAndGuide": True,
+        result = {**checks, "singleInstance": True, "shutdown": True, "setupPageAndGuide": True, "mobileScoreChartFirst": True,
                   "installerExercised": installed, "platform": platform.platform(),
                   "signaturesVerified": args.require_signed,
                   "installerSha256": hashlib.sha256(args.installer.read_bytes()).hexdigest() if installed else None}

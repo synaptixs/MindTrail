@@ -50,21 +50,31 @@ function rangeQuery() {
   return query;
 }
 function renderChart() {
-  if (!state.rows.length) { $('score-chart').innerHTML = '<div class="empty-state">No mobile observations in this range.</div>'; return; }
   const rows = [...state.rows].reverse();
-  const first = Date.parse(rows[0].observedAt), last = Date.parse(rows[rows.length-1].observedAt);
-  const span = Math.max(1000,last-first), left=42, right=880, top=15, bottom=137;
-  const x = value => left+(Date.parse(value)-first)/span*(right-left);
+  const first = rows.length ? Date.parse(rows[0].observedAt) : Date.now()-86400000;
+  const last = rows.length ? Date.parse(rows[rows.length-1].observedAt) : Date.now();
+  const padding = first === last ? 1800000 : Math.max(1000,(last-first)*.05);
+  const selectedStart = Date.parse($('range-start').value), selectedEnd = Date.parse($('range-end').value);
+  const start = Number.isFinite(selectedStart) ? selectedStart : first-padding;
+  const end = Number.isFinite(selectedEnd) ? selectedEnd : Math.max(start+1000,last+padding);
+  const span = Math.max(1000,end-start), left=52, right=870, top=30, bottom=205;
+  const x = value => left+(Date.parse(value)-start)/span*(right-left);
   const y = value => bottom-value/100*(bottom-top);
-  const grid = [0,25,50,75,100].map(value => `<path d="M${left},${y(value)} H${right}" stroke="#e2ebe4"/><text x="${left-9}" y="${y(value)+3}" text-anchor="end" fill="#8ba092" font-size="10">${value}</text>`).join('');
-  const points = rows.map(row => {
-    const radius = 4, px=x(row.observedAt), py=y(row.score);
+  const grid = [0,25,50,75,100].map(value => `<path d="M${left},${y(value)} H${right}" stroke="#dce7df"/><text x="${left-12}" y="${y(value)+4}" text-anchor="end" fill="#597466" font-size="12">${value}</text>`).join('');
+  const points = rows.map((row,index) => {
+    const px=x(row.observedAt), py=y(row.score);
     const title = `${row.score} · ${row.state} · ${stamp(row.observedAt)}${row.activity ? ' · '+row.activity : ''}`;
     const half = Math.min(right-left,row.uncertaintySeconds*1000/span*(right-left));
-    return `<g><title>${esc(title)}</title>${half ? `<path d="M${Math.max(left,px-half)},${py} H${Math.min(right,px+half)}" stroke="${colors[row.state]}" opacity=".5"/>` : ''}<circle cx="${px}" cy="${py}" r="${radius}" fill="${colors[row.state]}"/></g>`;
+    const url = '/eeg.html?'+new URLSearchParams({start:row.context ? row.context.start : new Date(Date.parse(row.observedAt)-30000).toISOString(),seconds:'60'});
+    const label = rows.length <= 12 || index === rows.length-1 ? `<text x="${px}" y="${py-13}" text-anchor="middle" fill="${colors[row.state]}" font-weight="700" font-size="13">${row.score}</text>` : '';
+    return `<a href="${esc(url)}" aria-label="${esc(title+'; inspect nearby EEG')}"><title>${esc(title)}</title>${half ? `<path d="M${Math.max(left,px-half)},${py} H${Math.min(right,px+half)}" stroke="${colors[row.state]}" opacity=".5"/>` : ''}<circle cx="${px}" cy="${py}" r="7" fill="${colors[row.state]}" stroke="white" stroke-width="2"/>${label}</a>`;
   }).join('');
-  $('score-chart').innerHTML = `<svg viewBox="0 0 900 170" role="img" aria-label="${state.rows.length} manually recorded score points">${grid}${points}<text x="${left}" y="163" fill="#8ba092" font-size="10">${esc(stamp(rows[0].observedAt))}</text><text x="${right}" y="163" text-anchor="end" fill="#8ba092" font-size="10">${esc(stamp(rows[rows.length-1].observedAt))}</text></svg>`;
+  const empty = rows.length ? '' : `<text x="460" y="104" text-anchor="middle" fill="#355547" font-size="17" font-weight="700">No phone scores recorded in this range</text><text x="460" y="132" text-anchor="middle" fill="#758d80" font-size="13">Record a reading below to start this chart.</text>`;
+  $('score-chart').innerHTML = `<svg viewBox="0 0 900 260" role="img" aria-label="${state.rows.length} manually recorded phone score points; score axis zero to one hundred"><text x="${left}" y="16" fill="#597466" font-size="11">SCORE (0–100)</text>${grid}${points}${empty}<text x="${left}" y="236" fill="#597466" font-size="11">${esc(stamp(start))}</text><text x="${right}" y="236" text-anchor="end" fill="#597466" font-size="11">${esc(stamp(end))}</text><text x="460" y="255" text-anchor="middle" fill="#758d80" font-size="10">OBSERVED TIME · ${esc(Intl.DateTimeFormat().resolvedOptions().timeZone)}</text></svg>`;
+  const latest = state.rows[0];
+  $('latest-mobile-score').textContent = latest ? `${latest.score} / 100 · ${latest.state}` : 'No readings yet';
 }
+
 function render() {
   $('score-count').textContent = `${state.rows.length} of ${state.total} observations shown`;
   $('chart-description').textContent = `Showing ${state.rows.length} of ${state.total} observations in this range. Points are manual readings; values between them are unknown. Horizontal bars show entered time uncertainty.`;

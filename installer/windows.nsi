@@ -22,10 +22,10 @@ UninstallIcon "${ICON}"
     !uninstfinalize '"${SIGNTOOL}" sign /sha1 ${SIGN_THUMBPRINT} /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 "%1"' = 0
   !endif
 !endif
-VIProductVersion "0.2.4.0"
+VIProductVersion "0.2.5.0"
 VIAddVersionKey /LANG=1033 "ProductName" "MindTrail Lab"
 VIAddVersionKey /LANG=1033 "FileDescription" "MindTrail Lab Setup"
-VIAddVersionKey /LANG=1033 "FileVersion" "0.2.4"
+VIAddVersionKey /LANG=1033 "FileVersion" "0.2.5"
 VIAddVersionKey /LANG=1033 "LegalCopyright" "MindTrail Lab contributors"
 Page instfiles
 UninstPage uninstConfirm
@@ -73,7 +73,7 @@ Section "Install"
   CreateShortcut "$SMPROGRAMS\MindTrail Lab.lnk" "$INSTDIR\runtime\pythonw.exe" '$\"$INSTDIR\app\windows_entry.pyw$\"' "$INSTDIR\awear.ico"
   CreateShortcut "$DESKTOP\MindTrail Lab.lnk" "$INSTDIR\runtime\pythonw.exe" '$\"$INSTDIR\app\windows_entry.pyw$\"' "$INSTDIR\awear.ico"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\AWEARPersonalLab" "DisplayName" "MindTrail Lab"
-  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\AWEARPersonalLab" "DisplayVersion" "0.2.4"
+  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\AWEARPersonalLab" "DisplayVersion" "0.2.5"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\AWEARPersonalLab" "InstallLocation" "$INSTDIR"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\AWEARPersonalLab" "DisplayIcon" "$INSTDIR\awear.ico"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\AWEARPersonalLab" "UninstallString" '$\"$INSTDIR\Uninstall.exe$\"'

@@ -73,3 +73,30 @@ test('switching from an unsaved draft to editing does not reuse the draft timest
   assert.notEqual(s.posts[0].body.observedAt,draftTime);
   assert.equal(s.posts[0].url,'/api/mobile-scores/7/edit');
 });
+test('empty chart retains score axes and explains missing phone readings without inventing points',async()=>{
+  const s=await screen();const chart=s.elements['score-chart'].innerHTML;
+  assert.match(chart,/SCORE \(0–100\)/);
+  assert.match(chart,/No phone scores recorded/);
+  assert.match(chart,/Record a reading below/);
+  assert.doesNotMatch(chart,/<circle/);
+  assert.equal(s.elements['latest-mobile-score'].textContent,'No readings yet');
+  assert.ok(html.indexOf('id="mobile-chart-title"')<html.indexOf('id="score-form"'));
+});
+test('a single recorded score is visible inside the plot with a value and EEG link',async()=>{
+  const s=await screen();s.run(`state.rows=[{observedAt:'2026-05-01T12:00:00Z',score:62,state:'relaxed',uncertaintySeconds:0}];renderChart()`);
+  const chart=s.elements['score-chart'].innerHTML;
+  const x=Number(chart.match(/<circle cx="([^"]+)"/)[1]);
+  assert.ok(x>100&&x<800,'A lone point needs horizontal space on both sides');
+  assert.match(chart,/>62<\/text>/);
+  assert.match(chart,/href="\/eeg.html\?/);
+  assert.match(chart,/seconds=60/);
+  assert.equal(s.elements['latest-mobile-score'].textContent,'62 / 100 · relaxed');
+});
+test('score bounds and recorded states render without interpolating missing observations',async()=>{
+  const s=await screen();s.run(`state.rows=[{observedAt:'2026-05-01T12:01:00Z',score:100,state:'calm',uncertaintySeconds:5},{observedAt:'2026-05-01T12:00:00Z',score:0,state:'alert',uncertaintySeconds:0}];renderChart()`);
+  const chart=s.elements['score-chart'].innerHTML;
+  assert.equal([...chart.matchAll(/<circle /g)].length,2);
+  assert.doesNotMatch(chart,/NaN|<polyline/);
+  assert.match(chart,/>100<\/text>/);assert.match(chart,/>0<\/text>/);
+  assert.match(chart,/fill="#3f9774"/);assert.match(chart,/fill="#bd8050"/);
+});

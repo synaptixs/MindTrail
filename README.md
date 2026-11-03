@@ -187,7 +187,7 @@ Spectral estimates use 4-second Hann windows with 2-second steps and never join 
 <details>
 <summary><strong>Mobile scores</strong></summary>
 
-manually enter the AWEAR mobile app's score (0–100), displayed state (Alert, Engaged, Relaxed, or Calm), and observation time. **Mark time now** fixes the observation time before you type; starting to enter a score also marks the time. Saving preserves that moment. Uncheck the live capture option to enter a past time. Editing preserves the original timestamp unless you deliberately change it.
+The prominent **Mobile score over time** chart shows saved phone readings on a 0–100 axis, colored by the observed state. Click a point to inspect nearby EEG. With no readings, the chart keeps its axes and explains how to add data; it does not fabricate a series. Scores are not imported automatically. To add a point, manually enter the AWEAR mobile app's score (0–100), displayed state (Alert, Engaged, Relaxed, or Calm), and observation time. **Mark time now** fixes the observation time before you type; starting to enter a score also marks the time. Saving preserves that moment. Uncheck the live capture option to enter a past time. Editing preserves the original timestamp unless you deliberately change it.
 
 Time entry uses your computer's timezone and is saved as UTC, separately from the time you entered or edited the observation. Optional timing uncertainty, app version, and notes preserve context. States are transcribed, never inferred from score ranges.
 
