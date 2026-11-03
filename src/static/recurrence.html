@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101b23">
+  <title>Across days · MindTrail Lab</title>
+  <meta name="description" content="Explore quality flags and recurring patterns in personal AWEAR recordings.">
+  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/discover.css">
+  <link rel="stylesheet" href="/recurrence.css">
+  <script src="/recurrence.js" defer></script>
+
+</head>
+<body>
+  <div class="shell">
+    <aside class="rail">
+      <div class="brand"><div class="brand-mark">M<span>·</span></div><div><strong>MindTrail</strong><small>LAB</small></div></div>
+      <div class="rail-rule"></div>
+      <nav aria-label="Sections">
+        <a class="nav-link" href="/"><span class="nav-icon">◫</span> Overview</a>
+        <a class="nav-link" href="/#activity"><span class="nav-icon">◷</span> Activity log</a>
+        <a class="nav-link" href="/#recorded-periods"><span class="nav-icon">▤</span> Recorded periods</a>
+        <a class="nav-link" href="/eeg.html"><span class="nav-icon">∿</span> EEG signal</a>
+        <a class="nav-link" href="/bluetooth.html"><span class="nav-icon">ᛒ</span> Bluetooth</a>
+        <a class="nav-link active" aria-current="page" href="/recurrence.html"><span class="nav-icon">↔</span> Across days</a>
+        <a class="nav-link" href="/discover.html"><span class="nav-icon">◇</span> Discover recordings</a>
+        <a class="nav-link" href="/quality.html"><span class="nav-icon">✓</span> Recording quality</a>
+        <a class="nav-link" href="/review.html"><span class="nav-icon">☷</span> Episode review</a>
+        <a class="nav-link" href="/patterns.html"><span class="nav-icon">◩</span> Signal patterns</a>
+        <a class="nav-link" href="/data.html"><span class="nav-icon">▦</span> Data tables</a>
+        <a class="nav-link" href="/#exports"><span class="nav-icon">⇩</span> Exports</a>
+      </nav>
+      <div class="rail-bottom"><div class="local-card"><span class="green-dot"></span><div><strong>Private workspace</strong><small>Data stored on this computer</small></div></div><div class="rail-foot">AWEAR data · Local dashboard<br>Exploratory signal analysis</div></div>
+    </aside>
+    <main>
+      <header class="topbar"><div class="breadcrumb">Personal lab <span>/</span> Across days</div><div class="top-actions"><span class="pill">Local exploration</span></div></header>
+      <div class="content discovery-content recurrence-content">
+        <div class="eyebrow">EXPLORATORY RECURRENCE</div><h1>Across recording days<span class="title-dot">.</span></h1>
+        <p class="lead">Compare an observed four-second window with other dates. No activity labels required.</p>
+        <p id="rec-source">Cloud EEG · right ear · RIGHT_TEMP · 256 Hz.</p><p id="rec-status" role="status" aria-live="polite">Loading…</p>
+        <div class="discovery-actions"><button type="button" class="button primary" id="rec-analyze">Analyze saved recordings</button><button type="button" class="button subtle" id="rec-refresh">Refresh status</button><a class="button subtle" href="/discover.html">Daily discovery</a></div>
+        <section class="card" id="rec-body" hidden>
+          <h2>Choose an observed reference</h2><div class="daily-controls"><label>Compatible recording family<select id="rec-group"></select></label><label>Reference date<select id="rec-date"></select></label></div>
+          <p id="rec-context"></p><div class="daily-controls"><label>Reference window<select id="rec-reference"></select></label><label>Feature view<select id="rec-view"><option value="with_power">Spectral ratios + power</option><option value="spectral_only">Spectral ratios only</option></select></label></div>
+          <p id="rec-reference-note"></p><button type="button" class="button primary" id="rec-search">Search other dates</button>
+          <p>Each candidate is a single observed window. A nearest rank is not a validated match, activity prediction or replication. Distances in different feature views are not comparable magnitudes.</p>
+          <details><summary>How distances are calculated</summary><p id="rec-scale-note"></p><div class="rec-table"><table><thead><tr><th>Feature</th><th>Median</th><th>IQR scale</th><th>Observed range</th></tr></thead><tbody id="rec-scales"></tbody></table></div></details>
+        </section>
+        <section class="card" id="rec-results" hidden><h2>Closest candidates on other dates</h2><p id="rec-result-note" role="status"></p><div id="rec-candidates"></div>
+          <button type="button" class="button subtle" id="rec-inspect-reference">Inspect reference</button><div class="rec-wave-pair"><div><h3>Reference source</h3><svg id="rec-reference-wave" aria-label="Unfiltered reference waveform" role="img"></svg><p id="rec-reference-wave-note"></p></div><div><h3>Candidate source</h3><svg id="rec-candidate-wave" aria-label="Unfiltered candidate waveform" role="img"></svg><p id="rec-candidate-wave-note">Choose a candidate to inspect.</p></div></div><p id="rec-wave-scale"></p>
+        </section>
+        <section class="card" id="rec-conditions" hidden><h2>Recording-condition context</h2><p>Descriptive rows retain exact contexts and actual session IDs. Contact/impedance is unmeasured. Shared-feature differences cannot independently establish contact changes, activity or biology.</p><p id="rec-condition-note"></p>
+          <div class="daily-controls"><label>Feature or screening proxy<select id="rec-condition-feature"></select></label></div><svg id="rec-condition-chart" role="img" aria-label="Per-day and exact-session median and interquartile feature spread"></svg><p>Dots and whiskers show window medians and Q1–Q3 on the current page, not confidence intervals. Dates and neighboring windows are not independent experiments.</p>
+          <div class="rec-table" role="region" aria-label="Recording condition rows" tabindex="0"><table><thead><tr><th>Date / session</th><th>Unflagged / flagged windows</th><th>Recorded / missing seconds</th><th>Recorded state coverage</th><th>Selected feature Q1 / median / Q3</th></tr></thead><tbody id="rec-condition-rows"></tbody></table></div>
+          <div class="discovery-actions"><button type="button" class="button subtle" id="rec-previous">Previous condition rows</button><button type="button" class="button subtle" id="rec-next">Next condition rows</button></div>
+        </section>
+      </div></main></div></body></html>

@@ -27,8 +27,7 @@ from analysis_provenance import AcquisitionContext, AnalysisSpec, canonical_json
 from analysis_quality import QualityPolicy, valid_features
 
 VERSION = 'exploration-v1'
-FEATURES = ['log10Power1to40Hz', 'log10DeltaOverBeta', 'log10ThetaOverBeta',
-            'log10AlphaOverBeta', 'log10HighBandOverBeta']
+from spectral_features import FEATURES, feature_vector as canonical_feature_vector
 DEFAULT_CONFIG = Path(__file__).resolve().parents[1] / 'config' / 'exploration.json'
 
 
@@ -58,10 +57,7 @@ def configuration(value: dict) -> dict:
 
 
 def feature_vector(window: dict) -> list:
-    f = window['features']
-    shares = np.asarray(f['bandShares'])
-    ratios = np.log10((shares[[0, 1, 2, 4]] + 1e-6) / (shares[3] + 1e-6))
-    return [f['log10Power1to40Hz'], *ratios.tolist()]
+    return canonical_feature_vector(window)
 
 
 def content_digest(value: dict) -> str:
@@ -236,7 +232,8 @@ def compare_models(report: dict, config: dict) -> dict:
                        'scipy': scipy.__version__, 'sklearn': sklearn.__version__,
                        'threadpools': [{k: p.get(k) for k in ('internal_api', 'version', 'architecture', 'num_threads')}
                                        for p in threadpool_info()]}
-        implementation = {'moduleSha256': hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+        implementation = {'spectralOwnerSha256': hashlib.sha256(Path(__file__).with_name('spectral_features.py').read_bytes()).hexdigest(),
+                          'moduleSha256': hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
                           'provenanceSha256': hashlib.sha256(Path(__file__).with_name('analysis_provenance.py').read_bytes()).hexdigest(),
                           'qualitySha256': hashlib.sha256(Path(__file__).with_name('analysis_quality.py').read_bytes()).hexdigest(),
                           'environment': environment}

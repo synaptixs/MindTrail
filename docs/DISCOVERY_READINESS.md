@@ -147,4 +147,65 @@ validates every payload before changing the complete pointer; cancellation/failu
 the previous complete result and cleans partial daily files. New data, code or annotation
 changes invalidate stale facts. Human-authored questions remain separate and preserved.
 No default clustering, inferential estimate, activity classifier or packaged numerical
-runtime is added. Expanded cross-day recurrence remains P4-W3; numerical packaging is P5.
+runtime is added. Cross-day recurrence is described below; numerical packaging is P5.
+
+## Cross-day recurrence and recording conditions (P4-W3)
+
+Open **Across days** from the dashboard or daily discovery. Choose an observed reference
+window and either spectral ratios plus power or spectral ratios alone. A daily inspected
+unflagged window can be sent directly to this page. No activity labels or clustering run
+are required. Up to three observed examples per supported date are offered, deduplicated
+and counted against that date's full eligible population; these are not a representative
+sample. Any eligible daily-inspected window remains addressable.
+
+`recurrence_model.py` owns full-population facts; `recurrence_access.py` serves them using
+only the standard library. `spectral_features.py` owns the unchanged P3 coordinate formula:
+log10 1–40 Hz power plus log10 delta/theta/alpha/high-band shares relative to beta, with a
+1e-6 pseudocount. Existing P3 model/stability implementation keys include this owner.
+
+Only wholly contained unflagged canonical four-second windows enter retrieval. Flagged
+and midnight-crossing counts remain visible in the manifest. Compatible families may differ
+only in explicit session ID. Participant, device, source, ear, sample rate, channel, clock
+basis and units remain isolated; unknown sessions never become sessions inferred from gaps.
+Cloud metadata remains right ear / RIGHT_TEMP / 256 Hz. Bluetooth-file ingestion is excluded.
+
+Each family stores its full eligible population, feature ranges, median and IQR scale
+(floor 1e-6), population revision and scaler identity. This is one full-snapshot scaler,
+including discovery dates, rather than per-day normalization or held-out preprocessing.
+Euclidean distance uses all five coordinates, or the four ratios with the power coordinate
+removed. A view with every coordinate range <=1e-6 returns **uninformative features**, never
+artificial perfect matches. Distances between different views are not comparable magnitudes.
+
+Queries exclude the reference date and any other-date interval within 60 seconds of the
+reference. All remaining windows are searched. The closest window per other date is selected
+by distance, start and ID; the top 10 of M date candidates are returned. Counts reconcile the
+full population, exclusions, other-date windows, shown and omitted dates. Full eligible
+other-window distance Q1/median/Q3 and per-feature scaled differences/squared contributions
+make rankings inspectable. One other date is explicitly limited support. There is no match
+threshold, similarity probability, sequence recurrence, activity meaning or independent
+replication claim. Changing the reference or view clears previous results.
+
+The condition chart and table retain complete day/exact-session strata, not inferred
+wearing sessions. They show recorded union/missing time, screening-state elapsed facts,
+unflagged/flagged window counts and raw AC RMS, log-power, alpha-share, maximum-step, trend
+and mains-like proxy quartiles. Whiskers are Q1–Q3, not confidence intervals. Conditions are
+paged (25, maximum 100), with shown/total counts; the chart describes the current page.
+Contact/impedance is unmeasured. Shared-feature differences cannot independently diagnose
+contact, physiology, activity or cause; conditions may coincide with spectral changes.
+
+Both reference and candidate source samples are fetched through the W2 sealed context/date/
+window identity and canonical source-record digest verifier. No duplicate source-digest
+owner is introduced. Raw unfiltered waveforms show source units/offset and share the same
+amplitude axis once both are loaded. Their different times do not imply temporal alignment.
+
+`GET /api/discovery/recurrence` returns the current manifest or a family/condition page;
+`group`, current `identity`, `reference` and `view` add a ranked query. The waveform endpoint
+also requires current identity and exact eligible membership. Sealed manifest/payload,
+participant/context/scaler and before/after source signatures guard reads. Worker publication
+validates all recurrence sidecars before changing the complete pointer; failed/canceled/
+pruned jobs clean their sidecars and preserve the previous completed result.
+
+Manifest <=2 MB, family <=96 MB, response <=2 MB, input <=1 million computed windows and
+<=1,000 families; exceeding a bound fails explicitly. Nothing silently samples the population.
+No raw/label writes, automatic assignment, default clustering, inference engine, public
+release or numerical installer runtime are introduced. Numerical packaging remains P5.

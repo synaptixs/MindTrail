@@ -1,0 +1,80 @@
+'use strict';
+(()=>{
+ const el=id=>document.getElementById(id),NS='http://www.w3.org/2000/svg',initial=new URLSearchParams(location.search);
+ let index=null,data=null,query=null,state=null,person=null,indexSeq=0,seq=0,conditionSeq=0,waveSeq=0,offset=0,linked=false,custom=null,waves={reference:null,candidate:null};
+ const waveRequests={reference:0,candidate:0};
+ const num=v=>v!==0&&Math.abs(v)<.0001?Number(v).toExponential(3):Number(v).toLocaleString(undefined,{maximumFractionDigits:4});
+ const stamp=ms=>new Intl.DateTimeFormat(undefined,{timeZone:index?.timezone||'UTC',dateStyle:'medium',timeStyle:'long'}).format(ms);
+ function node(tag,value){const e=document.createElement(tag);e.textContent=value;return e;}
+ function svg(tag,attrs={},value){const e=document.createElementNS(NS,tag);for(const[k,v]of Object.entries(attrs))e.setAttribute(k,v);if(value!==undefined)e.textContent=value;return e;}
+ async function request(path,body){const r=await fetch(path,body===undefined?{}:{method:'POST',headers:{'Content-Type':'application/json','X-Awear-Local':'1'},body:JSON.stringify(body)});const v=await r.json();if(!r.ok)throw new Error(v.error||'Request failed');return v;}
+ function options(target,items){const before=target.value;target.replaceChildren(...items.map(([value,label])=>new Option(label,value)));if(items.some(([value])=>value===before))target.value=before;}
+ function selected(){return index?.groups.find(g=>g.compatibilityId===el('rec-group').value);}
+ function clearQuery(){seq++;conditionSeq++;waveSeq++;query=null;waves={reference:null,candidate:null};el('rec-results').hidden=true;el('rec-reference-wave').replaceChildren();el('rec-candidate-wave').replaceChildren();el('rec-reference-wave-note').textContent='';el('rec-candidate-wave-note').textContent='Choose a candidate to inspect.';el('rec-wave-scale').textContent='';el('rec-search').disabled=!el('rec-reference').value;}
+ function hide(message){indexSeq++;clearQuery();index=null;data=null;el('rec-body').hidden=true;el('rec-conditions').hidden=true;el('rec-status').textContent=message;}
+ function references(){const day=selected()?.referenceDays.find(d=>d.date===el('rec-date').value);const items=(day?.examples||[]).map(e=>[e.windowId,`${e.kind} · ${stamp(e.startMs)}`]);if(custom&&custom.date===day?.date&&!items.some(([id])=>id===custom.windowId))items.unshift([custom.windowId,`Inspected daily source · ${stamp(custom.startMs)}`]);options(el('rec-reference'),items);el('rec-reference-note').textContent=day?`${items.length} reference examples offered from ${day.eligibleWindows} eligible windows on this date. Inspect a daily feature bin to choose another window.`:'No unflagged reference windows. Review coverage and screening before searching.';el('rec-search').disabled=!items.length;}
+ function dates(){options(el('rec-date'),selected()?.referenceDays.map(d=>[d.date,d.date])||[]);references();}
+ async function refresh(){const token=++indexSeq;
+  try{const [s,next]=await Promise.all([request('/api/analysis/state'),request('/api/discovery/recurrence')]);if(token!==indexSeq)return;
+   state=s;const busy=s.job&&['running','canceling'].includes(s.job.state);el('rec-analyze').disabled=!s.available||!s.participantId||busy;
+   if(s.participantId!==next.participantId){hide('Source changed; refresh before exploring.');return;}
+   el('rec-source').textContent=s.demo?'Synthetic demo · right-ear cloud-format metadata · no personal EEG':'Cloud EEG · right ear · RIGHT_TEMP · 256 Hz. Bluetooth files are excluded.';
+   if(next.status!=='current'){hide(busy?`Analysis ${s.job.stage}…`:next.status==='stale'?'Recordings or analysis code changed. Run analysis to refresh recurrence.':s.available?'No current recurrence report. Analyze saved recordings; activity labels are optional.':'Numerical analysis is unavailable in this build; packaged numerical support remains P5.');return;}
+   if(next.recurrenceIdentity===index?.recurrenceIdentity)return;
+   const changedPerson=person!==next.participantId;person=next.participantId;index=next;custom=null;clearQuery();offset=0;
+   if(changedPerson)linked=false;
+   options(el('rec-group'),index.groups.map(g=>[g.compatibilityId,`${g.acquisition.device_id??'unknown device'} · ${g.acquisition.placement} ear · ${g.acquisition.source} · ${g.accounting.eligible} eligible windows`]));
+   el('rec-body').hidden=!index.groups.length;el('rec-conditions').hidden=!index.groups.length;
+   el('rec-status').textContent=index.groups.length?'Current descriptive snapshot. Choose an observed window and search other dates.':'No timestamped recording families. Source exclusions remain in recording quality.';
+   if(!index.groups.length)return;
+   let linkedWindow=null;
+   if(!linked&&initial.has('window')){linked=true;const g=index.groups.find(g=>g.contexts.some(c=>c.acquisitionGroupId===initial.get('exactGroup')));if(g){el('rec-group').value=g.compatibilityId;linkedWindow=initial.get('window');}else el('rec-status').textContent='The linked exact context is outside the current archive; choose a current family.';}
+   dates();await load();if(linkedWindow)await search(linkedWindow);
+  }catch(e){if(token===indexSeq)hide(e.message);}
+ }
+ async function load(){if(!index||!selected())return;const token=++conditionSeq,identity=index.recurrenceIdentity,group=el('rec-group').value;
+  try{const value=await request('/api/discovery/recurrence?'+new URLSearchParams({group,offset,limit:25}));if(token!==conditionSeq||identity!==index?.recurrenceIdentity)return;if(value.status!=='current'||value.recurrenceIdentity!==identity){hide('Recurrence changed; refresh analysis.');return;}data=value;renderFamily();}
+  catch(e){if(token===conditionSeq)el('rec-status').textContent=e.message;}
+ }
+ function renderFamily(){const a=data.acquisition;el('rec-context').textContent=`${a.source} · ${a.placement} ear · ${a.channel} · ${a.sample_rate} Hz · ${a.units} · ${data.contexts.length} exact contexts. Only explicit session IDs may differ within this family. ${data.accounting.computedContained} whole-day computed windows: ${data.accounting.eligible} eligible and ${data.accounting.flaggedExcluded} flagged/excluded from retrieval. Across the full archive, ${index.windowAccounting.crossDay} midnight-crossing windows are excluded from day-specific features.`;
+  el('rec-scale-note').textContent=`Scaler ${data.scaler.identity} · ${data.scaler.fitWindows} eligible windows · population ${data.scaler.populationRevision}. ${data.scaler.scope}. Median/IQR, floor ${data.policy.scaleFloor}. Shape view excludes power; neither view establishes activity meaning.`;
+  el('rec-scales').replaceChildren();data.scaler.features.forEach((feature,i)=>{const r=node('tr','');r.append(node('th',feature),node('td',num(data.scaler.median[i])),node('td',num(data.scaler.iqrScale[i])),node('td',num(data.scaler.ranges[i])));el('rec-scales').append(r);});
+  options(el('rec-condition-feature'),data.proxies.map((p,i)=>[String(i),`${p.label} (${p.units})`]));renderConditions();
+ }
+ async function search(reference=el('rec-reference').value){if(!index||!selected()||!reference)return;clearQuery();const token=++seq,identity=index.recurrenceIdentity,group=el('rec-group').value,view=el('rec-view').value,pageOffset=offset;el('rec-search').disabled=true;el('rec-status').textContent='Searching all eligible windows on other dates…';
+  try{const value=await request('/api/discovery/recurrence?'+new URLSearchParams({group,identity,reference,view,offset,limit:25}));if(token!==seq||identity!==index?.recurrenceIdentity)return;if(value.status!=='current'){hide('Source changed; refresh analysis.');return;}query=value.query;if(pageOffset===offset)data=value;
+   if(query.reference.windowId!==el('rec-reference').value){custom=query.reference;el('rec-date').value=custom.date;references();el('rec-reference').value=custom.windowId;}
+   renderFamily();renderQuery();el('rec-status').textContent='Current exploratory candidates; no validated match threshold or activity inference.';
+  }catch(e){if(token===seq){query=null;el('rec-results').hidden=true;el('rec-status').textContent=e.message;}}
+  finally{if(token===seq)el('rec-search').disabled=!el('rec-reference').value;}
+ }
+ function renderQuery(){el('rec-results').hidden=false;el('rec-candidates').replaceChildren();const c=query.counts;
+  el('rec-result-note').textContent=`${query.status.replaceAll('_',' ')}. ${c.eligiblePopulation} eligible population = ${c.sameDayExcluded} same-date excluded + ${c.temporalGuardExcluded} near-midnight guard excluded + ${c.eligibleOtherWindows} other-date windows. Showing ${c.shown} closest date candidates of ${c.otherDates} other dates; ${c.omittedDates} date candidates omitted. ${query.supportNote}${query.distanceQuartiles?` All eligible other-date distances Q1 / median / Q3: ${query.distanceQuartiles.map(num).join(' / ')}.`:''}`;
+  for(const [i,item]of query.items.entries()){const article=node('article','');article.className='rec-candidate';article.append(node('h3',`${i+1}. ${item.date} · distance ${num(item.distance)}`),node('p',`${stamp(item.startMs)} → ${stamp(item.endMsExclusive)} · session ${item.acquisition.session_id??'not recorded'} · ${item.acquisition.placement} ear · AC RMS ${num(item.proxies[0])} source units. Single-window candidate; activity unknown.`));const b=node('button','Inspect candidate source');b.type='button';b.className='button subtle';b.addEventListener('click',()=>wave(item.windowId,'candidate'));article.append(b);
+   const details=node('details','');details.append(node('summary','Why this candidate?'));const wrap=node('div','');wrap.className='rec-table';const table=node('table','');const header=node('tr','');for(const name of ['Feature','Reference','Candidate','IQR scale','Scaled difference','Squared contribution'])header.append(node('th',name));table.append(header);
+   for(const d of item.differences){const r=node('tr','');for(const v of [d.feature,num(d.reference),num(d.candidate),num(d.iqrScale),num(d.scaledDelta),num(d.squaredContribution)])r.append(node('td',v));table.append(r);}wrap.append(table);details.append(wrap);article.append(details);el('rec-candidates').append(article);}
+ }
+ function renderConditions(){if(!data)return;const feature=Number(el('rec-condition-feature').value||0),meta=data.proxies[feature];el('rec-condition-note').textContent=`Showing ${data.shown} of ${data.total} day/exact-context rows (offset ${data.offset}). ${data.knownSessions} known sessions; ${data.unknownSessionContexts} exact contexts with unknown session. Contact is unmeasured. ${meta.label}: ${meta.units}.`;
+  el('rec-condition-rows').replaceChildren();for(const row of data.conditions){const r=node('tr','');r.append(node('th',`${row.date} · session ${row.sessionId??'not recorded'}`),node('td',`${row.unflaggedWindows} / ${row.flaggedWindows}`),node('td',`${num(row.recordedUnionMs/1000)} / ${num(row.missingMs/1000)}`),node('td',Object.entries(row.qualityMs).map(([state,ms])=>`${({computed_unflagged:'Computed unflagged',computed_flagged:'Computed flagged',feature_failure:'Extraction failed',excluded:'Excluded',remainder:'Short remainder'})[state]||state}: ${num(ms/1000)} s`).join(' · ')),node('td',row.proxyQuartiles?row.proxyQuartiles[feature].map(num).join(' / '):'No unflagged windows'));el('rec-condition-rows').append(r);}
+  el('rec-previous').disabled=!data.offset;el('rec-next').disabled=!data.hasMore;
+  const chart=el('rec-condition-chart'),w=Math.max(240,chart.clientWidth),L=60,R=w-18,dates=[...new Set(data.conditions.map(r=>r.date))],rows=data.conditions.filter(r=>r.proxyQuartiles);chart.setAttribute('viewBox',`0 0 ${w} 260`);chart.replaceChildren(svg('title',{},`${meta.label}; current page of exact day/session distributions`));
+  if(!rows.length){chart.append(svg('text',{x:L,y:100},'No unflagged feature support'));return;}
+  const values=rows.flatMap(r=>r.proxyQuartiles[feature]);let low=Math.min(...values),high=Math.max(...values);if(meta.units.includes('fraction')){low=0;high=1;}else if(high-low<.1){const middle=(high+low)/2;low=middle-.05;high=middle+.05;}const y=v=>210-(v-low)/(high-low)*170;
+  for(const f of[0,.5,1]){const v=low+(high-low)*f;chart.append(svg('line',{x1:L,x2:R,y1:y(v),y2:y(v),stroke:'#dce6df'}),svg('text',{x:0,y:y(v)+4},num(v)));}
+  const x=date=>L+(dates.indexOf(date)+.5)/dates.length*(R-L);const tickEvery=Math.max(1,Math.ceil(dates.length/(w<500?2:5)));
+  dates.forEach((date,i)=>{if(i%tickEvery===0||i===dates.length-1)chart.append(svg('text',{x:x(date),y:242,'text-anchor':'middle'},date));});
+  rows.forEach(row=>{const q=row.proxyQuartiles[feature],same=rows.filter(r=>r.date===row.date),index=same.indexOf(row),px=x(row.date)+(index-(same.length-1)/2)*Math.min(4,20/Math.max(1,same.length));chart.append(svg('line',{x1:px,x2:px,y1:y(q[0]),y2:y(q[2]),stroke:'#278366','stroke-width':2}));const dot=svg('circle',{cx:px,cy:y(q[1]),r:4,fill:'#278366'});dot.append(svg('title',{},`${row.date} · session ${row.sessionId??'not recorded'} · median ${num(q[1])}`));chart.append(dot);});
+ }
+ async function wave(id,kind){if(!index||!data)return;const token=++waveRequests[kind],generation=waveSeq,identity=index.recurrenceIdentity;waves[kind]=null;el(`rec-${kind}-wave`).replaceChildren();el(`rec-${kind}-wave-note`).textContent='Verifying exact source samples…';
+  try{const result=await request('/api/discovery/recurrence/waveform?'+new URLSearchParams({group:data.compatibilityId,identity,window:id}));if(token!==waveRequests[kind]||generation!==waveSeq||identity!==index?.recurrenceIdentity)return;waves[kind]=result;drawWaves();}
+  catch(e){if(token===waveRequests[kind]&&generation===waveSeq)el(`rec-${kind}-wave-note`).textContent=e.message;}
+ }
+ function drawWaves(){const loaded=Object.values(waves).filter(Boolean);if(!loaded.length)return;const lo=Math.min(...loaded.map(w=>w.minimum)),hi=Math.max(...loaded.map(w=>w.maximum)),span=hi-lo||1;
+  for(const[kind,result]of Object.entries(waves)){if(!result)continue;const target=el(`rec-${kind}-wave`),w=Math.max(240,target.clientWidth);target.setAttribute('viewBox',`0 0 ${w} 220`);target.replaceChildren(svg('polyline',{points:result.samples.map((v,i)=>`${52+i/(result.samples.length-1)*(w-68)},${180-(v-lo)/span*150}`).join(' '),fill:'none',stroke:'#278366','stroke-width':1}),svg('text',{x:0,y:25},num(hi)),svg('text',{x:0,y:186},num(lo)),svg('text',{x:52,y:210},'0 s'),svg('text',{x:w-16,y:210,'text-anchor':'end'},'4 s'));el(`rec-${kind}-wave-note`).textContent=`Source verified · ${stamp(result.startMs)} → ${stamp(result.endMsExclusive)} · ${result.samples.length} samples at ${result.sampleRate} Hz · ${result.acquisition.units} · raw mean/offset ${num(result.mean)}. Unflagged does not establish artifact-free EEG.`;}
+  el('rec-wave-scale').textContent=loaded.length===2?'Both raw, unfiltered windows share the same source-unit y-axis. Their timestamps are different; no sample-level temporal alignment is implied.':'One raw, unfiltered window loaded. Loading the other applies a shared source-unit y-axis.';
+ }
+ el('rec-search').addEventListener('click',()=>search());el('rec-group').addEventListener('change',()=>{custom=null;offset=0;clearQuery();dates();load();});el('rec-date').addEventListener('change',()=>{custom=null;clearQuery();references();});el('rec-reference').addEventListener('change',clearQuery);el('rec-view').addEventListener('change',clearQuery);
+ el('rec-condition-feature').addEventListener('change',renderConditions);el('rec-next').addEventListener('click',()=>{offset+=25;load();});el('rec-previous').addEventListener('click',()=>{offset=Math.max(0,offset-25);load();});el('rec-inspect-reference').addEventListener('click',()=>wave(query?.reference.windowId,'reference'));
+ el('rec-refresh').addEventListener('click',refresh);el('rec-analyze').addEventListener('click',async()=>{try{el('rec-analyze').disabled=true;await request('/api/analysis/start',state?.settings||{timezone:'America/New_York'});await refresh();}catch(e){el('rec-status').textContent=e.message;}});
+ new ResizeObserver(()=>{renderConditions();drawWaves();}).observe(el('rec-condition-chart'));refresh();setInterval(refresh,3000);
+})();

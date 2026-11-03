@@ -287,7 +287,7 @@ def analyze_stability(report, sampling_config, stability_config, *, check=lambda
         result = {'version': 1, 'methodVersion': VERSION, 'snapshot': snapshot,
             'samplingConfiguration': sampling, 'stabilityConfiguration': config, 'candidateGrid': grid,
             'implementation': {'sources': {name: hashlib.sha256(Path(__file__).with_name(name).read_bytes()).hexdigest()
-                for name in ('exploratory_stability.py', 'exploratory_models.py', 'analysis_provenance.py', 'analysis_quality.py')}, 'environment': environment},
+                for name in ('spectral_features.py', 'exploratory_stability.py', 'exploratory_models.py', 'analysis_provenance.py', 'analysis_quality.py')}, 'environment': environment},
             'groups': evaluated,
             'defaultMethod': None, 'limitations': [
                 'Exploratory signal groups are not activities, moods or clinical states',
