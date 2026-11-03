@@ -1,6 +1,7 @@
 const $ = (id) => document.getElementById(id);
 const state = { rangeHours: 168, mode: 'live', selected: '', refreshing: false, showSetup: false,
   editingLabel: null, editingInputs: null, pendingLabelRange: null,
+  activityItems: [], activitiesLoadedFor: null, activityRevision: null, activityTotal: 0, activityOffset: 0, activityHasMore: false, activityRequest: 0, activityEdit: null,
   dayRanges: new Map(), dayViews: new Map(), dayDragging: null, dayRequest: 0,
   context: null, focus: null, rangeVersion: 0, refreshQueued: false, summary: null, view: null, dragging: null,
   intervals: [], days: [], expandedDays: new Set(), intervalSignature: '', nextBefore: null, intervalPages: 1, intervalLoading: false, intervalsFetchedAt: 0 };
@@ -473,6 +474,8 @@ async function refresh() {
     pill.innerHTML=`<span class="pill-dot"></span> ${bluetoothMode?'Bluetooth profile':status.demo?'Sample mode':!status.keyConfigured?'Key needed':status.syncing?'Syncing':'Connected'}`;
     $('demo-badge').hidden=!status.demo;
     if (state.selected!==status.participantId) {
+      cancelLabelEdit();cancelActivityDefinition();
+      state.activityItems=[];state.activitiesLoadedFor=null;state.activityTotal=0;state.activityOffset=0;state.activityHasMore=false;state.activityRequest++;renderPersonalActivities();
       state.intervalPages=1;
       state.intervals=[];
       state.days=[];
@@ -487,6 +490,7 @@ async function refresh() {
       state.rangeVersion++;
     }
     state.selected=status.participantId;
+    if(state.selected&&(state.activitiesLoadedFor!==state.selected||state.activityRevision!==status.activitiesRevision))await loadPersonalActivities();
     $('setup').hidden=!!status.participantId&&!state.showSetup;
     $('key-help').hidden=!!status.keyConfigured||status.demo;
     $('connect-button').disabled=!status.keyConfigured&&!status.demo;
@@ -549,6 +553,67 @@ $('setup-form').addEventListener('submit',async(event)=>{
     refresh();
   } catch(error){notice(error.message,'error');}
 });
+async function loadPersonalActivities(append=false) {
+  const participant=state.selected,request=++state.activityRequest;
+  if(!participant)return;
+  const result=await api(`/api/activities?limit=50&offset=${append?state.activityOffset:0}&includeArchived=1`);
+  if(state.selected!==participant||request!==state.activityRequest)return;
+  if(result.participantId!==participant){state.activitiesLoadedFor=null;refresh();return;}
+  const items=append?[...state.activityItems,...result.activities]:result.activities;
+  state.activityItems=[...new Map(items.map(a=>[a.id,a])).values()];
+  if(!append)$('activity-name-history').replaceChildren();
+  state.activityRevision=result.revision;state.activityTotal=result.total;state.activityOffset=result.offset+result.activities.length;state.activityHasMore=result.hasMore;state.activitiesLoadedFor=participant;
+  renderPersonalActivities();
+}
+function renderPersonalActivities() {
+  $('activity-total').textContent=`${state.activityItems.length} of ${state.activityTotal}`;
+  $('activity-list-status').textContent=state.activityTotal?`${state.activityItems.length} of ${state.activityTotal} activities shown. Archive or rename keeps their saved history.`:'No personal activities yet. Type your own name to create one; no preset list is required.';
+  $('activity-load-more').hidden=!state.activityHasMore;
+  $('personal-activities').replaceChildren(...state.activityItems.filter(a=>!a.archived).map(a=>{const o=document.createElement('option');o.value=a.name;o.label=a.category||a.name;return o;}));
+  $('personal-activity-list').innerHTML=state.activityItems.map(a=>`<tr><td><strong>${escapeHtml(a.name)}</strong>${a.archived?' <span class="small-badge">Archived</span>':''}<small>${escapeHtml([a.category,a.context].filter(Boolean).join(' · '))}</small></td><td>${a.period_count}</td><td><div class="personal-actions"><button class="button subtle" type="button" data-vocab-favorite="${escapeHtml(a.id)}" aria-label="${a.favorite?'Remove favorite':'Favorite'} ${escapeHtml(a.name)}">${a.favorite?'★ Favorite':'☆ Favorite'}</button><button class="button subtle" type="button" data-vocab-edit="${escapeHtml(a.id)}">Edit</button><button class="button subtle" type="button" data-vocab-archive="${escapeHtml(a.id)}">${a.archived?'Restore':'Archive'}</button><button class="button subtle" type="button" data-vocab-history="${escapeHtml(a.id)}">History</button></div></td></tr>`).join('');
+}
+function cancelActivityDefinition() {
+  state.activityEdit=null;$('activity-definition-form').reset();$('activity-definition-save').textContent='Add activity';$('activity-definition-cancel').hidden=true;
+  $('activity-definition-impact').textContent='Add an activity here, or type a new name when labeling a period.';$('activity-name-history').replaceChildren();
+}
+$('activity-definition-cancel').addEventListener('click',cancelActivityDefinition);
+$('activity-refresh').addEventListener('click',()=>loadPersonalActivities().catch(e=>notice(e.message,'error')));
+$('activity-load-more').addEventListener('click',()=>loadPersonalActivities(true).catch(e=>notice(e.message,'error')));
+$('activity-definition-form').addEventListener('submit',async(event)=>{
+  event.preventDefault();if(!state.selected)return notice('Connect a participant first.','error');
+  const current=state.activityEdit;
+  const body={name:$('activity-definition-name').value,category:$('activity-definition-category').value,context:$('activity-definition-context').value,participantId:state.selected,favorite:$('activity-definition-favorite').checked};
+  if(current)body.version=current.version;
+  try {
+    await post(current?`/api/activities/${encodeURIComponent(current.id)}/edit`:'/api/activities',body);
+    cancelActivityDefinition();await loadPersonalActivities();await loadIntervals();await refresh();notice(current?'Activity updated. Original names remain in history.':'Personal activity added.','success');
+  }catch(error){notice(error.message,'error');}
+});
+$('personal-activity-list').addEventListener('click',async(event)=>{
+  const button=event.target.closest('button');if(!button)return;
+  const id=button.dataset.vocabEdit||button.dataset.vocabArchive||button.dataset.vocabFavorite||button.dataset.vocabHistory;
+  const a=state.activityItems.find(item=>item.id===id);if(!a)return;
+  if(button.dataset.vocabEdit){
+    state.activityEdit={...a};$('activity-definition-name').value=a.name;$('activity-definition-category').value=a.category;$('activity-definition-context').value=a.context;$('activity-definition-favorite').checked=!!a.favorite;
+    $('activity-definition-save').textContent='Save activity';$('activity-definition-cancel').hidden=false;
+    $('activity-definition-impact').textContent=`Renaming updates the displayed name on ${a.period_count} saved period${a.period_count===1?'':'s'}. Their original names, times and history are retained. Archiving is separate.`;
+    $('activity-definition-name').focus();return;
+  }
+  try {
+    if(button.dataset.vocabHistory){
+      const participant=state.selected,request=state.activityRequest;
+      const data=await api(`/api/activities/${encodeURIComponent(id)}/history?limit=50`);
+      if(state.selected!==participant||request!==state.activityRequest||data.participantId!==participant)return;
+      $('activity-name-history').innerHTML=`<h3>${escapeHtml(a.name)} · name and settings history</h3><p>${data.history.length} of ${data.total} versions shown, newest first. Full history is in the JSON export.</p><ol>${data.history.map(h=>`<li>v${h.version}: <strong>${escapeHtml(h.name)}</strong> · ${h.archived?'archived':'active'} · ${escapeHtml(new Date(h.changed_ms).toLocaleString())}<small>${escapeHtml([h.category,h.context].filter(Boolean).join(' · '))}</small></li>`).join('')}</ol>`;return;
+    }
+    const body={version:a.version,participantId:state.selected};
+    if(button.dataset.vocabArchive)body.archived=!a.archived;
+    else body.favorite=!a.favorite;
+    await post(`/api/activities/${encodeURIComponent(id)}/edit`,body);
+    await loadPersonalActivities();await loadIntervals();await refresh();notice('Activity settings saved; existing periods are retained.','success');
+  }catch(error){notice(error.message,'error');}
+});
+
 function mode(value){
   state.mode=value;
   $('interval-fields').hidden=value==='live';
@@ -579,10 +644,14 @@ $('label-form').addEventListener('submit',async(event)=>{
     const stamp=(edge)=>source&&source[edge]&&$(`label-${edge}`).value===inputs?.[edge]?source[edge]:new Date($(`label-${edge}`).value).toISOString();
     const start=state.mode==='live'?new Date().toISOString():stamp('start');
     const end=state.mode==='live'||(original&&!original.end&&!$('label-end').value)?null:stamp('end');
-    await post(original?`/api/labels/${original.id}/edit`:'/api/labels',{label:$('label-name').value,note:$('label-note').value,start,end});
+    const name=$('label-name').value;
+    const selectedActivity=state.activityItems.find(a=>!a.archived&&a.name===name);
+    const activityId=original&&name===original.label?original.activityId:selectedActivity?.id;
+    await post(original?`/api/labels/${original.id}/edit`:'/api/labels',{label:name,note:$('label-note').value,start,end,activityId,participantId:state.selected});
     const message=original?'Activity updated. Suggestions around it were retained.':state.mode==='live'?'Activity started. Stop it when you finish.':'Interval saved. Overlapping suggestions were refined.';
     cancelLabelEdit();
     notice(message,'success');
+    await loadPersonalActivities();
     await loadIntervals();
     refresh();
   } catch(error){notice(error.message,'error');}

@@ -349,7 +349,7 @@ class DesktopController:
             if not 16 <= length <= 5 * 1024**3:
                 raise ValueError("Choose a SQLite archive under 5 GB.")
             with app.db() as connection:
-                occupied = any(connection.execute(f"SELECT 1 FROM {table} LIMIT 1").fetchone() for table in ("readings", "labels", "mobile_scores"))
+                occupied = any(connection.execute(f"SELECT 1 FROM {table} LIMIT 1").fetchone() for table in ("readings", "labels", "mobile_scores", "activities"))
             captures = any(any(root.glob("session-*")) for root in handler.server.bluetooth.paths.bluetooth_roots)
             if self.ready() or occupied or captures:
                 raise ValueError("Restore is available only in a new, empty workspace before setup.")
@@ -367,8 +367,7 @@ class DesktopController:
                     source.execute("PRAGMA trusted_schema=OFF")
                     if source.execute("PRAGMA quick_check").fetchone()[0] != "ok":
                         raise ValueError("Archive integrity check failed.")
-                    if source.execute("SELECT 1 FROM sqlite_master WHERE type IN ('trigger','view') LIMIT 1").fetchone():
-                        raise ValueError("This is not a supported AWEAR archive.")
+                    app.personal_activities.validate_archive_objects(source)
                     for table, columns in {"settings": {"key", "value"}, "readings": {"participant_id", "timestamp_ms", "waveform_json", "sample_count", "mean", "rms", "peak_to_peak"}, "labels": {"id", "participant_id", "label", "note", "start_ms", "end_ms"}}.items():
                         actual = {row[1] for row in source.execute(f"PRAGMA table_info({table})")}
                         if not columns <= actual:

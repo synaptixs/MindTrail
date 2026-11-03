@@ -30,6 +30,7 @@ from pathlib import Path
 from typing import Iterator
 from zoneinfo import ZoneInfo
 
+import personal_activities
 from analysis_manager import AnalysisManager
 from bluetooth_manager import BluetoothManager
 from archive_paths import ArchivePaths
@@ -159,6 +160,8 @@ def setup_db() -> None:
                                  ("batch_id", "TEXT")):
             if name not in label_columns:
                 connection.execute(f"ALTER TABLE labels ADD COLUMN {name} {definition}")
+
+        personal_activities.migrate(connection, DB_PATH, data_root())
 
 
 def setting(connection: sqlite3.Connection, key: str, default: str = "") -> str:
@@ -786,7 +789,8 @@ def saved_snapshot_tables(participant: str) -> dict:
 def public_label(row: sqlite3.Row) -> dict:
     return {"id": row["id"], "label": row["label"], "note": row["note"],
             "start": iso(row["start_ms"]), "end": iso(row["end_ms"]) if row["end_ms"] is not None else None,
-            "source": row["source"], "reviewed": bool(row["reviewed"])}
+            "source": row["source"], "reviewed": bool(row["reviewed"]),
+            "activityId": row["activity_id"], "recordedLabel": row["recorded_label"]}
 
 
 def label_review(participant: str, scope: str, limit: int = 100) -> dict:
@@ -801,7 +805,7 @@ def label_review(participant: str, scope: str, limit: int = 100) -> dict:
 
 
 def add_label(participant: str, label: str, note: str, start_ms: int, end_ms: int | None,
-              label_id: int | None = None) -> int:
+              label_id: int | None = None, activity_id: str | None = None, expected_participant: str | None = None) -> int:
     """Save a human activity, protecting confirmed labels and splitting pending suggestions."""
     label = label.strip()
     if not participant or not label or len(label) > 80 or len(note) > 500:
@@ -812,10 +816,20 @@ def add_label(participant: str, label: str, note: str, start_ms: int, end_ms: in
         raise ValueError("Start cannot be in the future")
     with db() as connection:
         connection.execute("BEGIN IMMEDIATE")
+        if expected_participant is not None and (expected_participant != participant or setting(connection,"participant_id") != expected_participant):
+            raise ValueError("Participant changed. Refresh before saving this activity.")
         current = connection.execute("SELECT * FROM labels WHERE id=? AND participant_id=?",
                                      (label_id, participant)).fetchone() if label_id is not None else None
         if label_id is not None and current is None:
             raise ValueError("Label not found")
+        if activity_id is not None and not isinstance(activity_id,str):
+            raise ValueError("Invalid activity ID")
+        if not activity_id and current is not None and label == current["label"]:
+            activity_id = current["activity_id"]
+        activity = personal_activities.resolve(connection,participant,label,activity_id,
+            allow_archived=current["activity_id"] if current is not None else None)
+        label = activity["name"]
+        recorded_label = current["recorded_label"] if current is not None and current["activity_id"] == activity["id"] else label
         overlaps = connection.execute("""SELECT * FROM labels WHERE participant_id=?
             AND id != COALESCE(?, -1)
             AND start_ms < COALESCE(?, 9223372036854775807)
@@ -839,15 +853,15 @@ def add_label(participant: str, label: str, note: str, start_ms: int, end_ms: in
                 connection.execute("DELETE FROM labels WHERE id=?", (row["id"],))
             for lower, upper in spans:
                 connection.execute("""INSERT INTO labels
-                    (participant_id,label,note,start_ms,end_ms,source,reviewed,batch_id)
-                    VALUES (?,?,?,?,?,'schedule',0,?)""",
-                    (participant, row["label"], row["note"], lower, upper, row["batch_id"]))
+                    (participant_id,label,note,start_ms,end_ms,source,reviewed,batch_id,activity_id,recorded_label)
+                    VALUES (?,?,?,?,?,'schedule',0,?,?,?)""",
+                    (participant, row["label"], row["note"], lower, upper, row["batch_id"],row["activity_id"],row["recorded_label"]))
         if current is not None:
-            connection.execute("UPDATE labels SET label=?,note=?,start_ms=?,end_ms=?,reviewed=1 WHERE id=?",
-                               (label, note.strip(), start_ms, end_ms, label_id))
+            connection.execute("UPDATE labels SET label=?,note=?,start_ms=?,end_ms=?,reviewed=1,activity_id=?,recorded_label=? WHERE id=?",
+                               (label, note.strip(), start_ms, end_ms,activity["id"],recorded_label,label_id))
             return label_id
-        cursor = connection.execute("INSERT INTO labels(participant_id,label,note,start_ms,end_ms) VALUES (?,?,?,?,?)",
-                                    (participant, label, note.strip(), start_ms, end_ms))
+        cursor = connection.execute("INSERT INTO labels(participant_id,label,note,start_ms,end_ms,activity_id,recorded_label) VALUES (?,?,?,?,?,?,?)",
+                                    (participant, label, note.strip(), start_ms, end_ms,activity["id"],recorded_label))
         return cursor.lastrowid
 
 
@@ -885,6 +899,34 @@ class Handler(BaseHTTPRequestHandler):
         try:
             if self.server.desktop and self.server.desktop.get(self, route):
                 return
+            if route.path == "/api/activities":
+                include = params.get("includeArchived",["1"])[0]
+                if include not in ("0","1"):raise ValueError("Invalid archive filter")
+                with db() as connection:
+                    connection.execute("BEGIN")
+                    return self._json(200,personal_activities.page(connection,self._selected(),
+                        offset=int(params.get("offset",["0"])[0]),limit=int(params.get("limit",["50"])[0]),include_archived=include=="1"))
+            activity_history = re.fullmatch(r"/api/activities/([0-9a-f]{32})/history",route.path)
+            if activity_history:
+                with db() as connection:
+                    connection.execute("BEGIN")
+                    return self._json(200,personal_activities.history(connection,self._selected(),activity_history[1],
+                        offset=int(params.get("offset",["0"])[0]),limit=int(params.get("limit",["50"])[0])))
+            if route.path == "/api/export/activities.json":
+                participant = self._selected()
+                if not participant:raise ValueError("Select a participant first")
+                with db() as connection:
+                    connection.execute("BEGIN")
+                    self.send_response(200)
+                    self.send_header("Content-Type","application/json; charset=utf-8")
+                    self.send_header("Content-Disposition",'attachment; filename="mindtrail-activities-history.json"')
+                    self.send_header("Cache-Control","no-store")
+                    self.send_header("X-Content-Type-Options","nosniff")
+                    self.end_headers()
+                    for block in personal_activities.export_json(connection,participant):self.wfile.write(block)
+                return
+            if route.path == "/api/export/activity-assignments.csv":
+                return self._export_labels(extended=True)
             if route.path == "/api/analysis/state":
                 return self._json(200, self.server.analysis.state(self._selected()))
             if route.path == "/api/analysis/report":
@@ -906,10 +948,12 @@ class Handler(BaseHTTPRequestHandler):
                     participant = setting(connection, "participant_id")
                     sync_start = setting(connection, "sync_start_ms")
                     desktop_notice = setting(connection, "desktop_notice") if self.server.desktop else ""
+                    activities_revision = personal_activities.revision(connection,participant)
                 return self._json(200, {"desktop": self.server.desktop is not None,
                                         "connectionMode": self.server.desktop.mode() if self.server.desktop else "api",
                                         "keyConfigured": bool(self.server.collector.key),
                                         "demo": self.server.collector.demo, "participantId": participant,
+                                        "activitiesRevision": activities_revision,
                                         "syncStart": iso(int(sync_start)) if sync_start else None,
                                         "desktopNotice": desktop_notice,
                                         "syncing": self.server.collector.running,
@@ -1060,21 +1104,22 @@ class Handler(BaseHTTPRequestHandler):
                 line = '{"timestamp":' + json.dumps(iso(row[0])) + ',"samplingRate":256,"waveform":' + row[1] + '}\n'
                 self.wfile.write(line.encode())
 
-    def _export_labels(self) -> None:
+    def _export_labels(self, extended: bool = False) -> None:
         participant = self._selected()
         if not participant:
             raise ValueError("Select a participant first")
         output = io.StringIO()
         writer = csv.writer(output)
-        writer.writerow(["label", "start_utc", "end_utc", "note"])
+        writer.writerow(["label", "start_utc", "end_utc", "note"] + (["id","activity_id","recorded_label","source","reviewed"] if extended else []))
         with db() as connection:
-            for row in connection.execute("""SELECT label,start_ms,end_ms,note FROM labels
+            for row in connection.execute("""SELECT label,start_ms,end_ms,note,id,activity_id,recorded_label,source,reviewed FROM labels
                 WHERE participant_id=? ORDER BY start_ms""", (participant,)):
-                writer.writerow([safe_csv(row[0]), iso(row[1]), iso(row[2]) if row[2] else "", safe_csv(row[3])])
+                writer.writerow([safe_csv(row[0]), iso(row[1]), iso(row[2]) if row[2] else "", safe_csv(row[3])]
+                    + ([row[4],safe_csv(row[5]),safe_csv(row[6]),safe_csv(row[7]),row[8]] if extended else []))
         body = output.getvalue().encode()
         self.send_response(200)
         self.send_header("Content-Type", "text/csv; charset=utf-8")
-        self.send_header("Content-Disposition", "attachment; filename=awear-labels.csv")
+        self.send_header("Content-Disposition", "attachment; filename=" + ("mindtrail-activity-assignments.csv" if extended else "awear-labels.csv"))
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
         self.end_headers()
@@ -1106,6 +1151,21 @@ class Handler(BaseHTTPRequestHandler):
                 return
             if desktop and not desktop.ready():
                 raise ValueError("Complete desktop setup first.")
+            if route == "/api/activities":
+                with db() as connection:
+                    connection.execute("BEGIN IMMEDIATE")
+                    participant = setting(connection,"participant_id")
+                    if body.get("participantId",participant) != participant:raise ValueError("Participant changed. Refresh before saving this activity.")
+                    result = personal_activities.create(connection,participant,body)
+                return self._json(201,result)
+            activity_edit = re.fullmatch(r"/api/activities/([0-9a-f]{32})/edit",route)
+            if activity_edit:
+                with db() as connection:
+                    connection.execute("BEGIN IMMEDIATE")
+                    participant = setting(connection,"participant_id")
+                    if body.get("participantId",participant) != participant:raise ValueError("Participant changed. Refresh before saving this activity.")
+                    result = personal_activities.update(connection,participant,activity_edit[1],body)
+                return self._json(200,result)
             if route == "/api/analysis/start":
                 return self._json(202, self.server.analysis.start(self._selected(), body))
             if route == "/api/analysis/cancel":
@@ -1148,7 +1208,7 @@ class Handler(BaseHTTPRequestHandler):
                 start_ms = utc_ms(body["start"])
                 end_ms = utc_ms(body["end"]) if body.get("end") else None
                 label_id = int(route.split("/")[3]) if route.endswith("/edit") else None
-                saved_id = add_label(participant, str(body.get("label", "")), str(body.get("note", "")), start_ms, end_ms, label_id)
+                saved_id = add_label(participant, str(body.get("label", "")), str(body.get("note", "")), start_ms, end_ms, label_id,body.get("activityId"),body.get("participantId"))
                 return self._json(200 if label_id is not None else 201, {"id": saved_id})
             if route.startswith("/api/labels/") and route.endswith("/stop"):
                 label_id = int(route.split("/")[3])
