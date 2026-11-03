@@ -150,18 +150,7 @@ function drawWaveform(result) {
   }
   ctx.fillStyle = '#678675'; ctx.font = '10px system-ui'; ctx.textAlign = 'left';
   ctx.fillText(`±${scale.toFixed(1)} device units`, left + 5, top + 12);
-  for (const observation of result.mobileScores || []) {
-    const time = Date.parse(observation.observedAt);
-    const uncertainty = observation.uncertaintySeconds * 1000;
-    if (uncertainty) {
-      ctx.fillStyle = '#af79ba20';
-      const from = x(Math.max(start,time-uncertainty)), to = x(Math.min(end,time+uncertainty));
-      ctx.fillRect(from,top,to-from,bottom-top);
-    }
-    ctx.strokeStyle = '#a36bb5'; ctx.lineWidth = 1.5; ctx.setLineDash([4,3]);
-    ctx.beginPath(); ctx.moveTo(x(time),top); ctx.lineTo(x(time),bottom); ctx.stroke();
-    ctx.setLineDash([]);
-  }
+
 }
 function drawSpectrogram(result, frames) {
   const {ctx, width, height} = prepareCanvas('spectrogram');
@@ -245,15 +234,6 @@ function render(result) {
       $('activity-labels').append(badge);
     }
   } else $('activity-labels').textContent = 'No activity label overlaps this window.';
-  $('log-mobile-score').href = '/scores.html?' + new URLSearchParams({observedAt:result.start});
-  $('mobile-score-list').replaceChildren();
-  for (const observation of result.mobileScores || []) {
-    const badge = document.createElement('span');
-    badge.textContent = `${observation.score} · ${observation.state} · ${stamp(observation.observedAt)} · ±${observation.uncertaintySeconds} sec`;
-    badge.title = observation.note;
-    $('mobile-score-list').append(badge);
-  }
-  if (!(result.mobileScores || []).length) $('mobile-score-list').textContent = 'No mobile observation at a timestamp inside this window.';
   const frames = spectra(records);
   $('window-count').textContent = `${frames.length} valid 4-second windows`;
   $('spectrogram-scale').textContent = frames.length ? 'Color scaled within this window' : 'No continuous window';

@@ -144,8 +144,11 @@ class StreamTests(unittest.IsolatedAsyncioTestCase):
         with tempfile.TemporaryDirectory() as folder:
             recorder = collector.Recorder(Path(folder), "MAC-UUID", "P-TEST", placement="left")
             peer = Peer()
-            await collector.record_stream(peer, recorder, seconds=.02)
-            recorder.finish("completed")
+            try:
+                # Allow Windows CI time to flush the scripted notifications to disk.
+                await collector.record_stream(peer, recorder, seconds=1)
+            finally:
+                recorder.finish("completed")
             self.assertEqual(peer.writes, [protocol.challenge_reply("12345678"), b"START", b"STOP"])
             row = json.loads((Path(folder)/"eeg.jsonl").read_text().splitlines()[0])
             self.assertEqual(row["samples"], [7350]*256)

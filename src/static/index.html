@@ -20,7 +20,6 @@
         <a class="nav-link" href="#recorded-periods"><span class="nav-icon">▤</span> Recorded periods</a>
         <a class="nav-link" href="/eeg.html"><span class="nav-icon">∿</span> EEG signal</a>
         <a class="nav-link" href="/bluetooth.html"><span class="nav-icon">ᛒ</span> Bluetooth</a>
-        <a class="nav-link" href="/scores.html"><span class="nav-icon">◎</span> Mobile scores</a>
         <a class="nav-link" href="/patterns.html"><span class="nav-icon">◩</span> Signal patterns</a>
         <a class="nav-link" href="/data.html"><span class="nav-icon">▦</span> Data tables</a>
         <a id="desktop-settings" class="nav-link" href="/welcome.html" hidden><span class="nav-icon">⚙</span> Settings &amp; quit</a>
@@ -111,7 +110,8 @@
           <div class="intervals-footer"><button id="load-older" class="button subtle" type="button" hidden>Load older periods ↓</button></div>
         </section>
 
-        <section id="exports" class="exports-card card"><div><div class="eyebrow">YOUR LOCAL COPY</div><h2>Keep your data portable</h2><p>Raw waveform records are stored in SQLite. Download the selected window as JSONL, or export your activity labels as CSV.</p></div><div class="export-actions"><a id="raw-export" class="button subtle" href="/api/export/raw.jsonl">↓ Raw EEG · JSONL</a><a class="button subtle" href="/api/export/labels.csv">↓ Activity labels · CSV</a></div></section>
+        <section id="exports" class="exports-card card"><div><div class="eyebrow">YOUR LOCAL COPY</div><h2>Keep your data portable</h2><p>Raw right-ear EEG waveform records are stored in SQLite. Download the selected window as JSONL, or export your activity labels as CSV.</p></div><div class="export-actions"><a id="raw-export" class="button subtle" href="/api/export/raw.jsonl">↓ Raw EEG · JSONL</a><a class="button subtle" href="/api/export/labels.csv">↓ Activity labels · CSV</a></div></section>
+        <details class="legacy-observations"><summary>Archived phone observations</summary><p>Previously saved observations are preserved. <a href="/api/export/mobile-scores.csv">Export CSV</a> · <a href="/api/export/mobile-scores.json">Export JSON</a></p></details>
         <footer>Built for personal exploration. Signal amplitude alone does not measure focus, mood, or health.</footer>
       </div>
     </main>

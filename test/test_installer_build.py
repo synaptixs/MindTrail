@@ -339,25 +339,25 @@ class MacInstallTests(unittest.TestCase):
             self.assertEqual(executable.read_text(), "original")
 
 
-class MobileChartPackagingTests(unittest.TestCase):
-    def test_package_check_rejects_the_old_form_first_layout(self):
+class MobileScoreArchivePackagingTests(unittest.TestCase):
+    def test_package_check_rejects_mobile_navigation_and_keeps_archive_exports(self):
         from installer.smoke_windows import wait_for_workspace
         source = Path(__file__).resolve().parent.parent / "src" / "static"
-        current = (source / "scores.html").read_bytes()
-        old = b'<form id="score-form"></form><h2 id="mobile-chart-title"></h2>'
+        current = (source / "index.html").read_bytes()
+        old = current + b'<a href="/scores.html">Mobile scores</a>'
         for body, accepted in [(current, True), (old, False)]:
             with self.subTest(accepted=accepted), tempfile.TemporaryDirectory() as directory:
                 profile = Path(directory)
                 (profile / "desktop.lock").write_bytes(b"\0" + json.dumps({"url":"http://127.0.0.1:1234/launch?test"}).encode())
-                opener = SimpleNamespace(open=lambda *args, **kwargs: next(responses))
                 responses = iter([io.BytesIO(b""), io.BytesIO(b'{"ready":false,"keyConfigured":false}'),
                     io.BytesIO(b'<div id="api-key-guide">MindTrail Lab</div>'), io.BytesIO(body),
-                    io.BytesIO((source / "scores.js").read_bytes())])
+                    io.BytesIO((source / "scores.html").read_bytes()), io.BytesIO((source / "eeg.html").read_bytes())])
+                opener = SimpleNamespace(open=lambda *args, **kwargs: next(responses))
                 with patch("installer.smoke_windows.urllib.request.build_opener", return_value=opener):
                     if accepted:
                         wait_for_workspace(SimpleNamespace(poll=lambda:None), profile)
                     else:
-                        with self.assertRaisesRegex(AssertionError, "chart must appear before"):
+                        with self.assertRaisesRegex(AssertionError, "navigation must be removed"):
                             wait_for_workspace(SimpleNamespace(poll=lambda:None), profile)
 
 

@@ -32,12 +32,16 @@ def wait_for_workspace(process, profile):
             with opener.open(url.split("/launch")[0] + "/welcome.html", timeout=1) as response:
                 page = response.read().decode()
             assert 'id="api-key-guide"' in page and 'MindTrail Lab' in page
+            with opener.open(url.split("/launch")[0] + "/index.html", timeout=1) as response:
+                overview = response.read().decode()
+            assert 'href="/scores.html"' not in overview, "Mobile score navigation must be removed"
+            assert 'id="recorded-periods"' in overview
             with opener.open(url.split("/launch")[0] + "/scores.html", timeout=1) as response:
-                scores = response.read().decode()
-            assert scores.index('id="mobile-chart-title"') < scores.index('id="score-form"'), "Mobile chart must appear before the entry form"
-            with opener.open(url.split("/launch")[0] + "/scores.js", timeout=1) as response:
-                chart_script = response.read().decode()
-            assert 'SCORE (0–100)' in chart_script and 'No phone scores recorded' in chart_script
+                archive = response.read().decode()
+            assert 'id="legacy-scores-archive"' in archive and '/api/export/mobile-scores.csv' in archive
+            with opener.open(url.split("/launch")[0] + "/eeg.html", timeout=1) as response:
+                eeg = response.read().decode()
+            assert 'log-mobile-score' not in eeg and 'mobile-score-list' not in eeg
             return
         except (OSError, ValueError, KeyError):
             time.sleep(.1)
@@ -115,10 +119,12 @@ assert CredentialStore(Path(sys.argv[1])).get() == ''
                 with closing(sqlite3.connect(profile / 'awear_data.sqlite3')) as db:
                     with db:
                         db.execute("INSERT INTO labels(participant_id,label,start_ms,end_ms) VALUES('qa-only','Windows upgrade QA',1000,2000)")
+                        db.execute("INSERT INTO mobile_scores(participant_id,observed_ms,score,state,created_ms,updated_ms) VALUES('qa-only',1000,42,'calm',1000,1000)")
                 subprocess.run(f'"{args.installer.resolve()}" /S /D={root}', check=True, env=environment, timeout=120)
                 assert process.wait(timeout=10) == 0
                 with closing(sqlite3.connect(profile / 'awear_data.sqlite3')) as db:
                     assert db.execute("SELECT label FROM labels WHERE participant_id='qa-only'").fetchone() == ('Windows upgrade QA',)
+                    assert db.execute("SELECT score FROM mobile_scores WHERE participant_id='qa-only'").fetchone() == (42,)
                 process = subprocess.Popen(command, env=environment)
                 wait_for_workspace(process, profile)
                 checks['upgradePreservesActivityLabel'] = True
@@ -140,8 +146,10 @@ assert CredentialStore(Path(sys.argv[1])).get() == ''
                 raise RuntimeError("Uninstaller did not finish removing the temporary installation")
             with closing(sqlite3.connect(profile / 'awear_data.sqlite3')) as db:
                 assert db.execute("SELECT label FROM labels WHERE participant_id='qa-only'").fetchone() == ('Windows upgrade QA',)
+                assert db.execute("SELECT score FROM mobile_scores WHERE participant_id='qa-only'").fetchone() == (42,)
             checks['uninstallPreservesArchive'] = True
-        result = {**checks, "singleInstance": True, "shutdown": True, "setupPageAndGuide": True, "mobileScoreChartFirst": True,
+            checks['legacyMobileScoresPreserved'] = True
+        result = {**checks, "singleInstance": True, "shutdown": True, "setupPageAndGuide": True, "mobileScoresRetired": True,
                   "installerExercised": installed, "platform": platform.platform(),
                   "signaturesVerified": args.require_signed,
                   "installerSha256": hashlib.sha256(args.installer.read_bytes()).hexdigest() if installed else None}
