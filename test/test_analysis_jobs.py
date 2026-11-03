@@ -40,7 +40,11 @@ class JobTests(unittest.TestCase):
         deadline=time.monotonic()+20
         while self.manager.running() and time.monotonic()<deadline:time.sleep(.03)
         self.assertFalse(self.manager.running(),'worker did not finish')
-        return self.manager.state('P')
+        state=self.manager.state('P')
+        if state.get('job',{}).get('state')=='failed':
+            error=self.manager.directory(state['job']['id'])/'error.log'
+            if error.is_file():state['workerError']=error.read_text(encoding='utf-8')[-12000:]
+        return state
 
     @unittest.skipUnless(HAS_NUMPY,'optional NumPy')
     def test_optional_boundary_sidecars_are_deterministic_scoped_and_stale(self):

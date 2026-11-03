@@ -115,3 +115,9 @@ facts in the isolated worker. `activity_access.py` serves bounded, scoped, conte
 facts and exact observed examples without numerical imports. `/compare.html` renders those
 facts; unknown cloud session IDs remain unknown. See [activity comparisons](ACTIVITY_COMPARISONS.md)
 for coverage, provenance filters, lifecycle and the still-open Phase 3 evidence gate.
+
+`discovery_review_model.py` derives the bounded ordinary/change/recurrence snapshot in the
+worker; `discovery_review_access.py` serves verified current facts without numerical imports.
+`discovery_context.py` owns revisioned human observations in the separate discovery context
+database, reusing vocabulary/timing validators without altering activity assignments. See
+[selective review](DISCOVERY_READINESS.md#selective-review-and-optional-context-p4-w4).

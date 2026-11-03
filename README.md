@@ -573,3 +573,9 @@ Explore unlabeled recordings with
 workspace, **Across days** compares observed spectral windows and displays
 recording-condition context; it does not identify activities. Numerical installer
 support remains planned for Phase 5.
+
+Use **Optional context** to review a small selection of recorded moments and add a
+recollection, mixed activity, unknown or skip. Notes are optional, separate from
+activity assignments, and have editable history, undo and complete JSON/CSV exports.
+See [discovery contracts](docs/DISCOVERY_READINESS.md#selective-review-and-optional-context-p4-w4)
+for selection limits and context backup details.

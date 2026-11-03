@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101b23">
+  <title>Optional context · MindTrail Lab</title>
+  <meta name="description" content="Explore quality flags and recurring patterns in personal AWEAR recordings.">
+  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/discover.css">
+  <link rel="stylesheet" href="/context.css">
+  <script src="/context.js" defer></script>
+
+</head>
+<body>
+  <div class="shell">
+    <aside class="rail">
+      <div class="brand"><div class="brand-mark">M<span>·</span></div><div><strong>MindTrail</strong><small>LAB</small></div></div>
+      <div class="rail-rule"></div>
+      <nav aria-label="Sections">
+        <a class="nav-link" href="/"><span class="nav-icon">◫</span> Overview</a>
+        <a class="nav-link" href="/#activity"><span class="nav-icon">◷</span> Activity log</a>
+        <a class="nav-link" href="/#recorded-periods"><span class="nav-icon">▤</span> Recorded periods</a>
+        <a class="nav-link" href="/eeg.html"><span class="nav-icon">∿</span> EEG signal</a>
+        <a class="nav-link" href="/bluetooth.html"><span class="nav-icon">ᛒ</span> Bluetooth</a>
+        <a class="nav-link" href="/recurrence.html"><span class="nav-icon">↔</span> Across days</a>
+        <a class="nav-link" href="/discover.html"><span class="nav-icon">◇</span> Discover recordings</a>
+        <a class="nav-link active" aria-current="page" href="/context.html"><span class="nav-icon">✎</span> Optional context</a>
+        <a class="nav-link" href="/quality.html"><span class="nav-icon">✓</span> Recording quality</a>
+        <a class="nav-link" href="/review.html"><span class="nav-icon">☷</span> Episode review</a>
+        <a class="nav-link" href="/patterns.html"><span class="nav-icon">◩</span> Signal patterns</a>
+        <a class="nav-link" href="/data.html"><span class="nav-icon">▦</span> Data tables</a>
+        <a class="nav-link" href="/#exports"><span class="nav-icon">⇩</span> Exports</a>
+      </nav>
+      <div class="rail-bottom"><div class="local-card"><span class="green-dot"></span><div><strong>Private workspace</strong><small>Data stored on this computer</small></div></div><div class="rail-foot">AWEAR data · Local dashboard<br>Exploratory signal analysis</div></div>
+    </aside>
+    <main>
+      <header class="topbar"><div class="breadcrumb">Personal lab <span>/</span> Optional context</div><div class="top-actions"><span class="pill">Local exploration</span></div></header>
+      <div class="content discovery-content context-content">
+        <div class="eyebrow">REVIEW ONLY WHAT HELPS</div><h1>Optional context<span class="title-dot">.</span></h1>
+        <p class="lead">Inspect a small selection of recorded moments. Add what you remember, or leave it unknown.</p>
+        <p id="ctx-source"></p><p id="ctx-status" role="status" aria-live="polite">Loading…</p>
+        <div class="discovery-actions"><button class="button primary" id="ctx-analyze">Analyze saved recordings</button><button class="button subtle" id="ctx-refresh">Refresh</button><a class="button subtle" href="/discover.html">Daily discovery</a></div>
+        <section class="card" id="ctx-queue-card" hidden><h2>A few moments to review</h2>
+          <label class="ctx-choice"><input type="checkbox" id="ctx-cues"> Include change and cross-day examples, and reveal why they were selected</label>
+          <p>Ordinary examples are selected without signal-feature ranking. Existing annotations stay hidden until you choose to reveal them. This selection does not represent all recordings or independent experiments.</p>
+          <p id="ctx-counts"></p><div id="ctx-queue"></div>
+        </section>
+        <section class="card" id="ctx-editor" hidden><h2>Context for this recorded moment</h2><p id="ctx-window"></p>
+          <p>These are source-window bounds, not discovered activity boundaries. Context here does not create, confirm or replace activity assignments.</p>
+          <button class="button subtle" id="ctx-inspect">Inspect exact source</button><svg id="ctx-wave" role="img" aria-label="Exact unfiltered recorded window"></svg><p id="ctx-wave-note"></p>
+          <p id="ctx-existing"></p><button class="button subtle" id="ctx-reveal" hidden>Reveal existing context and edit</button>
+          <form id="ctx-form"><fieldset id="ctx-fields"><legend>Optional observation</legend>
+            <div class="daily-controls"><label>What do you remember?<select id="ctx-kind" required><option value="">Choose one</option><option value="known">Known activity</option><option value="partial">Partial context</option><option value="mixed">Mixed activities</option><option value="unknown">Don't remember / unknown</option><option value="skip">Skip this moment</option></select></label>
+            <label>How sure are you?<select id="ctx-review"><option value="uncertain">Unsure</option><option value="confirmed">Confirmed recollection</option><option value="needs_review">Needs review</option></select></label></div>
+            <label>My personal activities (optional; up to five)<select id="ctx-activities" multiple size="4"></select></label><p id="ctx-vocabulary"></p><button type="button" class="button subtle" id="ctx-more-activities" hidden>Load more personal activities</button><a href="/#activity">Manage my activity names →</a>
+            <label>What I remember or observed<textarea id="ctx-facts" maxlength="2000" rows="3"></textarea></label>
+            <label>Possible explanation or question (optional; not a finding)<textarea id="ctx-hypothesis" maxlength="2000" rows="2"></textarea></label>
+            <div class="daily-controls"><label>Timing precision<select id="ctx-precision"><option value="unknown">Unknown</option><option value="approximate">Approximate</option><option value="exact">Exact as entered</option></select></label><label>Uncertainty before, seconds<input id="ctx-start-uncertainty" type="number" min="0" max="86400" step="0.001"></label><label>Uncertainty after, seconds<input id="ctx-end-uncertainty" type="number" min="0" max="86400" step="0.001"></label></div>
+            <p>Unknown timing stays unknown. Approximate timing records your declared uncertainty; it does not expand the EEG window or assign a longer activity.</p>
+            <button class="button primary" type="submit" id="ctx-save">Save optional context</button>
+          </fieldset></form><p id="ctx-message" role="status" aria-live="polite"></p>
+        </section>
+        <section class="card"><h2>Saved observations and history</h2><p>Saved notes remain available when numerical analysis is unavailable. Revealing one may influence later recollection.</p><p id="ctx-saved-count"></p><div id="ctx-saved"></div>
+          <div class="discovery-actions"><button class="button subtle" id="ctx-saved-prev">Previous saved observations</button><button class="button subtle" id="ctx-saved-next">Next saved observations</button></div>
+          <div id="ctx-history" hidden><h3 id="ctx-history-title"></h3><p id="ctx-history-count"></p><div id="ctx-history-summary"></div><details><summary>Source and full audit details</summary><pre id="ctx-history-content"></pre></details><button class="button subtle" id="ctx-history-more" hidden>More history</button><button class="button subtle" id="ctx-undo">Undo latest context change</button><p id="ctx-history-message" role="status"></p></div>
+          <div class="discovery-actions"><a class="button subtle" href="/api/export/discovery-context.json">Export all context + history (JSON)</a><a class="button subtle" href="/api/export/discovery-context.csv">Export current context (CSV)</a></div>
+          <p>Context is stored separately from recordings and activity assignments. Include the context JSON export or context.sqlite3 backup when preserving these notes; the legacy recordings-only SQLite restore does not import them.</p>
+        </section>
+      </div></main></div></body></html>

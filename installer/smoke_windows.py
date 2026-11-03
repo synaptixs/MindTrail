@@ -61,7 +61,7 @@ def wait_for_workspace(process, profile):
                 analysis = json.load(response)
             assert analysis['available'] is False, "Numerical analysis must not start in the stdlib bundle"
             assert analysis['explorationAvailable'] is False, "Exploration must have an honest unavailable state"
-            for name,marker in [('review.html','id="review-form"'),('review.js','/api/review/undo'),('explore.html','id="pca"'),('explore.js','/api/exploration'),('similarity.js','/api/similarity/accept'),('compare.html','id="daily-chart"'),('compare.js','/api/activity-comparisons'),('compare.css','coverage-strip'),('discover.html','id="question"'),('discover.js','/api/discovery'),('discover.css','discovery-content'),('discovery_daily.js','/api/discovery/daily'),('recurrence.html','id="rec-search"'),('recurrence.js','/api/discovery/recurrence'),('recurrence.css','rec-wave-pair')]:
+            for name,marker in [('review.html','id="review-form"'),('review.js','/api/review/undo'),('explore.html','id="pca"'),('explore.js','/api/exploration'),('similarity.js','/api/similarity/accept'),('compare.html','id="daily-chart"'),('compare.js','/api/activity-comparisons'),('compare.css','coverage-strip'),('discover.html','id="question"'),('discover.js','/api/discovery'),('discover.css','discovery-content'),('discovery_daily.js','/api/discovery/daily'),('recurrence.html','id="rec-search"'),('recurrence.js','/api/discovery/recurrence'),('recurrence.css','rec-wave-pair'),('context.html','id="ctx-form"'),('context.js','/api/discovery/context/undo'),('context.css','context-content')]:
                 with opener.open(url.split("/launch")[0]+'/'+name,timeout=1) as response:
                     assert marker in response.read().decode('utf-8')
             with opener.open(url.split("/launch")[0]+"/api/discovery",timeout=1) as response:
@@ -71,6 +71,10 @@ def wait_for_workspace(process, profile):
                 assert json.load(response)['status']=='no_participant'
             with opener.open(url.split("/launch")[0]+"/api/discovery/recurrence",timeout=1) as response:
                 assert json.load(response)['status']=='no_participant'
+            with opener.open(url.split("/launch")[0]+"/api/discovery/review",timeout=1) as response:
+                assert json.load(response)['status']=='no_participant'
+            with opener.open(url.split("/launch")[0]+"/api/discovery/context",timeout=1) as response:
+                assert json.load(response)['total']==0
             with opener.open(url.split("/launch")[0]+"/api/discovery/questions",timeout=1) as response:
                 questions=json.load(response)
             assert questions['total']==0 and questions['questions']==[]
@@ -209,6 +213,19 @@ manager.close()
         subprocess.run([str(executable), '-c', question_check, str(profile)],check=True,env=environment,timeout=30)
         question_file=profile/'data'/'processed'/'discovery'/'questions.sqlite3'
         question_digest=hashlib.sha256(question_file.read_bytes()).hexdigest()
+        context_check="""from pathlib import Path
+from contextlib import closing
+import sys,sqlite3
+from discovery_context import initialize
+path=Path(sys.argv[1])/'data'/'processed'/'discovery'/'context.sqlite3'
+with closing(sqlite3.connect(path)) as c,c:
+    c.execute('BEGIN IMMEDIATE');initialize(c)
+    c.execute("INSERT OR IGNORE INTO current VALUES(?,?,?,?)",('synthetic-context','a'*64,1,None))
+"""
+        subprocess.run([str(executable),'-c',context_check,str(profile)],check=True,env=environment,timeout=30)
+        context_file=question_file.with_name('context.sqlite3')
+        context_digest=hashlib.sha256(context_file.read_bytes()).hexdigest()
+
         subprocess.run([str(executable), '-c', episode_check, str(profile)],check=True,env=environment,timeout=30)
         checks['episodeSplitUndoAndUnknown']=True
         subprocess.run([str(executable), '-c', archive_check, str(profile)], check=True, env=environment, timeout=30)
@@ -271,8 +288,10 @@ manager.close()
             checks['uninstallPreservesArchive'] = True
             checks['legacyMobileScoresPreserved'] = True
         assert all(path.read_text(encoding='utf-8') == contents for path, contents in archive_files.items())
+        assert hashlib.sha256(context_file.read_bytes()).hexdigest()==context_digest
         assert hashlib.sha256(question_file.read_bytes()).hexdigest()==question_digest
         checks['discoveryQuestionsPreserved']=True
+        checks['discoveryContextPreserved']=True
         checks['discoveryOfflineAssetsAndUnavailableState']=True
         checks['archiveLayoutsPreserved'] = True
         checks['archivePathCompatibility'] = True

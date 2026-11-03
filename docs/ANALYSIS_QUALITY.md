@@ -196,3 +196,10 @@ byte-identical in the pinned numerical environment. OS peak memory is exposed as
 Analysis requests, status, summaries and report readers use explicit UTF-8, matching
 the writer on Windows as well as Mac. Non-ASCII participant/channel metadata is
 preserved rather than interpreted using the machine’s default text encoding.
+
+Worker JSON publication retains the previous complete file until atomic replacement succeeds.
+On Windows only, a reader may briefly deny deletion of the destination. Sharing/access errors
+5/32/33 receive at most 21 attempts with 25 ms spacing (at most 0.5 seconds retry delay),
+checking cancellation before each attempt. Persistent permission errors and unrelated I/O
+failures propagate; no partially written JSON is substituted. Native Windows and controlled
+sharing/cancellation checks cover this publication boundary.

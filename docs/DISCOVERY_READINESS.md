@@ -209,3 +209,81 @@ Manifest <=2 MB, family <=96 MB, response <=2 MB, input <=1 million computed win
 <=1,000 families; exceeding a bound fails explicitly. Nothing silently samples the population.
 No raw/label writes, automatic assignment, default clustering, inference engine, public
 release or numerical installer runtime are introduced. Numerical packaging remains P5.
+
+## Selective review and optional context (P4-W4)
+
+Open **Optional context**. It works with zero activity labels: ordinary windows are offered
+first, without signal-feature selection cues or existing annotations. Opt into change and
+cross-day examples to inspect why those windows were selected. This is a fixed small
+selection, not an exhaustive labeling queue or statistical sample. Daily discovery and the
+existing Episode review remain available for other windows and full activity intervals.
+
+`discovery_review_model.py` owns deterministic selection in the isolated worker. From the
+whole eligible W3 population it hash-orders windows inside exact-context/calendar-date
+strata, then visits sorted strata round-robin. It offers up to eight ordinary examples,
+eight W2 retained-change flank examples, and eight recurrence examples. Recurrence searches
+use at most four diverse ordinary references, the unchanged W3 power-sensitive full-family
+search, temporal guard and per-date minima. Uninformative or unsupported searches add no
+recurrence examples. Categories interleave with ordinary first; duplicate windows retain
+all selection reasons. Ordinary-only order remains independent of targeted ordering.
+
+The page reports each category's full pool, selected and omitted totals, deduplicated offered
+windows, the full eligible population, unoffered windows and offered windows hidden by the
+ordinary-only choice. Selection reasons are provenance, not task labels. Dates, overlapping
+examples and neighboring windows are not independent experiments. History-record counts
+are separate from population review coverage; nothing claims unoffered data was reviewed.
+
+The sealed review snapshot includes exact acquisition/time/window identity, source revision,
+policy and method hashes, daily/recurrence identities and each selection reason. It contains
+no human context. The stdlib reader validates identity and before/after source signature.
+Exact source inspection reuses W2 source-record digest verification. Manifest <=2 MB; at most
+24 distinct windows. Publication validates before moving the complete pointer; failure,
+cancellation and pruning remove derived review sidecars, never human context.
+
+`discovery_context.py` owns optional **human observations about the exact four-second source
+window**. These bounds are not reconstructed task boundaries or longer activity assignments.
+The choices remain distinct:
+
+- Known activity: one existing participant-owned activity ID.
+- Partial context: whatever is remembered, with optional personal IDs.
+- Mixed activities: multiple personal IDs or a factual description of the mixture.
+- Don't remember / unknown: an explicit lack of recollection, not pattern rejection.
+- Skip: no recollection decision or signal rejection is inferred.
+
+Up to five personal IDs are validated by the existing vocabulary owner and retained with
+names as recorded. No universal activity menu or automatic vocabulary is introduced.
+Archived activities must be restored before new use. Existing labels, schedule suggestions,
+review decisions and activity assignments are never changed or confirmed by context entry.
+To assign a longer activity period, use the existing interval editor explicitly.
+
+Factual recollection and speculative explanation occupy separate fields (2,000 characters
+each), independent of selection reason. The unchanged `personal_activities.label_evidence`
+validator enforces review state, declared unknown/exact/approximate timing, and each side's
+uncertainty in milliseconds. No precision is inferred from EEG or source timestamps.
+Existing context requires explicit reveal before replacement; ordinary review does not
+silently expose it. A save also records whether targeted cues were revealed.
+
+Human records live in `ArchivePaths.discovery/context.sqlite3`, separately from deterministic
+facts and the recording database. Saves validate current participant/snapshot/window, read
+personal vocabulary in an archive snapshot and check source signature before committing.
+A context-only save does not make EEG analysis stale. The source archive is opened read-only.
+Current records and tombstones carry monotonically increasing revisions; append-only full
+before/after history records explicit human save/undo times. CAS rejects stale and ABA edits.
+Undo only affects the current revision, journals the restoration, and can itself be undone.
+No prior provenance or timing is rewritten. History remains readable without current numerical
+analysis; editing requires current offered membership, while undo can correct older context.
+
+The saved-record list is paged (25, maximum 100). History is paged per window (25, maximum
+100, response <=2 MB), with shown/total counts. JSON audit export streams **all** scoped
+current records, tombstones and history in one read transaction; CSV streams all active
+current observations, using the existing formula-safe text sanitizer. The JSON export is
+an audit artifact, not an implemented context importer. Back up `context.sqlite3` or its
+JSON export separately: the legacy recording-only SQLite restore does not import this
+separate store. Installer upgrades/uninstall preserve it; derived-report cleanup excludes it.
+
+Endpoints: `GET /api/discovery/review` (`cues=0/1`), `/review/waveform`, and
+`GET /api/discovery/context` (saved list, or exact `windowId`, explicit `reveal=1`, history
+`offset`/`limit`); `POST /api/discovery/context/save` and `/undo`; complete exports at
+`/api/export/discovery-context.json` and `.csv`. Existing launcher authentication, selected
+participant, same-origin and local mutation-header gates apply. No raw or label bulk writes,
+mental-state recognition, inferential engine or numerical installer runtime are introduced.
