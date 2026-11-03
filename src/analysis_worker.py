@@ -59,7 +59,15 @@ def run(directory: Path) -> int:
             check()
             atomic_json(directory/'summary.json',summary)
             from discovery_contracts import build as discovery_build
-            atomic_json(directory/'discovery.json',discovery_build(report,request['participant'],request['timezone'],demo=request['demo'],check=check),check)
+            discovery=discovery_build(report,request['participant'],request['timezone'],demo=request['demo'],check=check)
+            atomic_json(directory/'discovery.json',discovery,check)
+            from discovery_daily import build as daily_discovery
+            progress('daily discovery',0,1)
+            daily_index,daily_payloads=daily_discovery(report,Path(request['database']),request['participant'],request['timezone'],discovery['discoveryIdentity'],check=check)
+            for (group,date),payload in daily_payloads.items():
+                atomic_json(directory/f'discovery-day-{group}-{date}.json',payload,check)
+            atomic_json(directory/'discovery-daily-index.json',daily_index,check)
+            del daily_payloads
             days=quality_days(report,check)
             for date,runs in sorted(days.items()):
                 atomic_json(directory/('quality-'+date+'.json'),{'version':1,'analysisIdentity':report['analysisIdentity'],'participantId':request['participant'],'runs':runs},check)

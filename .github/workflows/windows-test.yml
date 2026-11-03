@@ -35,6 +35,7 @@ jobs:
           node --check src/static/similarity.js
           node --check src/static/compare.js
           node --check src/static/discover.js
+          node --check src/static/discovery_daily.js
       - name: Install NSIS compiler
         run: choco install nsis --yes --no-progress
       - name: Verify signing prerequisites without signing

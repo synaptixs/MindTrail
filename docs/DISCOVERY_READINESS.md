@@ -2,8 +2,8 @@
 
 Open **Discover recordings** from Overview or Recording quality, or `/discover.html`.
 Click **Analyze saved recordings**. Activity labels and clustering are not required.
-P4-W1 provides readiness and a question register; daily feature-change and expanded
-cross-day discovery views are later work packages. Existing quality/explorer links remain.
+Readiness, a question register and daily feature/change views are available without labels.
+Expanded cross-day recurrence follows in P4-W3. Existing quality/explorer links remain.
 
 ## Population and provenance contract
 
@@ -82,3 +82,69 @@ question saves. Revision/history tests cover stale edit rejection and participan
 Windows native smoke checks load the offline page/JS/CSS. The real archive pilot is a
 read-only preservation/resource check, not scientific confirmation. No public installers
 are released by W1; packaged numerical runtime remains P5.
+
+## Daily features and inspection (P4-W2)
+
+The same analysis now creates a content-hashed `discovery-daily-index.json` and one
+`discovery-day-{acquisition group}-{date}.json` per exact context/local calendar date.
+`discovery_daily.py` owns daily extents, distributions, aggregation, change cues and range
+summaries. Its HTTP-facing functions use only the standard library. Annotation reads are
+performed inside the worker via the existing comparison owner; no activity labels are
+required, and no labels or raw samples are written.
+
+Every timed canonical computed/excluded/failed/remainder source span contributes to the
+context's observed extent. Invalid-time exclusions remain separately unplaced. Calendar
+boundaries use real timezone transitions (23/25-hour days). Midnight-crossing windows remain
+in elapsed coverage but are not split into day-specific feature values. Each daily payload
+stores all fully contained four-second windows, including flagged windows for accounting
+and exact source inspection. Features use only wholly contained unflagged windows.
+
+AC RMS, log power 1–40 Hz and alpha share retain source/log/fraction units. Q1/median/Q3 use
+linear interpolation over **all eligible windows**, not a clustering sample or an average
+of bin medians. Selected-range summaries apply the same policy and count edge-crossing
+windows separately. No per-day normalization is applied. Plotted points group continuous
+runs by 60-second **window-start** bucket; whole windows remain whole, so each point reports
+its actual source interval and count. Lines never bridge gaps, flagged windows or contexts.
+RMS/log axes auto scale with minimum display spans; alpha share uses 0–1 to avoid magnifying
+roundoff into an apparent change. Quartiles describe distributions, not confidence intervals.
+
+Change cues compare 15 preceding and 15 following contiguous unflagged four-second windows,
+inside one context and calendar day. For each feature the score is the absolute median shift
+divided by the maximum of the two flank IQRs and a floor. RMS floor is 0.05 times
+`max(abs(before median), abs(after median), 1)`; log-power floor is 0.05; alpha-share floor
+is 0.02. Any feature score >=3 is a candidate. Candidates rank by strongest score, earliest
+time and example ID; candidates within 120 seconds of an already retained stronger cue are
+suppressed. Equal scores prefer earlier times. This is a frozen exploratory heuristic,
+not a calibrated statistical test, exact transition detector, activity boundary or cause.
+
+The report distinguishes insufficient continuous support, no above-threshold changes and
+retained changes. Counts expose all evaluated boundaries, above-threshold candidates,
+suppression and retention. A selected range shows the first 20 of M ranked retained cues
+whose complete before/after flanks fit inside it; full-day screening status is explicitly
+identified as full-day status. Inspection examples are real source windows closest to the
+winning flank median. An ordinary hash-selected window and flagged example are separate.
+Hash selection is conditional on eligible support, not a statistically representative sample.
+
+The chart starts at the first observed collection and ends at the last, including after
+16:00. Its embedded vertical edge handles preview selection while dragging and zoom on
+release. Keyboard arrows plus Enter and explicit-offset ISO timestamps provide alternatives;
+Escape cancels. Pinned bounds remain fixed on refresh, even if source extent changes.
+Reset follows the latest observed extent. Automatic analysis refresh, while enabled and the
+page remains open, runs at most once a minute and retains the previous analysis options.
+Stale curves are withheld. Same-time activity annotations retain origin/review/timing,
+unknown and ambiguous states; the context lane does not verify placement/task alignment.
+
+`GET /api/discovery/daily` returns the scoped index, or one context/date/range with summaries.
+Manifest and payload hashes, participant, context, date and source signature are checked;
+results are withheld on staleness/corruption. The waveform endpoint accepts only an observed
+window in the current context/date and exact daily identity, then reuses canonical source
+record-digest verification. No nearest or nearby waveform is substituted. Raw waveform
+units, mean/offset, flags and exclusive bounds are shown without filtering.
+
+Manifest <=2 MB, day and selected-response payload <=16 MB, at most 1,000 contexts and
+20,000 context/day entries; oversized output fails rather than silently clips. Publication
+validates every payload before changing the complete pointer; cancellation/failure retains
+the previous complete result and cleans partial daily files. New data, code or annotation
+changes invalidate stale facts. Human-authored questions remain separate and preserved.
+No default clustering, inferential estimate, activity classifier or packaged numerical
+runtime is added. Expanded cross-day recurrence remains P4-W3; numerical packaging is P5.

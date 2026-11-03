@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="/style.css">
   <link rel="stylesheet" href="/discover.css">
   <script src="/discover.js" defer></script>
+  <script src="/discovery_daily.js" defer></script>
 </head>
 <body>
   <div class="shell">
@@ -40,10 +41,27 @@
           <div class="discovery-actions"><button type="button" class="button primary" id="run">Analyze saved recordings</button><button type="button" class="button subtle" id="refresh">Refresh status</button></div>
           <p id="analysis-status"></p><p>Analysis preserves recordings and labels. Discovery readiness means feature support exists; it does not establish activity meaning, repeatability or mental states.</p>
         </section>
+        <section class="card" id="daily-discovery" hidden>
+          <h2>What changes during my day?</h2><p id="daily-status" role="status" aria-live="polite"></p>
+          <div class="daily-controls"><label>Recording context<select id="daily-group"></select></label><label>Observed day<select id="daily-date"></select></label></div>
+          <div id="daily-body" hidden><p id="daily-provenance"></p><p id="daily-range-note"></p>
+          <div class="discovery-stage"><svg id="daily-features" role="img" aria-label="Daily feature medians and recorded, quality and context lanes"></svg><button type="button" class="discovery-handle" id="daily-left" role="slider" aria-label="Start of discovery range">Ⅱ</button><button type="button" class="discovery-handle" id="daily-right" role="slider" aria-label="End of discovery range">Ⅱ</button></div>
+          <p class="daily-key">u = source units. Green: recorded / computed without flags · amber: screening flag · grey: missing · red: excluded/failure · pale: remainder. Activity context is a separate time-based annotation lane; it does not verify EEG alignment.</p>
+          <p>Drag either edge to zoom. For keyboard control, use arrow keys then Enter; Escape cancels. Or enter an ISO timestamp with a UTC offset below.</p>
+          <div class="daily-controls"><label>Start (explicit offset)<input type="text" id="daily-start" placeholder="2026-11-03T09:00:00-05:00"></label><label>End, exclusive (explicit offset)<input type="text" id="daily-end" placeholder="2026-11-03T09:30:00-05:00"></label></div>
+          <div class="discovery-actions"><button type="button" class="button subtle" id="daily-apply">Apply time range</button><button type="button" class="button subtle" id="daily-reset">Show entire observed day</button></div>
+          <label class="daily-auto"><input type="checkbox" id="daily-auto" checked> Refresh analysis for new saved data while this page is open (at most once a minute)</label>
+          <p id="daily-support"></p><p id="daily-human-note"></p>
+          <details><summary>Daily and selected-range distributions</summary><p>Q1 / median / Q3 in declared feature units. These describe window distributions, not confidence intervals. Values are not normalized per day; RMS/log-power axes auto scale, alpha share uses 0–1.</p><table><thead><tr><th>Feature</th><th>Entire observed day</th><th>Selected range</th></tr></thead><tbody id="daily-distributions"></tbody></table></details>
+          <h3>Changes worth inspecting</h3><p>Heuristic cues compare 60 continuous unflagged seconds before and after each boundary. A score of 3 or more highlights a feature shift; this is not a statistical test or an activity/state boundary.</p><p id="daily-change-note"></p><div id="daily-changes"></div>
+          <h3>Inspect actual source samples</h3><div class="discovery-actions"><button type="button" class="button subtle" id="daily-ordinary">Inspect ordinary source window</button><button type="button" class="button subtle" id="daily-flagged">Inspect flagged source window</button></div>
+          <div class="daily-controls"><label>Feature bin (whole-window medians)<select id="daily-point"></select></label><button type="button" class="button subtle" id="daily-inspect-bin">Inspect selected bin example</button></div>
+          <svg id="daily-wave" role="img" aria-label="Exact unfiltered recorded source waveform"></svg><p id="daily-wave-note" role="status"></p></div>
+        </section>
         <div id="facts" hidden><section class="card"><h2>Which data supports exploration?</h2><p id="extent"></p><table aria-label="Source and window accounting"><tbody id="coverage"></tbody></table><p>Four-second windows. Record-second counts are not elapsed device-wearing duration. Flags are screening cues; unflagged does not establish artifact-free EEG.</p><details><summary>Source identities</summary><small id="identity"></small></details></section>
           <section class="card"><h2>Recording contexts</h2><p id="context-count"></p><div id="contexts"></div><p id="missing"></p></section>
         </div>
-        <section class="card"><h2>Explore before labeling</h2><p><a href="/quality.html">Inspect coverage and quality →</a></p><p><a href="/explore.html">Explore feature distributions and similar windows →</a></p><p>These existing views have separate analysis options. Daily feature changes and expanded cross-day discovery views follow in later work packages. You can leave activity context unknown.</p></section>
+        <section class="card"><h2>Explore before labeling</h2><p><a href="/quality.html">Inspect coverage and quality →</a></p><p><a href="/explore.html">Explore feature distributions and similar windows →</a></p><p>These existing views have separate analysis options. Expanded cross-day recurrence views follow in P4-W3. You can leave activity context unknown.</p></section>
         <section class="card"><h2>Questions to explore</h2><p>A question is optional. Save an observation or a candidate explanation without assigning activities. Saving a candidate does not validate it.</p>
           <form id="question"><div class="question-fields"><label>Question<input id="title" required maxlength="240" placeholder="What changes across my recording days?"></label><label>Stage<select id="stage"><option value="discovery">Discovery — observe first</option><option value="candidate">Candidate — possible question to investigate</option></select></label><label>Notes or missing context (optional)<textarea id="notes" maxlength="4000"></textarea></label></div><div class="discovery-actions"><button type="submit" id="question-save" class="button primary" disabled><span id="question-action">Save question</span></button><button type="button" id="reset-question" class="button subtle">New question</button></div><p id="save-status" role="status" aria-live="polite"></p></form>
           <p>Confirmation: deferred. No dates are reserved or excluded from analysis by this question register. A future confirmation workflow must enforce that separation.</p><div id="questions"></div>
