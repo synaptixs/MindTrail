@@ -94,3 +94,8 @@ freshness, precise editing, DST choices and quality-sidecar lifecycle.
 `episode_review.py` owns the separately versioned review decisions and reversible operation
 ledger. Activity restore validation delegates the episode trigger contract to that module.
 See [episode review](EPISODE_REVIEW.md) and [Phase 2 acceptance](PHASE2_ACCEPTANCE.md).
+
+`exploratory_models.py` owns the source-only frozen quality-snapshot comparison. It does not
+write the archive or replace the legacy Patterns API/UI. See
+[exploratory models](EXPLORATORY_MODELS.md) for sampling, acquisition isolation and candidate
+method contracts. Packaged numerical runtime remains Phase 5 work.

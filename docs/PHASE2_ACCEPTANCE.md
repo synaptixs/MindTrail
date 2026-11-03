@@ -14,10 +14,12 @@ P1's source/cloud scope and Phase 5's numerical dependency/release work remain u
 | P2-A4 Arrival preservation | Existing pinned/unpinned refresh fixtures; stale candidates withheld; no candidate auto-writes; unknown spans protected | Confirm selected periods and saved labels stay fixed during refresh |
 | P2-A5 Useful review | Bounded counts/reasons, interleaved ordinary coverage, blind entry, separate unknown/rejected states, keyboard and narrow-screen software walkthrough | Review usefulness against personally annotated examples |
 
-The Phase 2 gate remains **pending owner walkthrough and candidate-usefulness decision**.
-Passing tests or merging the PR does not substitute for that review. Candidate detection
-stays opt-in/off by default; keeping it disabled is a valid outcome if it adds little value.
-Legacy labels with unknown timing cannot establish boundary accuracy by themselves.
+On 2026-11-03 the owner directed stopping the remaining repetitive walkthrough checks and
+moving forward. Phase 2 closes under a **revised software acceptance scope**. The remaining
+manual checks and personally annotated boundary-usefulness review are **deferred, not passed**.
+Passing tests or merging a PR does not establish those unperformed results. Candidate
+detection stays opt-in/off by default. Legacy labels with unknown timing cannot establish
+boundary accuracy by themselves. The optional checklist below remains available for later use.
 
 ## Owner walkthrough
 
