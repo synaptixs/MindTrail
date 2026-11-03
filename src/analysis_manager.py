@@ -21,7 +21,9 @@ from archive_paths import ArchivePaths
 
 
 JOB_ID=re.compile(r'^[0-9a-f]{32}$')
-SOURCE_FILES=('analysis_quality.py','analysis_provenance.py','analysis_worker.py','analysis_view.py','analysis_cache.py','analysis_resources.py','daily_review.py','candidate_boundaries.py')
+SOURCE_FILES=('analysis_quality.py','analysis_provenance.py','analysis_worker.py','analysis_view.py','analysis_cache.py','analysis_resources.py','daily_review.py','candidate_boundaries.py',
+              'exploratory_models.py','exploratory_stability.py','exploratory_views.py','exploration_access.py',
+              '../config/exploration.json','../config/exploration-stability.json')
 
 
 def write_json(path: Path, value: dict) -> None:
@@ -41,7 +43,7 @@ def read_json(path: Path, limit=2_000_000) -> dict:
 
 def remove_quality_payloads(directory):
     for path in directory.iterdir():
-        if re.fullmatch(r'(?:quality|boundaries)-(?:index|\d{4}-\d{2}-\d{2})\.(?:json|tmp)',path.name) and not path.is_symlink():path.unlink()
+        if re.fullmatch(r'(?:(?:quality|boundaries)-(?:index|\d{4}-\d{2}-\d{2})|exploration-(?:index|[0-9a-f]{64}-(?:with_power|spectral_only)))\.(?:json|tmp)',path.name) and not path.is_symlink():path.unlink()
 
 
 class AnalysisManager:
@@ -67,6 +69,9 @@ class AnalysisManager:
         try:numpy_version=version('numpy')
         except PackageNotFoundError:numpy_version=None
         parts=[('python',list(sys.version_info[:3])),('numpy',numpy_version)]
+        for name in ('scikit-learn','scipy'):
+            try:parts.append((name,version(name)))
+            except PackageNotFoundError:parts.append((name,None))
         for path in (self.database,Path(str(self.database)+'-wal')):
             try:
                 s=path.stat()
@@ -96,13 +101,15 @@ class AnalysisManager:
         if start is not None and end is not None and start>=end:raise ValueError('Start must precede end')
         normalize=body.get('normalize',False)
         if type(normalize) is not bool:raise ValueError('Invalid normalization setting')
+        exploration=body.get('exploration',False)
+        if type(exploration) is not bool:raise ValueError('Invalid exploration setting')
         timezone=body.get('timezone','America/New_York')
         if not isinstance(timezone,str):raise ValueError('Invalid timezone')
         try:ZoneInfo(timezone)
         except (ZoneInfoNotFoundError,ValueError):raise ValueError('Choose a valid timezone') from None
         from candidate_boundaries import settings as boundary_settings
         return {'startMs':start,'endMs':end,'normalize':normalize,'timezone':timezone,
-                'candidateBoundaries':boundary_settings(body.get('candidateBoundaries'))}
+                'candidateBoundaries':boundary_settings(body.get('candidateBoundaries')),'exploration':exploration}
 
     def _recover(self):
         active=self.root/'active.json'
@@ -130,6 +137,8 @@ class AnalysisManager:
         with self.lock:
             if self.closed:raise ValueError('Workspace is closing')
             if not self.available():raise ValueError('Analysis is unavailable in this build')
+            if config['exploration'] and importlib.util.find_spec('sklearn') is None:
+                raise ValueError('Exploration requires the optional source analysis environment')
             if self.process:raise ValueError('An analysis is already running')
             self._recover()
             if (self.root/'active.json').exists():raise ValueError('An analysis is already running in this workspace')
@@ -201,12 +210,20 @@ class AnalysisManager:
                             summary=read_json(directory/'summary.json')
                             report=directory/'report.json'
                             if report.is_symlink() or not report.is_file() or summary['analysisIdentity']!=status['analysisIdentity']:raise ValueError('Incomplete report')
+                            if self.job.get('exploration'):
+                                index=read_json(directory/'exploration-index.json')
+                                if index['participantId']!=self.job['participant'] or index['analysisIdentity']!=status['analysisIdentity']:raise ValueError('Incomplete exploration')
+                                for group in index['groups']:
+                                    if not re.fullmatch(r'[0-9a-f]{64}',group['acquisitionGroupId']):raise ValueError('Invalid exploration group')
+                                    for view in ('with_power','spectral_only'):
+                                        path=directory/f"exploration-{group['acquisitionGroupId']}-{view}.json"
+                                        if path.is_symlink() or not path.is_file():raise ValueError('Incomplete exploration view')
                             pointer={'id':self.job['id'],'signature':self.job['signature'],
-                                     'settings':{k:self.job[k] for k in ('startMs','endMs','normalize','timezone','candidateBoundaries')}}
+                                     'settings':{k:self.job[k] for k in ('startMs','endMs','normalize','timezone','candidateBoundaries','exploration')}}
                             write_json(self.root/(self.job['scope']+'.json'),pointer)
                             try:self._prune()
                             except OSError:self.job['warning']='Older generated payloads could not be pruned.'
-                        except (OSError,ValueError,KeyError):self.job.update(state='failed',stage='failed',error='Could not publish complete analysis')
+                        except (OSError,ValueError,KeyError,TypeError):self.job.update(state='failed',stage='failed',error='Could not publish complete analysis')
                     else:self.job.update(state='failed',stage='failed',error=status.get('error','Analysis stopped unexpectedly. Retry analysis.'))
                     if self.job['state']!='completed':
                         try:remove_quality_payloads(directory)
@@ -251,7 +268,7 @@ class AnalysisManager:
     def state(self,participant):
         with self.lock:
             self._recover()
-            result={'available':self.available(),'participantId':participant,'demo':self.demo,'job':self._public_job(participant),'summary':None,'stale':False,'settings':None}
+            result={'available':self.available(),'explorationAvailable':self.available() and importlib.util.find_spec('sklearn') is not None,'participantId':participant,'demo':self.demo,'job':self._public_job(participant),'summary':None,'stale':False,'settings':None}
             if not participant:return result
             try:
                 pointer=read_json(self.root/(self.scope(participant)+'.json'))

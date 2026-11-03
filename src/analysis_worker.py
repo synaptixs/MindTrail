@@ -71,6 +71,14 @@ def run(directory: Path) -> int:
                     atomic_json(directory/('boundaries-'+date+'.json'),value,check)
                 atomic_json(directory/'boundaries-index.json',{'version':1,'participantId':request['participant'],
                     'analysisIdentity':report['analysisIdentity'],'dates':sorted(candidates)},check)
+            if request.get('exploration'):
+                from exploratory_views import build_views
+                index,payloads=build_views(report,check=check,progress=progress)
+                index['demo']=request['demo']
+                for (group,view),payload in payloads.items():
+                    check()
+                    atomic_json(directory/f'exploration-{group}-{view}.json',payload,check)
+                atomic_json(directory/'exploration-index.json',index,check)
             check()
             atomic_json(directory/'status.json',{'state':'completed','stage':'completed','done':1,'total':1,
                 'reusedWindows':cache.hits,'computedFeatures':cache.misses,'analysisIdentity':report['analysisIdentity'],

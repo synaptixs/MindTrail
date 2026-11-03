@@ -131,6 +131,8 @@ See [Phase 1 acceptance](PHASE1_ACCEPTANCE.md) for full-archive validation and r
 ## Source-workspace background analysis
 
 Open **Recording quality** in the source dashboard and click **Run analysis**.
+The optional **Include feature exploration** setting also produces the
+[feature explorer](EXPLORATORY_VIEWS.md), with PCA and verified representative waveforms.
 The worker runs separately from the HTTP server. Stage progress counts records
 while extracting and acquisition groups while screening; it is not an estimated
 whole-job percentage. Cancel stops publication and preserves the last complete
