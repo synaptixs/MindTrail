@@ -39,6 +39,10 @@ class ArchivePaths:
         return self.data / "processed" / "quality"
 
     @property
+    def discovery(self) -> Path:
+        return self.data / "processed" / "discovery"
+
+    @property
     def activity_migrations(self) -> Path:
         return self.data / "processed" / "activity-migrations"
 

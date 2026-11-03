@@ -21,7 +21,7 @@ from archive_paths import ArchivePaths
 
 
 JOB_ID=re.compile(r'^[0-9a-f]{32}$')
-SOURCE_FILES=('analysis_quality.py','analysis_provenance.py','analysis_worker.py','analysis_view.py','analysis_cache.py','analysis_resources.py','daily_review.py','candidate_boundaries.py',
+SOURCE_FILES=('discovery_contracts.py','analysis_quality.py','analysis_provenance.py','analysis_worker.py','analysis_view.py','analysis_cache.py','analysis_resources.py','daily_review.py','candidate_boundaries.py',
               'exploratory_models.py','exploratory_stability.py','exploratory_views.py','exploration_access.py','similar_periods.py','activity_comparisons.py','activity_access.py',
               '../config/exploration.json','../config/exploration-stability.json')
 
@@ -43,12 +43,13 @@ def read_json(path: Path, limit=2_000_000) -> dict:
 
 def remove_quality_payloads(directory):
     for path in directory.iterdir():
-        if re.fullmatch(r'(?:(?:quality|boundaries)-(?:index|\d{4}-\d{2}-\d{2})|exploration-(?:index|[0-9a-f]{64}-(?:with_power|spectral_only))|activities-(?:index|[0-9a-f]{64}))\.(?:json|tmp)',path.name) and not path.is_symlink():path.unlink()
+        if re.fullmatch(r'(?:discovery|(?:quality|boundaries)-(?:index|\d{4}-\d{2}-\d{2})|exploration-(?:index|[0-9a-f]{64}-(?:with_power|spectral_only))|activities-(?:index|[0-9a-f]{64}))\.(?:json|tmp)',path.name) and not path.is_symlink():path.unlink()
 
 
 class AnalysisManager:
     def __init__(self, profile: Path, database: Path, *, demo=False):
         self.root=ArchivePaths(Path(profile).resolve()).quality
+        self.discovery_root=ArchivePaths(Path(profile).resolve()).discovery
         self.database=Path(database).resolve()
         self.demo=bool(demo)
         self.lock=threading.RLock()
@@ -212,6 +213,8 @@ class AnalysisManager:
                             summary=read_json(directory/'summary.json')
                             report=directory/'report.json'
                             if report.is_symlink() or not report.is_file() or summary['analysisIdentity']!=status['analysisIdentity']:raise ValueError('Incomplete report')
+                            from discovery_contracts import validate as validate_discovery
+                            validate_discovery(read_json(directory/'discovery.json'),self.job['participant'],status['analysisIdentity'])
                             if self.job.get('exploration'):
                                 index=read_json(directory/'exploration-index.json')
                                 if index['participantId']!=self.job['participant'] or index['analysisIdentity']!=status['analysisIdentity']:raise ValueError('Incomplete exploration')

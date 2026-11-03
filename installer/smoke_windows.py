@@ -61,9 +61,15 @@ def wait_for_workspace(process, profile):
                 analysis = json.load(response)
             assert analysis['available'] is False, "Numerical analysis must not start in the stdlib bundle"
             assert analysis['explorationAvailable'] is False, "Exploration must have an honest unavailable state"
-            for name,marker in [('review.html','id="review-form"'),('review.js','/api/review/undo'),('explore.html','id="pca"'),('explore.js','/api/exploration'),('similarity.js','/api/similarity/accept'),('compare.html','id="daily-chart"'),('compare.js','/api/activity-comparisons'),('compare.css','coverage-strip')]:
+            for name,marker in [('review.html','id="review-form"'),('review.js','/api/review/undo'),('explore.html','id="pca"'),('explore.js','/api/exploration'),('similarity.js','/api/similarity/accept'),('compare.html','id="daily-chart"'),('compare.js','/api/activity-comparisons'),('compare.css','coverage-strip'),('discover.html','id="question"'),('discover.js','/api/discovery'),('discover.css','discovery-content')]:
                 with opener.open(url.split("/launch")[0]+'/'+name,timeout=1) as response:
                     assert marker in response.read().decode('utf-8')
+            with opener.open(url.split("/launch")[0]+"/api/discovery",timeout=1) as response:
+                discovery=json.load(response)
+            assert discovery['status']=='no_participant' and discovery['labelsRequired'] is False
+            with opener.open(url.split("/launch")[0]+"/api/discovery/questions",timeout=1) as response:
+                questions=json.load(response)
+            assert questions['total']==0 and questions['questions']==[]
             return
         except (OSError, ValueError, KeyError):
             time.sleep(.1)
@@ -182,6 +188,23 @@ with app.db() as c:
     assert c.execute("SELECT COUNT(*) FROM episode_operations WHERE participant_id='episode-qa'").fetchone()[0]==4
     assert c.execute("SELECT kind FROM episode_decisions WHERE participant_id='episode-qa'").fetchone()[0]=='unknown'
 """
+        question_check="""from pathlib import Path
+import sys
+from analysis_manager import AnalysisManager
+import discovery_contracts,discovery_questions
+profile=Path(sys.argv[1]);manager=AnalysisManager(profile,profile/'awear_data.sqlite3')
+# Synthetic storage fixture only; packaged numerical readiness remains unavailable.
+discovery_contracts.read=lambda *_:{'status':'current','analysisIdentity':'f'*64,'discoveryIdentity':'d'*64}
+if not discovery_questions.page(manager,'question-qa')['total']:
+    discovery_questions.save(manager,'question-qa',{'participantId':'question-qa',
+        'analysisIdentity':'f'*64,'discoveryIdentity':'d'*64,'title':'Synthetic discovery question','notes':'', 'stage':'discovery'})
+rows=discovery_questions.page(manager,'question-qa')['questions']
+assert len(rows)==1 and rows[0]['title']=='Synthetic discovery question' and rows[0]['revision']==1
+manager.close()
+"""
+        subprocess.run([str(executable), '-c', question_check, str(profile)],check=True,env=environment,timeout=30)
+        question_file=profile/'data'/'processed'/'discovery'/'questions.sqlite3'
+        question_digest=hashlib.sha256(question_file.read_bytes()).hexdigest()
         subprocess.run([str(executable), '-c', episode_check, str(profile)],check=True,env=environment,timeout=30)
         checks['episodeSplitUndoAndUnknown']=True
         subprocess.run([str(executable), '-c', archive_check, str(profile)], check=True, env=environment, timeout=30)
@@ -244,6 +267,9 @@ with app.db() as c:
             checks['uninstallPreservesArchive'] = True
             checks['legacyMobileScoresPreserved'] = True
         assert all(path.read_text(encoding='utf-8') == contents for path, contents in archive_files.items())
+        assert hashlib.sha256(question_file.read_bytes()).hexdigest()==question_digest
+        checks['discoveryQuestionsPreserved']=True
+        checks['discoveryOfflineAssetsAndUnavailableState']=True
         checks['archiveLayoutsPreserved'] = True
         checks['archivePathCompatibility'] = True
         result = {**checks, "singleInstance": True, "shutdown": True, "setupPageAndGuide": True, "mobileScoresRetired": True, "qualityPageAndUnavailableState": True, "personalActivityPageAndEmptyVocabulary": True, "dailyClockAndTimezoneChoices": True,

@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101b23">
+  <title>Discover recordings · MindTrail Lab</title>
+  <meta name="description" content="Explore quality flags and recurring patterns in personal AWEAR recordings.">
+  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/discover.css">
+  <script src="/discover.js" defer></script>
+</head>
+<body>
+  <div class="shell">
+    <aside class="rail">
+      <div class="brand"><div class="brand-mark">M<span>·</span></div><div><strong>MindTrail</strong><small>LAB</small></div></div>
+      <div class="rail-rule"></div>
+      <nav aria-label="Sections">
+        <a class="nav-link" href="/"><span class="nav-icon">◫</span> Overview</a>
+        <a class="nav-link" href="/#activity"><span class="nav-icon">◷</span> Activity log</a>
+        <a class="nav-link" href="/#recorded-periods"><span class="nav-icon">▤</span> Recorded periods</a>
+        <a class="nav-link" href="/eeg.html"><span class="nav-icon">∿</span> EEG signal</a>
+        <a class="nav-link" href="/bluetooth.html"><span class="nav-icon">ᛒ</span> Bluetooth</a>
+        <a class="nav-link active" aria-current="page" href="/discover.html"><span class="nav-icon">◇</span> Discover recordings</a>
+        <a class="nav-link" href="/quality.html"><span class="nav-icon">✓</span> Recording quality</a>
+        <a class="nav-link" href="/review.html"><span class="nav-icon">☷</span> Episode review</a>
+        <a class="nav-link" href="/patterns.html"><span class="nav-icon">◩</span> Signal patterns</a>
+        <a class="nav-link" href="/data.html"><span class="nav-icon">▦</span> Data tables</a>
+        <a class="nav-link" href="/#exports"><span class="nav-icon">⇩</span> Exports</a>
+      </nav>
+      <div class="rail-bottom"><div class="local-card"><span class="green-dot"></span><div><strong>Private workspace</strong><small>Data stored on this computer</small></div></div><div class="rail-foot">AWEAR data · Local dashboard<br>Exploratory signal analysis</div></div>
+    </aside>
+    <main>
+      <header class="topbar"><div class="breadcrumb">Personal lab <span>/</span> Discover recordings</div><div class="top-actions"><span class="pill">Local exploration</span></div></header>
+      <div class="content discovery-content">
+        <div class="eyebrow">DISCOVERY FIRST</div><h1>Discover my recordings<span class="title-dot">.</span></h1>
+        <p class="lead">Start with what was recorded. No activity labels or clustering required.</p>
+        <p id="source">Cloud EEG · right ear · 256 Hz.</p>
+        <section class="card"><h2>Discovery readiness</h2><p id="freshness" role="status" aria-live="polite">Loading…</p>
+          <div class="discovery-actions"><button type="button" class="button primary" id="run">Analyze saved recordings</button><button type="button" class="button subtle" id="refresh">Refresh status</button></div>
+          <p id="analysis-status"></p><p>Analysis preserves recordings and labels. Discovery readiness means feature support exists; it does not establish activity meaning, repeatability or mental states.</p>
+        </section>
+        <div id="facts" hidden><section class="card"><h2>Which data supports exploration?</h2><p id="extent"></p><table aria-label="Source and window accounting"><tbody id="coverage"></tbody></table><p>Four-second windows. Record-second counts are not elapsed device-wearing duration. Flags are screening cues; unflagged does not establish artifact-free EEG.</p><details><summary>Source identities</summary><small id="identity"></small></details></section>
+          <section class="card"><h2>Recording contexts</h2><p id="context-count"></p><div id="contexts"></div><p id="missing"></p></section>
+        </div>
+        <section class="card"><h2>Explore before labeling</h2><p><a href="/quality.html">Inspect coverage and quality →</a></p><p><a href="/explore.html">Explore feature distributions and similar windows →</a></p><p>These existing views have separate analysis options. Daily feature changes and expanded cross-day discovery views follow in later work packages. You can leave activity context unknown.</p></section>
+        <section class="card"><h2>Questions to explore</h2><p>A question is optional. Save an observation or a candidate explanation without assigning activities. Saving a candidate does not validate it.</p>
+          <form id="question"><div class="question-fields"><label>Question<input id="title" required maxlength="240" placeholder="What changes across my recording days?"></label><label>Stage<select id="stage"><option value="discovery">Discovery — observe first</option><option value="candidate">Candidate — possible question to investigate</option></select></label><label>Notes or missing context (optional)<textarea id="notes" maxlength="4000"></textarea></label></div><div class="discovery-actions"><button type="submit" id="question-save" class="button primary" disabled><span id="question-action">Save question</span></button><button type="button" id="reset-question" class="button subtle">New question</button></div><p id="save-status" role="status" aria-live="polite"></p></form>
+          <p>Confirmation: deferred. No dates are reserved or excluded from analysis by this question register. A future confirmation workflow must enforce that separation.</p><div id="questions"></div>
+        </section>
+      </div></main></div></body></html>
