@@ -172,6 +172,8 @@ def migrate(connection: sqlite3.Connection, database: Path, profile: Path) -> No
     # Another launcher may have completed migration while this one made a backup.
     if connection.execute("SELECT 1 FROM sqlite_master WHERE name='activity_schema'").fetchone():
         validate_archive_objects(connection)
+        if connection.execute('SELECT version FROM activity_schema').fetchone()[0] == 1:
+            _upgrade_v1(connection,database,profile)
         return
     connection.execute('''CREATE TABLE activities(id TEXT PRIMARY KEY,participant_id TEXT NOT NULL,name TEXT NOT NULL,
         category TEXT NOT NULL DEFAULT '',context TEXT NOT NULL DEFAULT '',favorite INTEGER NOT NULL DEFAULT 0 CHECK(favorite IN(0,1)),

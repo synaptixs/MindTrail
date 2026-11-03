@@ -240,6 +240,25 @@ class ActivityTests(unittest.TestCase):
         with closing(sqlite3.connect(backups[0])) as c:self.assertEqual(c.execute('SELECT version FROM activity_schema').fetchone()[0],1)
         app.setup_db();self.assertEqual(list(ArchivePaths(profile).activity_migrations.glob('*.sqlite3')),backups)
 
+    def test_v1_arriving_during_preflight_is_upgraded_before_setup_returns(self):
+        profile=self.root/'concurrent-one';app.configure_storage(profile)
+        fixture=self.root/'concurrent-source.sqlite3'
+        with closing(sqlite3.connect(fixture)) as c:c.executescript((Path(__file__).parent/'fixtures'/'activities-v1.sql').read_text(encoding='utf-8'))
+        original_backup=activities._backup
+        first=True
+        def another_launcher(connection,database,root):
+            nonlocal first
+            if first:
+                first=False;connection.commit()
+                with closing(sqlite3.connect(fixture)) as source:source.backup(connection)
+                return None
+            return original_backup(connection,database,root)
+        with patch.object(activities,'_backup',side_effect=another_launcher):app.setup_db()
+        with app.db() as c:
+            activities.validate_archive_objects(c)
+            self.assertEqual(c.execute('SELECT version FROM activity_schema').fetchone()[0],2)
+            self.assertEqual(c.execute("SELECT COUNT(*) FROM labels WHERE timing_precision='unknown'").fetchone()[0],2)
+
     def test_v1_failed_upgrade_rolls_back_and_keeps_usable_v1_backup(self):
         profile=self.root/'failure-one';profile.mkdir();database=profile/'awear_data.sqlite3'
         with closing(sqlite3.connect(database)) as c:c.executescript((Path(__file__).parent/'fixtures'/'activities-v1.sql').read_text(encoding='utf-8'))
