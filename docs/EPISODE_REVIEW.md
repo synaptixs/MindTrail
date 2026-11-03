@@ -7,6 +7,12 @@ source-workspace-only; manual review, splitting and undo work in packaged runtim
 
 ## A person's labels, with optional cues
 
+Saved label periods display **Saved interval #N** independently of hidden annotation names.
+The number identifies an interval assignment, not its activity definition or a history change.
+Use **Find a saved interval** to open a confirmed period that has left the pending queue;
+opening by number explicitly reveals its current activity and note. The editor repeats the
+interval number; history actions use **Change #N** to distinguish their separate identities.
+
 The default queue hides existing annotation names and does not request model proposals.
 It interleaves pending/unsure annotations with ordinary unassigned recording coverage.
 Ordinary intervals use a stable SHA-256 shuffle, independent of signal features; they

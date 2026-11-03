@@ -38,6 +38,10 @@
         <p class="lead">Review ordinary recordings, use your own activity names, and preserve every change.</p>
         <p>Cloud EEG was collected behind the right ear · RIGHT_TEMP · 256 Hz. Signal changes do not identify activities.</p>
         <p id="notice" role="status" aria-live="polite"></p>
+        <section class="card review-card"><h2>Find a saved interval</h2>
+          <p>Confirmed intervals leave the pending queue. Open a saved interval by its number to edit or split it. Opening it shows its current activity and note.</p>
+          <form id="interval-lookup" class="review-actions"><label>Interval number <input id="interval-number" type="number" min="1" step="1" required placeholder="e.g. 10"></label><button id="open-interval" class="button subtle" type="submit">Open interval</button></form>
+        </section>
         <section class="card review-card"><h2>Review queue</h2>
           <label><input id="cues" type="checkbox"> Show existing annotations and optional PELT proposals</label>
           <p>Off by default for blind labeling. Ordinary periods use a stable shuffled order, independent of signal features. The queue is not a statistically representative study sample.</p>
@@ -45,7 +49,7 @@
           <p id="queue-count"></p><div id="queue"></div>
           <div class="review-actions"><button id="previous" class="button subtle">Previous page</button><button id="next" class="button subtle">Next page</button></div>
         </section>
-        <section id="editor" class="card review-card" hidden><h2>Review selected period</h2>
+        <section id="editor" class="card review-card" hidden><h2 id="editor-title">Review selected period</h2>
           <p id="selection"></p><p id="selection-context"></p>
           <svg id="preview" viewBox="0 0 800 150" role="img" aria-label="First ten seconds of the original selected period, centered per source second"></svg>
           <p id="preview-note"></p><p><a id="eeg" href="/eeg.html">Inspect full EEG (may show existing annotations) ↗</a></p>

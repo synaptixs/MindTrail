@@ -14,3 +14,7 @@
 
 #history-panel > summary { cursor: pointer; font-size: 20px; font-weight: 700; }
 .review-card input[type=checkbox] { display: inline-block; width: 18px; height: 18px; min-height: 0; padding: 0; margin: 0 8px 0 0; vertical-align: middle; accent-color: #278366; }
+
+.interval-number { display: block; width: fit-content; margin-bottom: 8px; padding: 4px 9px; border-radius: 6px; background: #e8f2ec; color: #245945; font-weight: 700; }
+#interval-lookup { align-items: end; }
+#interval-lookup label { margin: 0; }
