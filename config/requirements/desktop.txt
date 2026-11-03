@@ -1,0 +1,5 @@
+# Runtime for the desktop launcher; the source CLI remains dependency-free.
+bleak==3.0.2
+keyring>=25.6,<26
+tzdata>=2025.2
+certifi>=2025.1.31

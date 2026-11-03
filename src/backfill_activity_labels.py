@@ -128,7 +128,8 @@ def main():
         if not participant:
             parser.error("Select a participant first")
         preview = plan(connection, participant, not args.all_days)
-    result = apply(participant, not args.all_days, app.data_root()/"data/activity-backfill") if args.apply else preview
+    from archive_paths import ArchivePaths
+    result = apply(participant, not args.all_days, ArchivePaths(app.data_root()).activity_backfill) if args.apply else preview
     print(json.dumps({key:value for key,value in result.items() if key not in ("intervals", "existingLabels", "createdIds")}, indent=2))
 
 

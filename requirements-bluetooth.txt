@@ -1,1 +1,2 @@
-bleak==3.0.2
+# Compatibility entry point; canonical dependencies live under config/.
+-r config/requirements/bluetooth.txt

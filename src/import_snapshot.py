@@ -11,6 +11,7 @@ import statistics
 from pathlib import Path
 
 import app
+from archive_paths import ArchivePaths
 
 
 def import_snapshot(snapshot: Path) -> tuple[int, int]:
@@ -70,15 +71,15 @@ def import_snapshot(snapshot: Path) -> tuple[int, int]:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Merge a saved API snapshot into the local dashboard")
-    parser.add_argument("snapshot", type=Path, nargs="?", help="Snapshot directory; defaults to newest in data/")
+    parser.add_argument("snapshot", type=Path, nargs="?", help="Snapshot directory; defaults to newest in data/raw/cloud/ or legacy data/")
     args = parser.parse_args()
     if args.snapshot:
         snapshot = args.snapshot
     else:
-        snapshots = sorted((app.data_root() / "data").glob("export-*"))
+        snapshots = ArchivePaths(app.data_root()).snapshots()
         if not snapshots:
             parser.exit(1, "No AWEAR export snapshot found in data/.\n")
-        snapshot = snapshots[-1]
+        snapshot = snapshots[0]
     try:
         app.setup_db()
         total, inserted = import_snapshot(snapshot)

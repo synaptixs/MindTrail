@@ -264,6 +264,17 @@ class DesktopTests(unittest.TestCase):
         self.assertEqual(self.request("/api/desktop/import", b"not-sqlite" * 20)[0], 400)
         self.assertEqual(self.request("/api/desktop/bluetooth", {})[0], 200)
 
+    def test_restore_is_blocked_by_captures_in_either_archive_layout(self):
+        self.launch()
+        for root in self.server.bluetooth.paths.bluetooth_roots:
+            with self.subTest(layout=str(root)):
+                session = root / "session-20260501T000000Z-abcd1234"
+                session.mkdir(parents=True)
+                status, body, _, _ = self.request("/api/desktop/import", b"not-sqlite" * 20)
+                self.assertEqual(status, 400)
+                self.assertIn(b"empty workspace", body)
+                session.rmdir()
+
     def test_setup_is_blocked_during_capture(self):
         self.launch()
         with patch.object(self.server.bluetooth, "running", return_value=True):

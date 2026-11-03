@@ -350,7 +350,8 @@ class DesktopController:
                 raise ValueError("Choose a SQLite archive under 5 GB.")
             with app.db() as connection:
                 occupied = any(connection.execute(f"SELECT 1 FROM {table} LIMIT 1").fetchone() for table in ("readings", "labels", "mobile_scores"))
-            if self.ready() or occupied or any(handler.server.bluetooth.directory.glob("session-*")):
+            captures = any(any(root.glob("session-*")) for root in handler.server.bluetooth.paths.bluetooth_roots)
+            if self.ready() or occupied or captures:
                 raise ValueError("Restore is available only in a new, empty workspace before setup.")
             with tempfile.NamedTemporaryFile(dir=self.directory, prefix="restore-", suffix=".sqlite3", delete=False) as output:
                 temporary = Path(output.name)

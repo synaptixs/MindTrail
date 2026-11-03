@@ -110,6 +110,34 @@ assert CredentialStore(Path(sys.argv[1])).get() == ''
 """
         subprocess.run([str(executable), '-c', vault_check, str(profile)], check=True, env=environment, timeout=30)
         checks['nativeVaultSaveReadDelete'] = True
+        # Keep old/new captures and reports in place through a real upgrade.
+        archive_files = {}
+        for prefix, stamp in [('data/bluetooth', '20260501'), ('data/raw/bluetooth', '20260502')]:
+            session = profile / prefix / f'session-{stamp}T000000Z-abcd1234'
+            archive_files[session / 'session.json'] = '{"state":"completed","eegBlocks":1}'
+            archive_files[session / 'eeg.csv'] = 'synthetic capture\n'
+        for prefix, stamp in [('data', '20260501'), ('data/raw/cloud', '20260502')]:
+            archive_files[profile / prefix / f'export-{stamp}T000000Z' / 'manifest.json'] = '{"participants":[]}'
+        archive_files[profile / 'data/patterns/legacy.json'] = '{"synthetic":"legacy"}'
+        archive_files[profile / 'data/processed/patterns/current.json'] = '{"synthetic":"current"}'
+        for path, contents in archive_files.items():
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(contents, encoding='utf-8')
+        archive_check = """from pathlib import Path
+import sys
+from archive_paths import ArchivePaths
+from bluetooth_manager import BluetoothManager
+profile = Path(sys.argv[1])
+paths = ArchivePaths(profile)
+assert len(paths.snapshots()) == 2
+assert paths.pattern_report('legacy.json') == profile / 'data/patterns/legacy.json'
+assert paths.pattern_report('current.json') == profile / 'data/processed/patterns/current.json'
+manager = BluetoothManager(profile)
+assert manager.status()['totalSessions'] == 2
+for session in manager.status()['sessions']:
+    assert manager.download_path(session['id'], 'eeg.csv').read_text() == 'synthetic capture\\n'
+"""
+        subprocess.run([str(executable), '-c', archive_check, str(profile)], check=True, env=environment, timeout=30)
         command = [str(executable), str(entry), "--data-dir", str(profile), "--no-browser", "--no-key-store"]
         process = subprocess.Popen(command, env=environment)
         try:
@@ -127,6 +155,7 @@ assert CredentialStore(Path(sys.argv[1])).get() == ''
                     assert db.execute("SELECT score FROM mobile_scores WHERE participant_id='qa-only'").fetchone() == (42,)
                 process = subprocess.Popen(command, env=environment)
                 wait_for_workspace(process, profile)
+                subprocess.run([str(executable), '-c', archive_check, str(profile)], check=True, env=environment, timeout=30)
                 checks['upgradePreservesActivityLabel'] = True
             subprocess.run([str(executable), str(entry), "--data-dir", str(profile), "--stop-running"], check=True, timeout=25, env=environment)
             assert process.wait(timeout=10) == 0
@@ -149,6 +178,9 @@ assert CredentialStore(Path(sys.argv[1])).get() == ''
                 assert db.execute("SELECT score FROM mobile_scores WHERE participant_id='qa-only'").fetchone() == (42,)
             checks['uninstallPreservesArchive'] = True
             checks['legacyMobileScoresPreserved'] = True
+        assert all(path.read_text(encoding='utf-8') == contents for path, contents in archive_files.items())
+        checks['archiveLayoutsPreserved'] = True
+        checks['archivePathCompatibility'] = True
         result = {**checks, "singleInstance": True, "shutdown": True, "setupPageAndGuide": True, "mobileScoresRetired": True,
                   "installerExercised": installed, "platform": platform.platform(),
                   "signaturesVerified": args.require_signed,

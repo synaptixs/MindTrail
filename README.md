@@ -468,17 +468,47 @@ Use a new output directory each time; existing recording files are never overwri
 MindTrail/
 ├── src/          Application modules, dashboard assets, Python build entry points
 ├── test/         Automated unittest cases
-├── scripts/      Convenient Mac and Windows build commands
+├── config/       Dependency definitions and source configuration templates
+├── data/         Ignored runtime data; raw/ and processed/ layout guides only
+├── scripts/      Source-profile launcher and Mac/Windows build commands
 ├── installer/    Packaging templates, runtime locks, and verification tools
 └── README.md     Start here
 ```
+
+### Canonical source and existing archives
+
+Keep one Git checkout as the source of truth. An archive can stay outside it; do not
+copy recordings or keys into the checkout when upgrading source code.
+
+Copy `config/development.example.json` to the ignored
+`config/development.local.json`, then set `data_directory` to your existing archive's
+absolute path. Use the source launcher from any directory:
+
+```bash
+python /path/to/MindTrail/scripts/run-local.py desktop
+python /path/to/MindTrail/scripts/run-local.py app --port 8765
+python /path/to/MindTrail/scripts/run-local.py export
+python /path/to/MindTrail/scripts/run-local.py patterns
+```
+
+Use `--profile /absolute/archive` **before** the command to override the saved path.
+The existing `AWEAR_DATA_DIR` environment variable takes precedence over the local
+configuration. Direct `src/*.py` commands keep their existing defaults.
+
+New cloud snapshots and Bluetooth captures go under the archive's `data/raw/`;
+new pattern/backfill reports go under `data/processed/`. Historical exports,
+captures, and reports remain readable in their old locations. The database, labels,
+credential-store identity and `.env` remain at their existing profile paths.
+See the [archive layout](data/README.md) and [configuration guide](config/README.md).
+
+Packaged apps keep their normal per-user storage and do not load source configuration.
 
 ### Run the tests
 
 In your development environment:
 
 ```bash
-python -m pip install -r requirements-build.txt numpy scikit-learn
+python -m pip install -r requirements-build.txt -r config/requirements/analysis.txt
 python -m unittest discover
 node --check src/static/welcome.js
 node --check src/static/eeg.js
