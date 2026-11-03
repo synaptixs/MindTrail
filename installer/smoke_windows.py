@@ -61,13 +61,15 @@ def wait_for_workspace(process, profile):
                 analysis = json.load(response)
             assert analysis['available'] is False, "Numerical analysis must not start in the stdlib bundle"
             assert analysis['explorationAvailable'] is False, "Exploration must have an honest unavailable state"
-            for name,marker in [('review.html','id="review-form"'),('review.js','/api/review/undo'),('explore.html','id="pca"'),('explore.js','/api/exploration'),('similarity.js','/api/similarity/accept'),('compare.html','id="daily-chart"'),('compare.js','/api/activity-comparisons'),('compare.css','coverage-strip'),('discover.html','id="question"'),('discover.js','/api/discovery'),('discover.css','discovery-content'),('discovery_daily.js','/api/discovery/daily')]:
+            for name,marker in [('review.html','id="review-form"'),('review.js','/api/review/undo'),('explore.html','id="pca"'),('explore.js','/api/exploration'),('similarity.js','/api/similarity/accept'),('compare.html','id="daily-chart"'),('compare.js','/api/activity-comparisons'),('compare.css','coverage-strip'),('discover.html','id="question"'),('discover.js','/api/discovery'),('discover.css','discovery-content'),('discovery_daily.js','/api/discovery/daily'),('recurrence.html','id="rec-search"'),('recurrence.js','/api/discovery/recurrence'),('recurrence.css','rec-wave-pair')]:
                 with opener.open(url.split("/launch")[0]+'/'+name,timeout=1) as response:
                     assert marker in response.read().decode('utf-8')
             with opener.open(url.split("/launch")[0]+"/api/discovery",timeout=1) as response:
                 discovery=json.load(response)
             assert discovery['status']=='no_participant' and discovery['labelsRequired'] is False
             with opener.open(url.split("/launch")[0]+"/api/discovery/daily",timeout=1) as response:
+                assert json.load(response)['status']=='no_participant'
+            with opener.open(url.split("/launch")[0]+"/api/discovery/recurrence",timeout=1) as response:
                 assert json.load(response)['status']=='no_participant'
             with opener.open(url.split("/launch")[0]+"/api/discovery/questions",timeout=1) as response:
                 questions=json.load(response)

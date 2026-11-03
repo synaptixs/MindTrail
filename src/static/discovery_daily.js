@@ -12,7 +12,7 @@
  function day(){return selected()?.days.find(d=>d.date===el('daily-date').value);}
  function pinKey(){return `${currentPerson}:${el('daily-group').value}:${el('daily-date').value}`;}
  function range(){return pins.get(pinKey())||day();}
- function hide(message){seq++;indexSeq++;waveSeq++;index=null;data=null;loadKey=null;drag=null;el('daily-discovery').hidden=true;el('daily-status').textContent=message;el('daily-wave').replaceChildren();}
+ function hide(message){el('daily-recur').hidden=true;seq++;indexSeq++;waveSeq++;index=null;data=null;loadKey=null;drag=null;el('daily-discovery').hidden=true;el('daily-status').textContent=message;el('daily-wave').replaceChildren();}
  function options(target,items){const previous=target.value;target.replaceChildren(...items.map(([value,label])=>new Option(label,value)));if(items.some(([value])=>value===previous))target.value=previous;}
  function days(){options(el('daily-date'),selected()?.days.map(d=>[d.date,d.date])||[]);}
  async function sync({value,state}){
@@ -35,7 +35,7 @@
   if(!index||!day())return;
   const r=range(),group=el('daily-group').value,date=el('daily-date').value,identity=index.dailyIdentity;
   const key=`${identity}:${group}:${date}:${r.startMs}:${r.endMsExclusive}`;
-  if(key===loadKey)return;loadKey=key;const token=++seq;waveSeq++;el('daily-wave').replaceChildren();el('daily-wave-note').textContent='';
+  if(key===loadKey)return;loadKey=key;const token=++seq;waveSeq++;el('daily-wave').replaceChildren();el('daily-wave-note').textContent='';el('daily-recur').hidden=true;
   try{const v=await request('/api/discovery/daily?'+new URLSearchParams({group,date,startMs:r.startMs,endMs:r.endMsExclusive}));
    if(token!==seq||identity!==index?.dailyIdentity)return;
    if(v.status!=='current'||v.dailyIdentity!==identity){hide('Daily features changed; refresh analysis.');return;}
@@ -94,9 +94,10 @@
  for(const id of['daily-group','daily-date'])el(id).addEventListener('change',()=>{if(id==='daily-group')days();data=null;drag=null;loadKey=null;load();});
  el('daily-auto').addEventListener('change',()=>{autoBlocked=false;});el('run').addEventListener('click',()=>{autoBlocked=false;lastStart=Date.now();});
  el('daily-ordinary').addEventListener('click',()=>wave(data?.examples.ordinary));el('daily-flagged').addEventListener('click',()=>wave(data?.examples.flagged));el('daily-inspect-bin').addEventListener('click',()=>wave(el('daily-point').value));
- async function wave(id){if(!id||!data)return;const token=++waveSeq,identity=index.dailyIdentity;el('daily-wave').replaceChildren();el('daily-wave-note').textContent='Verifying exact source samples…';
+ async function wave(id){if(!id||!data)return;const token=++waveSeq,identity=index.dailyIdentity;el('daily-wave').replaceChildren();el('daily-wave-note').textContent='Verifying exact source samples…';el('daily-recur').hidden=true;
   try{const result=await request('/api/discovery/daily/waveform?'+new URLSearchParams({group:data.acquisitionGroupId,date:data.date,window:id,identity}));if(token!==waveSeq||identity!==index?.dailyIdentity)return;
    const target=el('daily-wave'),w=Math.max(240,target.clientWidth);target.setAttribute('viewBox',`0 0 ${w} 220`);const span=result.maximum-result.minimum||1;target.replaceChildren(svg('polyline',{points:result.samples.map((v,i)=>`${55+i/(result.samples.length-1)*(w-70)},${180-(v-result.minimum)/span*150}`).join(' '),fill:'none',stroke:'#278366','stroke-width':1}),svg('text',{x:0,y:25},n(result.maximum)),svg('text',{x:0,y:185},n(result.minimum)),svg('text',{x:55,y:210},'0 s'),svg('text',{x:w-15,y:210,'text-anchor':'end'},`${(result.endMsExclusive-result.startMs)/1000} s`));
+   el('daily-recur').hidden=!!result.qualityFlags.length;el('daily-recur').href='/recurrence.html?'+new URLSearchParams({exactGroup:data.acquisitionGroupId,window:id});
    el('daily-wave-note').textContent=`Source verified · ${stamp(result.startMs)} → ${stamp(result.endMsExclusive)} · ${result.samples.length} samples at ${result.sampleRate} Hz · ${result.acquisition.units}. Raw, unfiltered; mean/offset ${n(result.mean)}. Flags: ${result.qualityFlags.join(', ')||'none; not proof of clean EEG'}.`;
   }catch(e){if(token===waveSeq)el('daily-wave-note').textContent=e.message;}
  }

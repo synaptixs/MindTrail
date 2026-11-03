@@ -567,3 +567,9 @@ for exact accounting, units and limitations.
 For reproducible full-archive resource and preservation checks, see
 [Phase 1 acceptance](docs/PHASE1_ACCEPTANCE.md). Its runner uses private disposable
 copies and creates a self-contained coverage review report.
+
+Explore unlabeled recordings with
+[daily discovery and cross-day recurrence](docs/DISCOVERY_READINESS.md). In a source
+workspace, **Across days** compares observed spectral windows and displays
+recording-condition context; it does not identify activities. Numerical installer
+support remains planned for Phase 5.
