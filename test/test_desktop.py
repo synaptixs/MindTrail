@@ -424,6 +424,24 @@ class DesktopTests(unittest.TestCase):
         self.assertEqual(status,400);self.assertIn(b'empty workspace',body)
         with app.db() as c:self.assertEqual(app.personal_activities.page(c,'P')['total'],1)
 
+    def test_daily_lane_and_clock_routes_auth_scope_and_precise_save(self):
+        self.assertEqual(self.request('/api/local-time?value=2026-11-01T01:30:00.123')[0],403)
+        self.assertEqual(self.request('/api/daily-quality?date=2026-11-01&start=2026-11-01T05:00:00Z&end=2026-11-01T07:00:00Z')[0],403)
+        self.launch();self.request('/api/desktop/bluetooth',{})
+        status,asset,headers,_=self.request('/interval_time.js');self.assertEqual(status,200);self.assertIn(b'MindTrailTime',asset)
+        status,data,_,_=self.request('/api/local-time?value=2026-11-01T01:30:00.123');self.assertEqual(status,200)
+        choices=json.loads(data)['choices'];self.assertEqual(len(choices),2)
+        self.assertEqual(self.request('/api/local-time?value=2026-03-08T02:30:00')[0],400)
+        with app.db() as c:participant=app.setting(c,'participant_id')
+        body={'label':'Repeated hour','start':choices[1]['utc'],'end':'2026-11-01T06:30:01.456Z','participantId':participant}
+        status,data,_,_=self.request('/api/labels',body);self.assertEqual(status,201)
+        labels=json.loads(self.request('/api/labels')[1])['labels']
+        self.assertEqual(labels[0]['start'],'2026-11-01T06:30:00.123Z');self.assertEqual(labels[0]['end'],body['end'])
+        status,data,_,_=self.request('/api/daily-quality?date=2026-11-01&start=2026-11-01T05:00:00Z&end=2026-11-01T07:00:00Z')
+        self.assertEqual(status,200);self.assertEqual(json.loads(data)['participantId'],participant)
+        self.assertEqual(json.loads(data)['status'],'unavailable')
+        self.assertEqual(self.request('/api/daily-quality?date=2026-11-01&start=2026-11-01T00:00:00Z&end=2026-11-01T07:00:00Z')[0],400)
+
     def test_quality_api_auth_setup_and_responsiveness(self):
         self.assertEqual(self.request("/api/analysis/state")[0], 403)
         self.assertEqual(self.request("/api/analysis/start", {})[0], 403)

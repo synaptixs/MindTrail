@@ -1,8 +1,8 @@
 const $ = (id) => document.getElementById(id);
 const state = { rangeHours: 168, mode: 'live', selected: '', refreshing: false, showSetup: false,
-  editingLabel: null, editingInputs: null, pendingLabelRange: null,
+  labelGeneration:0,editingLabel: null, editingInputs: null, pendingLabelRange: null,
   activityItems: [], activitiesLoadedFor: null, activityRevision: null, activityTotal: 0, activityOffset: 0, activityHasMore: false, activityRequest: 0, activityEdit: null,
-  dayRanges: new Map(), dayViews: new Map(), dayDragging: null, dayRequest: 0,
+  dayDrafts:new Map(),dayExactOpen:new Set(),dayQuality:new Map(),dayRanges: new Map(), dayViews: new Map(), dayDragging: null, dayRequest: 0,
   context: null, focus: null, rangeVersion: 0, refreshQueued: false, summary: null, view: null, dragging: null,
   intervals: [], days: [], expandedDays: new Set(), intervalSignature: '', nextBefore: null, intervalPages: 1, intervalLoading: false, intervalsFetchedAt: 0 };
 
@@ -232,6 +232,83 @@ function renderActiveLabel(labels) {
   $('active-activity').hidden=!active;
   if (active) $('active-activity').innerHTML=`<strong>● ${escapeHtml(active.label)} is active <button type="button" data-edit="${active.id}" aria-label="Edit ${escapeHtml(active.label)} activity">Edit</button></strong>Started ${escapeHtml(localStamp(active.start))}<br><button type="button" data-stop="${active.id}">Stop activity →</button>`;
 }
+function clockOptions(ms) {const o=MindTrailTime.offset(ms);return `<option value="${o}">UTC${o}</option>`;}
+function setLabelTimes(start,end) {
+  for(const [edge,ms] of [['start',start],['end',end]]){
+    $(`label-${edge}`).value=ms===null?'':MindTrailTime.input(ms);
+    $(`label-${edge}-offset`).innerHTML=ms===null?'<option value="">No end yet</option>':clockOptions(ms);
+  }
+  $('label-clock-status').textContent=`America/New_York · ${MindTrailTime.stamp(start)} → ${end===null?'active':MindTrailTime.stamp(end)}. End is exclusive.`;
+}
+async function resolveClock(input,select) {
+  const value=input.value;
+  const data=await api('/api/local-time?'+new URLSearchParams({value}));
+  if(input.value!==value)throw new Error('Time changed while resolving it. Review and save again.');
+  const chosen=select.value;
+  select.innerHTML=(data.choices.length>1?'<option value="">Choose occurrence</option>':'')+data.choices.map(c=>`<option value="${escapeHtml(c.offset)}">${escapeHtml(c.label)}</option>`).join('');
+  select.value=data.choices.some(c=>c.offset===chosen)?chosen:data.choices.length===1?data.choices[0].offset:'';
+  return MindTrailTime.choose(data.choices,select.value);
+}
+for(const edge of ['start','end']) {
+  $(`label-${edge}`).addEventListener('input',()=>{$(`label-${edge}-offset`).innerHTML='<option value="">Resolve entered time</option>';$('label-clock-status').textContent='New York time changed. Resolve the occurrence before saving.';});
+  $(`label-${edge}`).addEventListener('change',async()=>{try{const c=await resolveClock($(`label-${edge}`),$(`label-${edge}-offset`));$('label-clock-status').textContent=`${edge}: ${MindTrailTime.stamp(c.ms)} · ${c.utc}`;}catch(e){$('label-clock-status').textContent=e.message;}});
+  $(`label-${edge}-offset`).addEventListener('change',()=>{$('label-precision').value='unknown';$('label-start-uncertainty').value='';$('label-end-uncertainty').value='';updateEvidenceFields();});
+}
+function dailyLanes(day,plot) {
+  const a=Date.parse(plot.start),b=Date.parse(plot.end),facts=plot.lanes||{recording:[],activities:[]};
+  const quality=state.dayQuality.get(day.date),valid=quality&&quality.startMs===a&&quality.endMsExclusive===b;
+  const status=valid?quality.status:'loading';
+  const x=t=>100*Math.max(0,Math.min(1,(t-a)/(b-a)));
+  function lane(name,runs,activity=false){return `<div class="day-lane"><strong>${name}</strong><svg class="day-lane-track" viewBox="0 0 1000 24" preserveAspectRatio="none" role="group" aria-label="${name} from ${escapeHtml(dayStamp(day,a))} to ${escapeHtml(dayStamp(day,b))}">${runs.map(r=>{
+    const title=activity?`${r.label} · ${evidenceText(r)}`:r.state==='flagged'?`Screening flags: ${(r.flags||[]).join(', ')}`:r.state==='computed_unflagged'?'Computed, no screening flags (not proof of clean EEG)':r.state.replaceAll('_',' ');
+    const cls=activity?(r.reviewState==='confirmed'?'confirmed':isPendingSuggestion(r)?'suggested':'uncertain'):r.state;
+    const label=escapeHtml(title+' · '+dayStamp(day,r.startMs)+' → '+dayStamp(day,r.endMsExclusive));
+    const rect=`<rect class="lane-span ${cls}" x="${10*x(r.startMs)}" y="0" width="${10*(x(r.endMsExclusive)-x(r.startMs))}" height="24"><title>${label}</title></rect>`;
+    return activity?`<a href="#activity" data-edit="${r.id}" aria-label="Edit ${escapeHtml(r.label)} on daily chart">${rect}</a>`:rect;
+  }).join('')}</svg></div>`;}
+  const runs=valid&&status==='current'?quality.runs:[{startMs:a,endMsExclusive:b,state:'not_analyzed'}];
+  return `<div class="daily-lanes">${lane('Recording',facts.recording)}${lane('Quality',runs)}${Array.from({length:facts.activityTrackCount||1},(_,track)=>lane(track?'Activities '+(track+1):'Activities',facts.activities.filter(a=>(a.track||0)===track),true)).join('')}<p class="lane-note">${escapeHtml(status==='current'?'Quality: current completed snapshot. Grey = not analyzed; amber = screening flags; green = computed without flags. Screening does not establish artifact-free EEG.':status==='stale'?'Quality snapshot is stale; flags are not applied to this view.':'Quality unavailable or not loaded for this view.')} <a href="/quality.html">Review recording quality ↗</a></p></div>`;
+}
+async function loadDayQuality(day) {
+  const range=daySelection(day),participant=state.selected,token={};
+  const old=state.dayQuality.get(day.date);if(old?.loading)return;
+  state.dayQuality.set(day.date,{...old,loading:token});
+  try{
+    const value=await api('/api/daily-quality?'+new URLSearchParams({date:day.date,start:new Date(range.start).toISOString(),end:new Date(range.end).toISOString()}));
+    const current=daySelection(day);
+    if(participant!==state.selected||value.participantId!==participant||current.start!==range.start||current.end!==range.end||state.dayQuality.get(day.date)?.loading!==token)return;
+    state.dayQuality.set(day.date,value);if(JSON.stringify({...old,loading:undefined})!==JSON.stringify(value))renderIntervals();
+  }catch(e){if(state.dayQuality.get(day.date)?.loading===token)state.dayQuality.set(day.date,{status:'unavailable',startMs:range.start,endMsExclusive:range.end});}
+  finally{const v=state.dayQuality.get(day.date);if(v?.loading===token)state.dayQuality.delete(day.date);}
+}
+function dailyExact(day,range){
+  const draft=state.dayDrafts.get(day.date)||{start:MindTrailTime.input(range.start),end:MindTrailTime.input(range.end),startOffset:MindTrailTime.offset(range.start),endOffset:MindTrailTime.offset(range.end)};
+  const field=edge=>`<label>${edge==='start'?'Start':'End (exclusive)'} · New York<input type="datetime-local" step="0.001" required data-clock="${edge}" value="${escapeHtml(draft[edge])}"></label><label>${edge==='start'?'Start':'End'} occurrence<select data-clock="${edge}Offset">${draft[edge+'Options']||`<option value="${escapeHtml(draft[edge+'Offset'])}">${draft[edge+'Offset']?'UTC'+escapeHtml(draft[edge+'Offset']):'Resolve entered time'}</option>`}</select></label>`;
+  return `<details class="day-exact" ${state.dayExactOpen.has(day.date)?'open':''}><summary>Enter precise start and end · New York time</summary><form class="day-time-form" data-day="${day.date}">${field('start')}${field('end')}<button class="button subtle" type="submit">Apply time range</button><p role="status">${escapeHtml(draft.message||'Milliseconds are supported. Choose EDT/EST when the clock repeats an hour. Applying a range pins the view; it does not save a label.')}</p></form></details>`;
+}
+$('intervals-list').addEventListener('input',event=>{
+  const input=event.target.closest('[data-clock]');if(!input)return;
+  const form=input.closest('form'),date=form.dataset.day,draft=state.dayDrafts.get(date)||{};
+  for(const el of form.querySelectorAll('[data-clock]'))draft[el.dataset.clock]=el.value;
+  if(['start','end'].includes(input.dataset.clock)){draft[input.dataset.clock+'Offset']='';draft[input.dataset.clock+'Options']='';form.querySelector(`[data-clock="${input.dataset.clock}Offset"]`).innerHTML='<option value="">Resolve entered time</option>';}
+  state.dayDrafts.set(date,draft);
+});
+$('intervals-list').addEventListener('submit',async event=>{
+  const form=event.target.closest('.day-time-form');if(!form)return;event.preventDefault();const date=form.dataset.day,participant=state.selected;
+  const draft=state.dayDrafts.get(date)||{},note=form.querySelector('[role="status"]');
+  try{
+    const values={};
+    for(const edge of ['start','end']){
+      const input=form.querySelector(`[data-clock="${edge}"]`),select=form.querySelector(`[data-clock="${edge}Offset"]`);
+      try{values[edge]=await resolveClock(input,select);}finally{draft[edge]=input.value;draft[edge+'Offset']=select.value;draft[edge+'Options']=select.innerHTML;}
+    }
+    if(participant!==state.selected)throw new Error('Participant changed. Review the range again.');
+    const day=state.days.find(d=>d.date===date),start=values.start.ms,end=values.end.ms;
+    if(!(Date.parse(day.start)<=start&&start<end&&end<=Date.parse(day.end)))throw new Error('Choose start before end within this day’s recorded extent.');
+    state.dayRanges.set(date,{start,end});draft.message=`Selected ${values.start.utc} → ${values.end.utc}. Range pinned.`;note.textContent=draft.message;state.dayDrafts.set(date,draft);
+    await loadDayView(date);
+  }catch(e){draft.message=e.message;state.dayDrafts.set(date,draft);note.textContent=e.message;}
+});
 function daySelection(day) {
   return state.dayRanges.get(day.date)||{start:Date.parse(day.start),end:Date.parse(day.end)};
 }
@@ -242,13 +319,11 @@ function daySelectionStatus(day,range) {
     `Overlaps existing activity: ${[...new Set(protectedLabels.map(label=>label.label))].join(', ')}. Narrow the selection or edit the existing label.`:
     overlaps.length?'Saving this activity will retain the suggested work periods around it.':'Assign an activity to this exact time range.'};
 }
-function dayStamp(day,value) {
-  return new Date(value).toLocaleString([],{timeZone:day.timezone,month:'short',day:'numeric',hour:'numeric',minute:'2-digit',second:'2-digit'});
-}
+function dayStamp(day,value) {return MindTrailTime.stamp(value);}
 function dayBrush(day,plot,width) {
   const range=daySelection(day),start=Date.parse(plot.start),end=Date.parse(plot.end);
   const x=value=>4+Math.max(0,Math.min(1,(value-start)/(end-start)))*(width-8);
-  const left=x(range.start),right=x(range.end),minimum=Math.min(1000,Date.parse(day.end)-Date.parse(day.start));
+  const left=x(range.start),right=x(range.end),minimum=Math.min(1,Date.parse(day.end)-Date.parse(day.start));
   const handles=['start','end'].map(edge=>`<g class="brush-handle day-handle" data-day="${day.date}" data-day-handle="${edge}" transform="translate(${edge==='start'?left:right} 0)" role="slider" tabindex="0" aria-label="${day.date} ${edge} time handle" aria-orientation="horizontal" aria-valuemin="${(edge==='start'?Date.parse(day.start):range.start+minimum)/1000}" aria-valuemax="${(edge==='start'?range.end-minimum:Date.parse(day.end))/1000}" aria-valuenow="${range[edge]/1000}" aria-valuetext="${escapeHtml(dayStamp(day,range[edge]))}"><title>Drag ${edge} time, then release to zoom</title><rect class="brush-hit" x="-18" y="5" width="36" height="151"/><line class="brush-line" x1="0" x2="0" y1="8" y2="154"/><rect class="brush-grip" x="-7" y="57" width="14" height="29" rx="4"/><path class="brush-grip-mark" d="M-2 65v13 M2 65v13"/></g>`).join('');
   return `<svg class="day-range-brush" preserveAspectRatio="none" viewBox="0 0 ${width} 190" aria-label="Select a period on ${day.date}"><rect class="brush-dim day-before" x="4" y="8" width="${left-4}" height="146"/><rect class="brush-selected day-selected" x="${left}" y="8" width="${Math.max(0,right-left)}" height="146"/><rect class="brush-dim day-after" x="${right}" y="8" width="${width-4-right}" height="146"/>${handles}</svg>`;
 }
@@ -280,12 +355,13 @@ function dailyPreview(period) {
   const ticks=fractions.map((fraction,index)=>`<text x="${L+fraction*(R-L)}" y="178" text-anchor="${index===0?'start':index===fractions.length-1?'end':'middle'}" font-size="11" fill="#7a9184">${escapeHtml(clock(start+fraction*(end-start),fraction===0||fraction===1))}</text>`).join('');
   const empty=points.length?'':`<text x="${W/2}" y="72" text-anchor="middle" font-size="12" fill="#789080">No EEG records in this selection</text>`;
   const status=view?.loading?'Loading detailed view…':view?.error?view.error:pinned?'Zoomed view · range pinned':'Full day · follows new recordings';
-  return `<div class="interval-preview daily-preview" data-day="${period.date}" data-start="${period.start}" data-end="${period.end}" data-view-start="${plot.start}" data-view-end="${plot.end}" data-selected-start="${new Date(range.start).toISOString()}" data-selected-end="${new Date(range.end).toISOString()}"><div class="preview-heading"><span>AC RMS · drag either edge to zoom</span><span>0–${max.toFixed(1)} device units · auto scale</span></div><div class="daily-stage"><svg class="day-signal" viewBox="0 0 ${W} 190" preserveAspectRatio="none" role="group" aria-label="Daily amplitude, ${escapeHtml(clock(plot.start,true))} to ${escapeHtml(clock(plot.end,true))}; ${plot.records} recorded seconds. Hover a point for details, click to open EEG."><rect x="${L}" y="8" width="${R-L}" height="122" fill="#f7faf8"/>${shade}<line x1="${L}" y1="130" x2="${R}" y2="130" stroke="#e2ebe5"/>${lines}${empty}<rect x="${L}" y="146" width="${R-L}" height="8" fill="#e9eeeb"/>${coverage}${hits}${ticks}</svg>${dayBrush(period,plot,W)}</div><div class="preview-key"><span><i></i>Recorded</span><span><i class="missing"></i>Missing</span><span>${preview.bucketMs/1000}s averages · activity shading · ${escapeHtml(period.timezone)}</span></div><div class="day-selection"><strong class="day-selection-times">${escapeHtml(dayStamp(period,range.start))} → ${escapeHtml(dayStamp(period,range.end))}</strong><span class="day-view-status">${escapeHtml(status)}</span></div><div class="day-selection-actions"><button class="button subtle" type="button" data-day-reset="${period.date}" ${pinned?'':'disabled'}>Show entire day</button><button class="button primary" type="button" data-day-assign="${period.date}" ${selection.blocked?'disabled':''}>Assign activity to selection</button></div><p class="day-selection-note">${escapeHtml(selection.message)}</p></div>`;
+  return `<div class="interval-preview daily-preview" data-day="${period.date}" data-start="${period.start}" data-end="${period.end}" data-view-start="${plot.start}" data-view-end="${plot.end}" data-selected-start="${new Date(range.start).toISOString()}" data-selected-end="${new Date(range.end).toISOString()}"><div class="preview-heading"><span>AC RMS · drag either edge to zoom</span><span>0–${max.toFixed(1)} device units · auto scale</span></div><div class="daily-stage"><svg class="day-signal" viewBox="0 0 ${W} 190" preserveAspectRatio="none" role="group" aria-label="Daily amplitude, ${escapeHtml(clock(plot.start,true))} to ${escapeHtml(clock(plot.end,true))}; ${plot.records} source records; ${(plot.lanes?.recordedMs||0)/1000} seconds covered. Hover a point for details, click to open EEG."><rect x="${L}" y="8" width="${R-L}" height="122" fill="#f7faf8"/>${shade}<line x1="${L}" y1="130" x2="${R}" y2="130" stroke="#e2ebe5"/>${lines}${empty}<rect x="${L}" y="146" width="${R-L}" height="8" fill="#e9eeeb"/>${coverage}${hits}${ticks}</svg>${dayBrush(period,plot,W)}</div>${dailyLanes(period,plot)}<div class="preview-key"><span><i></i>Recorded</span><span><i class="missing"></i>Missing</span><span>${preview.bucketMs/1000}s buckets from whole-second amplitude summaries · activity shading · ${escapeHtml(period.timezone)}</span></div><div class="day-selection"><strong class="day-selection-times">${escapeHtml(dayStamp(period,range.start))} → ${escapeHtml(dayStamp(period,range.end))}</strong><span class="day-view-status">${escapeHtml(status)}</span></div><div class="day-selection-actions"><button class="button subtle" type="button" data-day-reset="${period.date}" ${pinned?'':'disabled'}>Show entire day</button><button class="button primary" type="button" data-day-assign="${period.date}" ${selection.blocked?'disabled':''}>Assign activity to selection</button></div><p class="day-selection-note">${escapeHtml(selection.message)}</p>${dailyExact(period,range)}</div>`;
 }
 function renderIntervals() {
   if (state.dayDragging) return;
   const list=$('intervals-list'),scroll=list.scrollTop,active=document.activeElement;
-  const focusDay=active?.dataset?.day,focusEdge=active?.dataset?.dayHandle;
+  const focusDay=active?.dataset?.day||active?.closest('.daily-preview')?.dataset.day,focusEdge=active?.dataset?.dayHandle,focusClock=active?.dataset?.clock;
+  const preservedForm=active?.closest('.day-time-form');
   const intervals=state.intervals;
   $('interval-count').textContent=`${state.days.length} day${state.days.length===1?'':'s'} · ${intervals.length} half-hour rows loaded${state.nextBefore?' · older available':''}`;
   $('load-older').hidden=!state.nextBefore;
@@ -300,9 +376,9 @@ function renderIntervals() {
     const day=start.toLocaleDateString([], {timeZone:'America/New_York',weekday:'long',month:'short',day:'numeric',year:'numeric'});
     const recordingDay=state.days.find(day=>day.date===key);
     const loaded=intervals.filter(item=>(item.day||item.start.slice(0,10))===key).length;
-    const dayHeader=key===lastDay?'':`${lastDay?'</details>':''}<div class="recorded-day-heading"><h3 class="interval-day">${escapeHtml(day)}</h3><span>${recordingDay?`${Number(recordingDay.records).toLocaleString()} sec recorded · entire recorded day`:'Daily graph needs a dashboard server restart'}</span></div>${recordingDay?dailyPreview(recordingDay):''}<details class="daily-intervals" data-day="${key}" ${state.expandedDays.has(key)?'open':''}><summary>${loaded} half-hour activity period${loaded===1?'':'s'} loaded · expand to edit</summary>`;
+    const dayHeader=key===lastDay?'':`${lastDay?'</details>':''}<div class="recorded-day-heading"><h3 class="interval-day">${escapeHtml(day)}</h3><span>${recordingDay?`${Number((recordingDay.lanes?.recordedMs??recordingDay.records*1000)/1000).toLocaleString()} sec covered · entire recorded day`:'Daily graph needs a dashboard server restart'}</span></div>${recordingDay?dailyPreview(recordingDay):''}<details class="daily-intervals" data-day="${key}" ${state.expandedDays.has(key)?'open':''}><summary>${loaded} half-hour activity period${loaded===1?'':'s'} loaded · expand to edit</summary>`;
     lastDay=key;
-    const time=(date)=>date.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'});
+    const time=(date)=>date.toLocaleTimeString([], {timeZone:'America/New_York',hour:'numeric',minute:'2-digit',timeZoneName:'short'});
     const labels=[...new Set(period.labels.map(item=>item.label))];
     const activityLabels=period.labels.map(label=>`<span class="interval-label"><span>${escapeHtml(label.label)}</span><button type="button" class="edit-activity" data-edit="${label.id}" aria-label="Edit ${escapeHtml(label.label)} activity">Edit</button><span class="label-suggested">${escapeHtml(evidenceText(label))}</span></span>`).join('');
     const status=labels.length?`<div class="interval-labels">${activityLabels}</div>`:
@@ -313,7 +389,10 @@ function renderIntervals() {
     const eegUrl='/eeg.html?'+new URLSearchParams({start:period.firstRecord});
     return `${dayHeader}<div class="interval-row" role="listitem"><div class="interval-time"><strong>${escapeHtml(time(start))}–${escapeHtml(time(end))}</strong><small>${escapeHtml(day)}</small></div><div class="interval-records"><strong>${Number(period.records).toLocaleString()} sec recorded</strong><small>${Number(period.coveragePct).toFixed(1)}% of 30 minutes</small>${status}<a class="interval-raw-link" href="${escapeHtml(eegUrl)}">View EEG ↗</a> · <a class="interval-raw-link" href="${escapeHtml(rawUrl)}">View raw records ↗</a></div><div class="interval-side">${canPick||!labels.length?`<button class="button ${canPick?'subtle':'muted'}" type="button" data-pick-start="${escapeHtml(period.start)}" data-pick-end="${escapeHtml(period.end)}" ${canPick?'':'disabled'}>${canPick?(suggestionsOnly?'Add a break / activity':'Assign activity'):'In progress'}</button>`:''}</div></div>`;
   }).join('')+'</details>';
+  for(const form of list.querySelectorAll('.day-time-form')){const draft=state.dayDrafts.get(form.dataset.day);if(draft)for(const edge of ['start','end'])form.querySelector(`[data-clock="${edge}Offset"]`).value=draft[edge+'Offset']||'';}
+  if(preservedForm){const replacement=list.querySelector(`.day-time-form[data-day="${preservedForm.dataset.day}"]`);if(replacement)replacement.replaceWith(preservedForm);}
   list.scrollTop=scroll;
+  if(focusClock)list.querySelector(`.daily-preview[data-day="${focusDay}"] [data-clock="${focusClock}"]`)?.focus({preventScroll:true});
   if (focusEdge) list.querySelector(`[data-day="${focusDay}"][data-day-handle="${focusEdge}"]`)?.focus({preventScroll:true});
 }
 
@@ -323,7 +402,7 @@ function updateDayBrush(date) {
   const range=daySelection(day),status=daySelectionStatus(day,range),svg=el.querySelector('.day-range-brush');
   const width=svg.viewBox.baseVal.width,start=Date.parse(el.dataset.viewStart),end=Date.parse(el.dataset.viewEnd);
   const x=value=>4+Math.max(0,Math.min(1,(value-start)/(end-start)))*(width-8);
-  const left=x(range.start),right=x(range.end),minimum=Math.min(1000,Date.parse(day.end)-Date.parse(day.start));
+  const left=x(range.start),right=x(range.end),minimum=Math.min(1,Date.parse(day.end)-Date.parse(day.start));
   for (const edge of ['start','end']) {
     const handle=el.querySelector(`[data-day-handle="${edge}"]`);
     handle.setAttribute('transform',`translate(${edge==='start'?left:right} 0)`);
@@ -342,11 +421,9 @@ function updateDayBrush(date) {
   el.querySelector('[data-day-assign]').disabled=status.blocked;
   el.querySelector('.day-selection-note').textContent=status.message;
 }
-function selectDayEdge(date,edge,value) {
+function selectDayEdge(date,edge,value,snap=true) {
   const day=state.days.find(day=>day.date===date);if(!day||!Number.isFinite(value))return;
-  const lower=Date.parse(day.start),upper=Date.parse(day.end),minimum=Math.min(1000,upper-lower),range={...daySelection(day)};
-  const snapped=Math.floor(value/1000)*1000;
-  range[edge]=edge==='start'?Math.max(lower,Math.min(snapped,range.end-minimum)):Math.min(upper,Math.max(snapped,range.start+minimum));
+  const range=MindTrailTime.move({start:Date.parse(day.start),end:Date.parse(day.end)},daySelection(day),edge,value,snap);
   state.dayRanges.set(date,range);updateDayBrush(date);
 }
 async function loadDayView(date) {
@@ -358,7 +435,7 @@ async function loadDayView(date) {
     const data=await api('/api/daily-signal?'+new URLSearchParams({date,start:new Date(range.start).toISOString(),end:new Date(range.end).toISOString()}));
     const current=state.dayRanges.get(date);
     if(participant!==state.selected||state.dayViews.get(date)?.request!==request||!current||current.start!==range.start||current.end!==range.end)return;
-    state.dayViews.set(date,{data,source,request,loading:false});renderIntervals();
+    state.dayViews.set(date,{data,source,request,loading:false});renderIntervals();loadDayQuality(day);
   } catch(error) {
     if(participant!==state.selected||state.dayViews.get(date)?.request!==request)return;
     state.dayViews.set(date,{...state.dayViews.get(date),loading:false,error:'Unable to load detail. Adjust a handle to retry.'});
@@ -393,13 +470,13 @@ for(const event of ['pointerup','pointercancel','lostpointercapture'])$('interva
 $('intervals-list').addEventListener('keydown',event=>{
   const handle=event.target.closest('[data-day-handle]');if(!handle)return;
   const date=handle.dataset.day,edge=handle.dataset.dayHandle,day=state.days.find(day=>day.date===date);if(!day)return;
-  const range=daySelection(day),minimum=Math.min(1000,Date.parse(day.end)-Date.parse(day.start)),step=event.shiftKey?60000:1000;
+  const range=daySelection(day),minimum=Math.min(1,Date.parse(day.end)-Date.parse(day.start)),step=event.shiftKey?60000:1000;
   const moves={ArrowLeft:-step,ArrowRight:step,ArrowDown:-step,ArrowUp:step,PageDown:-3600000,PageUp:3600000};
   let value;if(event.key in moves)value=range[edge]+moves[event.key];
   else if(event.key==='Home')value=edge==='start'?Date.parse(day.start):range.start+minimum;
   else if(event.key==='End')value=edge==='start'?range.end-minimum:Date.parse(day.end);
   else return;
-  event.preventDefault();selectDayEdge(date,edge,value);clearTimeout(dayKeyTimers.get(date));
+  event.preventDefault();selectDayEdge(date,edge,value,false);clearTimeout(dayKeyTimers.get(date));
   dayKeyTimers.set(date,setTimeout(()=>loadDayView(date),180));
 });
 
@@ -432,6 +509,7 @@ async function loadIntervals() {
       const view=state.dayViews.get(day.date);
       if(state.dayRanges.has(day.date)&&view&&!view.loading&&view.source!==JSON.stringify(day))loadDayView(day.date);
     }
+    for(const day of state.days)loadDayQuality(day);
     $('recorded-refreshed').textContent=`Checked ${new Date(state.intervalsFetchedAt).toLocaleTimeString([],{timeZone:'America/New_York',hour:'numeric',minute:'2-digit',second:'2-digit'})} · refreshes every 10 seconds`;
   } catch(error) {notice(error.message,'error');}
   finally {state.intervalLoading=false;}
@@ -480,7 +558,7 @@ async function refresh() {
       state.intervals=[];
       state.days=[];
       state.expandedDays.clear();
-      state.dayRanges.clear();state.dayViews.clear();state.pendingLabelRange=null;
+      state.dayDrafts.clear();state.dayExactOpen.clear();state.dayQuality.clear();state.dayRanges.clear();state.dayViews.clear();state.pendingLabelRange=null;
       for(const timer of dayKeyTimers.values())clearTimeout(timer);dayKeyTimers.clear();
       state.intervalSignature='';
       state.intervalsFetchedAt=0;
@@ -655,7 +733,7 @@ $('label-precision').addEventListener('change',updateEvidenceFields);
 // Changed boundaries invalidate the old timing declaration until the person declares it again.
 for(const edge of ['start','end'])$(`label-${edge}`).addEventListener('input',()=>{$('label-precision').value='unknown';$('label-start-uncertainty').value='';$('label-end-uncertainty').value='';updateEvidenceFields();});
 function cancelLabelEdit() {
-  state.editingLabel=null;state.editingInputs=null;state.pendingLabelRange=null;$('cancel-label-edit').hidden=true;$('delete-label-edit').hidden=true;$('label-form').reset();updateEvidenceFields();$('label-origin').textContent='Origin: entered by you. Timing stays unknown unless you specify it.';mode('live');
+  state.labelGeneration++;state.editingLabel=null;state.editingInputs=null;state.pendingLabelRange=null;$('cancel-label-edit').hidden=true;$('delete-label-edit').hidden=true;$('label-form').reset();updateEvidenceFields();$('label-clock-status').textContent='Enter New York times. Resolve the occurrence when an hour repeats.';$('label-origin').textContent='Origin: entered by you. Timing stays unknown unless you specify it.';mode('live');
 }
 $('cancel-label-edit').addEventListener('click',cancelLabelEdit);
 $('delete-label-edit').addEventListener('click',async()=>{
@@ -668,15 +746,17 @@ $('label-form').addEventListener('submit',async(event)=>{
   event.preventDefault();
   if (!state.selected) return notice('Connect a participant first.','error');
   try {
-    const original=state.editingLabel;
-    const source=original||state.pendingLabelRange,inputs=original?state.editingInputs:state.pendingLabelRange?.inputs;
-    const stamp=(edge)=>source&&source[edge]&&$(`label-${edge}`).value===inputs?.[edge]?source[edge]:new Date($(`label-${edge}`).value).toISOString();
-    const start=state.mode==='live'?new Date().toISOString():stamp('start');
-    const end=state.mode==='live'||(original&&!original.end&&!$('label-end').value)?null:stamp('end');
-    const name=$('label-name').value;
+    const participant=state.selected,original=state.editingLabel,generation=state.labelGeneration;
+    const snapshot=()=>JSON.stringify(Array.from($('label-form').querySelectorAll('input,select')).filter(el=>!el.id.endsWith('-offset')).map(el=>[el.id,el.value]));
+    const before=snapshot(),name=$('label-name').value,note=$('label-note').value;
     const selectedActivity=state.activityItems.find(a=>!a.archived&&a.name===name);
     const activityId=original&&name===original.label?original.activityId:selectedActivity?.id;
-    await post(original?`/api/labels/${original.id}/edit`:'/api/labels',{label:name,note:$('label-note').value,start,end,activityId,participantId:state.selected,evidence:readEvidence(end)});
+    const startChoice=state.mode==='live'?null:await resolveClock($('label-start'),$('label-start-offset'));
+    const endChoice=state.mode==='live'||(original&&!original.end&&!$('label-end').value)?null:await resolveClock($('label-end'),$('label-end-offset'));
+    if(generation!==state.labelGeneration||participant!==state.selected||before!==snapshot()||(startChoice&&$('label-start-offset').value!==startChoice.offset)||(endChoice&&$('label-end-offset').value!==endChoice.offset))throw new Error('The form changed while resolving times. Review and save again.');
+    const start=startChoice?startChoice.utc:new Date().toISOString(),end=endChoice?endChoice.utc:null;
+    $('label-clock-status').textContent=`Saving ${start} → ${end||'active'} (UTC).`;
+    await post(original?`/api/labels/${original.id}/edit`:'/api/labels',{label:name,note,start,end,activityId,participantId:participant,evidence:readEvidence(end)});
     const message=original?'Activity updated. Suggestions around it were retained.':state.mode==='live'?'Activity started. Stop it when you finish.':'Interval saved. Overlapping suggestions were refined.';
     cancelLabelEdit();
     notice(message,'success');
@@ -693,11 +773,10 @@ $('active-activity').addEventListener('click',async(event)=>{
   catch(error){notice(error.message,'error');}
 });
 function editActivity(label) {
-  state.editingLabel=label;mode('past');$('cancel-label-edit').hidden=false;$('delete-label-edit').hidden=false;
+  state.labelGeneration++;state.editingLabel=label;mode('past');$('cancel-label-edit').hidden=false;$('delete-label-edit').hidden=false;
   setEvidence(label);
   $('label-name').value=label.label;$('label-note').value=label.note;
-  $('label-start').value=preciseInput(Date.parse(label.start));
-  $('label-end').value=label.end?preciseInput(Date.parse(label.end)):'';
+  setLabelTimes(Date.parse(label.start),label.end?Date.parse(label.end):null);
   $('label-end').required=!!label.end;
   state.editingInputs={start:$('label-start').value,end:$('label-end').value};
   $('activity').scrollIntoView({behavior:'smooth',block:'start'});
@@ -711,6 +790,7 @@ $('load-older').addEventListener('click',async()=>{
 });
 $('intervals-list').addEventListener('toggle',(event)=>{
   const details=event.target;
+  if(details.matches('.day-exact')){const date=details.closest('.daily-preview').dataset.day;if(details.open)state.dayExactOpen.add(date);else state.dayExactOpen.delete(date);return;}
   if (!details.matches('.daily-intervals')) return;
   if (details.open) state.expandedDays.add(details.dataset.day);
   else state.expandedDays.delete(details.dataset.day);
@@ -718,36 +798,34 @@ $('intervals-list').addEventListener('toggle',(event)=>{
 $('intervals-list').addEventListener('click',(event)=>{
   const reset=event.target.closest('[data-day-reset]');
   if(reset) {
-    const date=reset.dataset.dayReset;clearTimeout(dayKeyTimers.get(date));state.dayRanges.delete(date);state.dayViews.delete(date);renderIntervals();return;
+    const date=reset.dataset.dayReset;clearTimeout(dayKeyTimers.get(date));state.dayRanges.delete(date);state.dayViews.delete(date);state.dayDrafts.delete(date);state.dayQuality.delete(date);renderIntervals();const day=state.days.find(d=>d.date===date);if(day)loadDayQuality(day);return;
   }
   const assign=event.target.closest('[data-day-assign]');
   if(assign) {
     const day=state.days.find(day=>day.date===assign.dataset.dayAssign);if(!day)return;
     const range=daySelection(day);if(daySelectionStatus(day,range).blocked)return;
     cancelLabelEdit();mode('past');
-    $('label-start').value=preciseInput(range.start);$('label-end').value=preciseInput(range.end);
+    setLabelTimes(range.start,range.end);
     state.pendingLabelRange={start:new Date(range.start).toISOString(),end:new Date(range.end).toISOString(),inputs:{start:$('label-start').value,end:$('label-end').value}};
     $('activity').scrollIntoView({behavior:'smooth',block:'start'});$('label-name').focus({preventScroll:true});
     notice(`Selected ${dayStamp(day,range.start)} → ${dayStamp(day,range.end)}. Enter an activity name and save the interval.`,'success');return;
   }
   const edit=event.target.closest('[data-edit]');
   if(edit) {
-    const label=state.intervals.flatMap(period=>period.labels).find(label=>label.id===Number(edit.dataset.edit));
+    event.preventDefault();const label=[...state.intervals.flatMap(period=>period.labels),...state.days.flatMap(day=>day.labels)].find(label=>label.id===Number(edit.dataset.edit));
     if(label) editActivity(label);
     return;
   }
   const button=event.target.closest('[data-pick-start]');
   if (!button || button.disabled) return;
   cancelLabelEdit();mode('past');
-  $('label-start').value=localInput(new Date(button.dataset.pickStart));
-  $('label-end').value=localInput(new Date(button.dataset.pickEnd));
+  setLabelTimes(Date.parse(button.dataset.pickStart),Date.parse(button.dataset.pickEnd));
   $('activity').scrollIntoView({behavior:'smooth',block:'start'});
   $('label-name').focus({preventScroll:true});
   notice('Selected a 30-minute period. Enter the activity name and save it.','success');
 });
 $('sync-start').value=localInput(new Date(Date.now()-24*3600000));
-$('label-start').value=localInput(new Date(Date.now()-60*60000));
-$('label-end').value=localInput(new Date());
+setLabelTimes(Date.now()-60*60000,Date.now());
 const labelQuery = new URLSearchParams(location.search);
 if (labelQuery.has('labelStart') && labelQuery.has('labelEnd')) {
   const start = new Date(labelQuery.get('labelStart'));

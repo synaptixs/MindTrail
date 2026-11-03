@@ -38,6 +38,13 @@ def wait_for_workspace(process, profile):
             assert 'id="recorded-periods"' in overview
             assert 'id="personal-activity-manager"' in overview
             assert 'id="label-review"' in overview and 'id="label-precision"' in overview
+            assert '/interval_time.js' in overview and 'id="label-start-offset"' in overview
+            with opener.open(url.split("/launch")[0] + "/interval_time.js", timeout=1) as response:
+                assert 'MindTrailTime' in response.read().decode('utf-8')
+            with opener.open(url.split("/launch")[0] + "/api/local-time?value=2026-11-01T01:30:00.123", timeout=1) as response:
+                choices=json.load(response)['choices']
+            assert [c['offset'] for c in choices]==['-04:00','-05:00']
+
             with opener.open(url.split("/launch")[0] + "/api/activities", timeout=1) as response:
                 vocabulary = json.load(response)
             assert vocabulary['activities'] == [] and vocabulary['total'] == 0
@@ -206,7 +213,7 @@ for session in manager.status()['sessions']:
         assert all(path.read_text(encoding='utf-8') == contents for path, contents in archive_files.items())
         checks['archiveLayoutsPreserved'] = True
         checks['archivePathCompatibility'] = True
-        result = {**checks, "singleInstance": True, "shutdown": True, "setupPageAndGuide": True, "mobileScoresRetired": True, "qualityPageAndUnavailableState": True, "personalActivityPageAndEmptyVocabulary": True,
+        result = {**checks, "singleInstance": True, "shutdown": True, "setupPageAndGuide": True, "mobileScoresRetired": True, "qualityPageAndUnavailableState": True, "personalActivityPageAndEmptyVocabulary": True, "dailyClockAndTimezoneChoices": True,
                   "installerExercised": installed, "platform": platform.platform(),
                   "signaturesVerified": args.require_signed,
                   "installerSha256": hashlib.sha256(args.installer.read_bytes()).hexdigest() if installed else None}

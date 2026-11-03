@@ -86,6 +86,12 @@ its review state separate from timing: mark known or approximate boundaries and 
 ± uncertainty in seconds. Original schedule/model origins stay visible after review. These Phase 2 changes are not
 in the 0.2.6 downloads above yet. See [personal activity details](docs/PERSONAL_ACTIVITIES.md).
 
+The source workspace also separates recording gaps, quality screening and activities into
+three daily lanes. Expand **Enter precise start and end** for millisecond selection;
+New York times show their UTC offset and ask for EDT/EST when an hour repeats. Quality
+lanes need a current completed source analysis. See [daily review details](docs/DAILY_REVIEW.md).
+These changes are not in the published downloads yet.
+
 Use **Show entire day** to reset a daily graph. New recordings extend the day's
 unzoomed graph automatically. A selected zoom stays pinned while data refreshes.
 

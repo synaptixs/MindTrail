@@ -85,3 +85,8 @@ which belongs to job metadata rather than deterministic feature reports. See
 assignment/name history. It maintains legacy label names through a compatibility projection
 and backs up nonempty archives before its additive migration. See
 [personal activities](PERSONAL_ACTIVITIES.md) for identity, exports and restore contracts.
+
+`daily_review.py` owns elapsed-time lane facts, quality-window projection and New York
+wall-clock resolution. Daily charts render those facts using the bundled `interval_time.js`
+geometry/formatting helpers. See [daily review](DAILY_REVIEW.md) for clipping, snapshot
+freshness, precise editing, DST choices and quality-sidecar lifecycle.

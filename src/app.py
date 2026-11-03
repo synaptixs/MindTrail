@@ -30,6 +30,7 @@ from pathlib import Path
 from typing import Iterator
 from zoneinfo import ZoneInfo
 
+import daily_review
 import personal_activities
 from analysis_manager import AnalysisManager
 from bluetooth_manager import BluetoothManager
@@ -69,11 +70,11 @@ def utc_ms(value: str) -> int:
     dt = datetime.fromisoformat(value.replace("Z", "+00:00"))
     if dt.tzinfo is None:
         raise ValueError("Timestamp must include a timezone")
-    return int(dt.timestamp() * 1000)
+    return daily_review.epoch(value)
 
 
 def iso(ms: int) -> str:
-    return datetime.fromtimestamp(ms / 1000, timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
+    return (datetime(1970,1,1,tzinfo=timezone.utc)+timedelta(milliseconds=ms)).isoformat(timespec="milliseconds").replace("+00:00", "Z")
 
 
 def safe_csv(value: str) -> str:
@@ -584,7 +585,7 @@ def pattern_report(participant: str) -> dict:
 
 
 def signal_preview(rows: list[sqlite3.Row], bucket_ms: int = 10_000,
-                   end_ms: int | None = None) -> dict:
+                   end_ms: int | None = None, start_ms: int | None = None) -> dict:
     """Summarize stored powers, preserving every gap and device boundary."""
     preview = {"bucketMs": bucket_ms, "segments": [], "coverage": []}
     previous = None
@@ -596,12 +597,12 @@ def signal_preview(rows: list[sqlite3.Row], bucket_ms: int = 10_000,
         if continuous:
             preview["coverage"][-1]["end"] = iso(end)
         else:
-            preview["coverage"].append({"start": iso(stamp), "end": iso(end)})
+            preview["coverage"].append({"start": iso(max(stamp,start_ms) if start_ms is not None else stamp), "end": iso(end)})
             preview["segments"].append([])
         segment = preview["segments"][-1]
         bucket = stamp // bucket_ms * bucket_ms
         if not segment or segment[-1]["bucket"] != bucket:
-            segment.append({"bucket": bucket, "start": iso(stamp), "end": iso(end),
+            segment.append({"bucket": bucket, "start": iso(max(stamp,start_ms) if start_ms is not None else stamp), "end": iso(end),
                             "records": 0, "power": 0.0})
         point = segment[-1]
         point["end"] = iso(end)
@@ -639,15 +640,18 @@ def daily_signal(participant: str, date: str, start_ms: int, end_ms: int) -> dic
     with db() as connection:
         rows = connection.execute("""SELECT timestamp_ms,device_id,mean,rms FROM readings
             WHERE participant_id=? AND timestamp_ms>=? AND timestamp_ms<? ORDER BY timestamp_ms""",
-            (participant, start_ms, end_ms)).fetchall()
+            (participant, start_ms-999, end_ms)).fetchall()
         labels = connection.execute("""SELECT * FROM labels WHERE participant_id=?
             AND start_ms<? AND (end_ms IS NULL OR end_ms>?) ORDER BY start_ms,id""",
             (participant, end_ms, start_ms)).fetchall()
     bucket_ms = max(1000, math.ceil((end_ms - start_ms) / 600 / 1000) * 1000)
-    return {"date": date, "timezone": "America/New_York", "start": iso(start_ms), "end": iso(end_ms),
-            "records": len(rows), "coveragePct": round(min(100, 100 * len(rows) / ((end_ms-start_ms)/1000)), 1),
-            "labels": [public_label(label) for label in labels],
-            "preview": signal_preview(rows, bucket_ms, end_ms)}
+    preview=signal_preview(rows,bucket_ms,end_ms,start_ms)
+    public=[public_label(label) for label in labels]
+    lane_facts=daily_review.lanes(preview,public,start_ms,end_ms)
+    return {"participantId":participant,"date": date, "timezone": "America/New_York", "start": iso(start_ms), "end": iso(end_ms),
+            "records": len(rows), "coveragePct": round(100*lane_facts["recordedMs"]/(end_ms-start_ms),1),
+            "labels": public, "lanes":lane_facts,
+            "preview": preview}
 
 
 def recorded_days(connection: sqlite3.Connection, participant: str, dates: set[str]) -> list[dict]:
@@ -658,20 +662,23 @@ def recorded_days(connection: sqlite3.Connection, participant: str, dates: set[s
         lower, upper = recording_day_bounds(date)
         rows = connection.execute("""SELECT timestamp_ms,device_id,mean,rms FROM readings
             WHERE participant_id=? AND timestamp_ms>=? AND timestamp_ms<? ORDER BY timestamp_ms""",
-            (participant, lower, upper)).fetchall()
+            (participant, lower-999, upper)).fetchall()
         if not rows:
             continue
-        start, end = rows[0]["timestamp_ms"], rows[-1]["timestamp_ms"] + 1000
+        start, end = max(lower,rows[0]["timestamp_ms"]), min(upper,rows[-1]["timestamp_ms"] + 1000)
         labels = connection.execute("""SELECT * FROM labels WHERE participant_id=?
             AND start_ms<? AND (end_ms IS NULL OR end_ms>?) ORDER BY start_ms,id""",
             (participant, end, start)).fetchall()
         # Approximately 600 time buckets per day, without merging recording gaps.
         bucket_ms = max(10_000, math.ceil((end - start) / 600 / 10_000) * 10_000)
-        days.append({"date": date, "timezone": zone.key, "start": iso(start), "end": iso(end),
-                     "firstRecord": iso(start), "lastRecord": iso(end - 1000), "records": len(rows),
-                     "coveragePct": round(min(100, 100 * len(rows) / ((end - start) / 1000)), 1),
-                     "labels": [public_label(label) for label in labels],
-                     "preview": signal_preview(rows, bucket_ms, end)})
+        preview=signal_preview(rows,bucket_ms,end,start)
+        public=[public_label(label) for label in labels]
+        lane_facts=daily_review.lanes(preview,public,start,end)
+        days.append({"participantId":participant,"date": date, "timezone": zone.key, "start": iso(start), "end": iso(end),
+                     "firstRecord": iso(rows[0]["timestamp_ms"]), "lastRecord": iso(rows[-1]["timestamp_ms"]), "records": len(rows),
+                     "coveragePct": round(100*lane_facts["recordedMs"]/(end-start),1),
+                     "labels": public, "lanes":lane_facts,
+                     "preview": preview})
     return days
 
 
@@ -1010,6 +1017,13 @@ class Handler(BaseHTTPRequestHandler):
                 if before_ms < 0 or before_ms > int(time.time() * 1000) + ACTIVITY_INTERVAL_MS:
                     raise ValueError("Choose a valid interval cursor")
                 return self._json(200, recorded_intervals(participant, before_ms))
+            if route.path == "/api/local-time":
+                return self._json(200,daily_review.wall_time(params.get("value",[""])[0]))
+            if route.path == "/api/daily-quality":
+                lower,upper=recording_day_bounds(params.get("date",[""])[0])
+                start,end=utc_ms(params["start"][0]),utc_ms(params["end"][0])
+                if not lower<=start<end<=upper:raise ValueError("Choose a range within this recording day")
+                return self._json(200,self.server.analysis.daily_quality(self._selected(),params['date'][0],start,end))
             if route.path == "/api/daily-signal":
                 return self._json(200, daily_signal(self._selected(), params.get("date", [""])[0],
                                                    utc_ms(params["start"][0]), utc_ms(params["end"][0])))
@@ -1061,7 +1075,7 @@ class Handler(BaseHTTPRequestHandler):
             if route.path == "/api/export/labels.csv":
                 return self._export_labels()
             name = route.path.lstrip("/") or "index.html"
-            if name not in {"index.html", "app.js", "style.css", "data.html", "data.js", "data.css",
+            if name not in {"index.html", "app.js", "interval_time.js", "style.css", "data.html", "data.js", "data.css",
                             "eeg.html", "eeg.js", "eeg.css", "patterns.html", "patterns.js", "patterns.css",
                             "scores.html", "bluetooth.html", "bluetooth.js", "bluetooth.css",
                             "welcome.html", "welcome.js", "welcome.css", "quality.html", "quality.js", "quality.css"}:
@@ -1069,7 +1083,7 @@ class Handler(BaseHTTPRequestHandler):
             path = SOURCE_ROOT / "static" / name
             body = path.read_bytes()
             mime = {"index.html": "text/html", "data.html": "text/html", "eeg.html": "text/html",
-                    "patterns.html": "text/html", "app.js": "text/javascript", "data.js": "text/javascript",
+                    "patterns.html": "text/html", "app.js": "text/javascript", "interval_time.js": "text/javascript", "data.js": "text/javascript",
                     "eeg.js": "text/javascript", "patterns.js": "text/javascript", "style.css": "text/css",
                     "data.css": "text/css", "eeg.css": "text/css", "patterns.css": "text/css",
                     "scores.html": "text/html",
