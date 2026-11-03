@@ -16,6 +16,8 @@
     if(choices.length===1)return choices[0];
     const found=choices.find(c=>c.offset===offset);if(!found)throw new Error('Choose EDT or EST for this repeated New York time.');return found;
   }
-  const api={input,offset,stamp,move,choose,zone};
+  // datetime-local normalizes zero seconds away; the canonical resolver needs seconds.
+  function wallValue(value){return value.length===16?value+':00':value;}
+  const api={input,offset,stamp,move,choose,wallValue,zone};
   if(typeof module==='object'&&module.exports)module.exports=api;else root.MindTrailTime=api;
 })(typeof globalThis!=='undefined'?globalThis:this);

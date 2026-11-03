@@ -1,0 +1,16 @@
+.review-content { max-width: 1300px; }
+.review-card { padding: 24px; margin: 22px 0; }
+.review-card label { display: block; margin: 12px 0; font-weight: 600; }
+.review-card input:not([type=checkbox]), .review-card select { width: 100%; max-width: 600px; padding: 10px; border: 1px solid #d5e4db; border-radius: 9px; background: #fbfdfb; }
+.review-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
+.review-actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 14px 0; }
+.review-item { padding: 18px 0; border-bottom: 1px solid #dce7df; overflow-wrap: anywhere; }
+.review-item p { margin: 7px 0; }
+.review-card small { color: #687f72; }
+#preview { width: 100%; height: 150px; background: #f3f8f4; border: 1px solid #d5e4db; }
+#notice { min-height: 24px; font-weight: 650; }
+.review-card [hidden] { display: none !important; }
+@media(max-width:700px) { .review-grid { grid-template-columns: 1fr; gap: 0; } .review-card { padding: 16px; } .review-actions .button { max-width: 100%; white-space: normal; } }
+
+#history-panel > summary { cursor: pointer; font-size: 20px; font-weight: 700; }
+.review-card input[type=checkbox] { display: inline-block; width: 18px; height: 18px; min-height: 0; padding: 0; margin: 0 8px 0 0; vertical-align: middle; accent-color: #278366; }

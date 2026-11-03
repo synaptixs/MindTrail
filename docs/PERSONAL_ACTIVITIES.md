@@ -27,7 +27,8 @@ the original device collection date.
 
 Archiving hides an activity from new assignment choices but retains its periods and history.
 Existing periods can still be edited without reassignment. Restore reuses the same identity.
-Definitions cannot be deleted. Episode undo, splitting and candidate-boundary review are subsequent Phase 2 work.
+Definitions cannot be deleted. Reversible episode edits and splitting are described in
+[episode review](EPISODE_REVIEW.md); provisional boundaries remain optional.
 
 ## Migration and restore
 
@@ -141,3 +142,7 @@ review/origin independence, precision validation, authenticated APIs and export 
 Daily chart controls and the label editor now resolve explicit New York wall times, including
 EDT/EST choices and milliseconds. See [daily review](DAILY_REVIEW.md) for source coverage,
 quality/activity lanes, keyboard controls and precise saved-boundary contracts.
+
+P2-W5 adds the separately versioned [episode review and operation ledger](EPISODE_REVIEW.md).
+Full audit JSON is now format 3 with decisions/operations; legacy CSV contracts are unchanged.
+Phase 2's [owner acceptance gate](PHASE2_ACCEPTANCE.md) remains explicit.

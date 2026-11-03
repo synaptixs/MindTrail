@@ -88,3 +88,7 @@ pinned/unpinned refresh. Private full-archive evidence stays outside the public 
 
 Optional P2-W4 candidate periods are documented in [CANDIDATE_BOUNDARIES.md](CANDIDATE_BOUNDARIES.md).
 They propose inspectable intervals without writing labels or changing saved boundaries.
+
+Confirmed unknown-activity decisions have a separate blue activity-unknown lane; they are
+not inferred from an activity name or pooled with unassigned time. Undo is available through
+Episode review history. Quality lanes remain independent.

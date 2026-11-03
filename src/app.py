@@ -31,6 +31,7 @@ from typing import Iterator
 from zoneinfo import ZoneInfo
 
 import daily_review
+import episode_review
 import personal_activities
 from analysis_manager import AnalysisManager
 from bluetooth_manager import BluetoothManager
@@ -163,6 +164,7 @@ def setup_db() -> None:
                 connection.execute(f"ALTER TABLE labels ADD COLUMN {name} {definition}")
 
         personal_activities.migrate(connection, DB_PATH, data_root())
+        episode_review.migrate(connection, DB_PATH, data_root())
 
 
 def setting(connection: sqlite3.Connection, key: str, default: str = "") -> str:
@@ -365,13 +367,17 @@ def summary(participant: str, start_ms: int, end_ms: int) -> dict:
         labels = connection.execute("""SELECT * FROM labels
             WHERE participant_id=? AND start_ms<? AND (end_ms IS NULL OR end_ms>?) ORDER BY start_ms DESC""",
             (participant, end_ms, start_ms)).fetchall()
-        activities = connection.execute("""SELECT l.label,l.source,l.review_state AS reviewState, COUNT(*) AS records, AVG(r.rms) AS rms,
+        activities = connection.execute("""SELECT CASE WHEN u.id IS NOT NULL AND l.id IS NULL THEN 'Activity unknown (confirmed)' ELSE l.label END AS label,
+            CASE WHEN u.id IS NOT NULL AND l.id IS NULL THEN 'manual' ELSE l.source END AS source,
+            CASE WHEN u.id IS NOT NULL AND l.id IS NULL THEN 'confirmed' ELSE l.review_state END AS reviewState, (u.id IS NOT NULL AND l.id IS NULL) AS unknown, COUNT(*) AS records, AVG(r.rms) AS rms,
             AVG(r.rms*r.rms-r.mean*r.mean) AS ac_power,
             AVG(r.peak_to_peak) AS peak_to_peak FROM readings r LEFT JOIN labels l
             ON r.participant_id=l.participant_id AND r.timestamp_ms>=l.start_ms
             AND (l.end_ms IS NULL OR r.timestamp_ms<l.end_ms)
+            LEFT JOIN episode_decisions u ON r.participant_id=u.participant_id AND u.kind='unknown'
+            AND r.timestamp_ms>=u.start_ms AND r.timestamp_ms<u.end_ms
             WHERE r.participant_id=? AND r.timestamp_ms>=? AND r.timestamp_ms<?
-            GROUP BY l.label,l.source,l.review_state ORDER BY records DESC,l.label IS NULL,l.label,l.source,l.review_state""", (participant, start_ms, end_ms)).fetchall()
+            GROUP BY 1,2,3,4 ORDER BY records DESC,label IS NULL,label,source,reviewState""", (participant, start_ms, end_ms)).fetchall()
         last = connection.execute("""SELECT timestamp_ms,waveform_json FROM readings
             WHERE participant_id=? AND timestamp_ms>=? AND timestamp_ms<? ORDER BY timestamp_ms DESC LIMIT 1""",
             (participant, start_ms, end_ms)).fetchone()
@@ -644,10 +650,11 @@ def daily_signal(participant: str, date: str, start_ms: int, end_ms: int) -> dic
         labels = connection.execute("""SELECT * FROM labels WHERE participant_id=?
             AND start_ms<? AND (end_ms IS NULL OR end_ms>?) ORDER BY start_ms,id""",
             (participant, end_ms, start_ms)).fetchall()
+        decisions=episode_review.unknown_spans(connection,participant,start_ms,end_ms)
     bucket_ms = max(1000, math.ceil((end_ms - start_ms) / 600 / 1000) * 1000)
     preview=signal_preview(rows,bucket_ms,end_ms,start_ms)
     public=[public_label(label) for label in labels]
-    lane_facts=daily_review.lanes(preview,public,start_ms,end_ms)
+    lane_facts=daily_review.lanes(preview,public,start_ms,end_ms,decisions)
     return {"participantId":participant,"date": date, "timezone": "America/New_York", "start": iso(start_ms), "end": iso(end_ms),
             "records": len(rows), "coveragePct": round(100*lane_facts["recordedMs"]/(end_ms-start_ms),1),
             "labels": public, "lanes":lane_facts,
@@ -673,7 +680,7 @@ def recorded_days(connection: sqlite3.Connection, participant: str, dates: set[s
         bucket_ms = max(10_000, math.ceil((end - start) / 600 / 10_000) * 10_000)
         preview=signal_preview(rows,bucket_ms,end,start)
         public=[public_label(label) for label in labels]
-        lane_facts=daily_review.lanes(preview,public,start,end)
+        lane_facts=daily_review.lanes(preview,public,start,end,episode_review.unknown_spans(connection,participant,start,end))
         days.append({"participantId":participant,"date": date, "timezone": zone.key, "start": iso(start), "end": iso(end),
                      "firstRecord": iso(rows[0]["timestamp_ms"]), "lastRecord": iso(rows[-1]["timestamp_ms"]), "records": len(rows),
                      "coveragePct": round(100*lane_facts["recordedMs"]/(end-start),1),
@@ -816,7 +823,7 @@ def label_review(participant: str, scope: str, limit: int = 100) -> dict:
 
 
 def add_label(participant: str, label: str, note: str, start_ms: int, end_ms: int | None,
-              label_id: int | None = None, activity_id: str | None = None, expected_participant: str | None = None, evidence: dict | None = None) -> int:
+              label_id: int | None = None, activity_id: str | None = None, expected_participant: str | None = None, evidence: dict | None = None, expected_version: int | None = None, review_key: str | None = None, candidate_provider=None) -> int:
     """Save a human activity, protecting confirmed labels and splitting pending suggestions."""
     label = label.strip()
     if not participant or not label or len(label) > 80 or len(note) > 500:
@@ -829,6 +836,14 @@ def add_label(participant: str, label: str, note: str, start_ms: int, end_ms: in
         connection.execute("BEGIN IMMEDIATE")
         if expected_participant is not None and (expected_participant != participant or setting(connection,"participant_id") != expected_participant):
             raise ValueError("Participant changed. Refresh before saving this activity.")
+        context={}
+        if review_key is not None:
+            matches=episode_review.queue(connection,participant,candidates=candidate_provider(participant) if candidate_provider else (),task_key=review_key)['items']
+            if not matches:raise ValueError('This review item changed. Refresh the queue before saving.')
+            context=matches[0]
+        before=episode_review.snapshot(connection,participant)
+        episode_review.protect_unknown(connection,participant,start_ms,end_ms)
+        if label_id is not None and expected_version is not None:episode_review.require_label(connection,participant,label_id,expected_version)
         current = connection.execute("SELECT * FROM labels WHERE id=? AND participant_id=?",
                                      (label_id, participant)).fetchone() if label_id is not None else None
         if label_id is not None and current is None:
@@ -871,9 +886,11 @@ def add_label(participant: str, label: str, note: str, start_ms: int, end_ms: in
         if current is not None:
             connection.execute("UPDATE labels SET label=?,note=?,start_ms=?,end_ms=?,reviewed=?,activity_id=?,recorded_label=?,review_state=?,timing_precision=?,start_uncertainty_ms=?,end_uncertainty_ms=? WHERE id=?",
                                (label, note.strip(), start_ms, end_ms,int(review=="confirmed"),activity["id"],recorded_label,review,precision,start_uncertainty,end_uncertainty,label_id))
+            episode_review.record(connection,participant,'edit',before,context=context)
             return label_id
         cursor = connection.execute("INSERT INTO labels(participant_id,label,note,start_ms,end_ms,activity_id,recorded_label,reviewed,review_state,timing_precision,start_uncertainty_ms,end_uncertainty_ms) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
                                     (participant, label, note.strip(), start_ms, end_ms,activity["id"],recorded_label,int(review=="confirmed"),review,precision,start_uncertainty,end_uncertainty))
+        episode_review.record(connection,participant,'create',before,context=context)
         return cursor.lastrowid
 
 
@@ -955,6 +972,34 @@ class Handler(BaseHTTPRequestHandler):
                     while block := source.read(65536):
                         self.wfile.write(block)
                 return
+            if route.path == "/api/review/queue":
+                participant=self._selected()
+                candidates=self._review_candidates(participant) if params.get('cues',['0'])[0]=='1' else []
+                with db() as connection:
+                    connection.execute('BEGIN')
+                    result=episode_review.queue(connection,participant,offset=int(params.get('offset',['0'])[0]),limit=int(params.get('limit',['25'])[0]),candidates=candidates)
+                result['cues']=params.get('cues',['0'])[0]=='1'
+                analysis=self.server.analysis.state(participant) if result['cues'] else {}
+                result['candidateStatus']='hidden' if not result['cues'] else 'unavailable' if not analysis.get('summary') else 'stale' if analysis.get('stale') else 'disabled' if not (analysis.get('settings') or {}).get('candidateBoundaries') else 'current'
+                if result['cues'] and analysis.get('stale'):
+                    with db() as connection:result.update(episode_review.queue(connection,participant,offset=int(params.get('offset',['0'])[0]),limit=int(params.get('limit',['25'])[0])))
+                if result['cues']:
+                    with db() as connection:
+                        for item in result['items']:
+                            if item.get('labelId'):
+                                row=connection.execute('SELECT * FROM labels WHERE id=? AND participant_id=?',(item['labelId'],participant)).fetchone()
+                                if row is not None:item['annotation']=public_label(row)
+                return self._json(200,result)
+            if route.path == "/api/review/history":
+                with db() as connection:result=episode_review.history(connection,self._selected(),int(params.get('offset',['0'])[0]))
+                return self._json(200,result)
+            if route.path == "/api/review/label":
+                participant=self._selected();label_id=int(params['id'][0])
+                with db() as connection:
+                    row=connection.execute('SELECT * FROM labels WHERE participant_id=? AND id=?',(participant,label_id)).fetchone()
+                    if row is None:raise ValueError('Label not found')
+                    result={**public_label(row),'labelVersion':episode_review.label_version(connection,participant,label_id),'participantId':participant}
+                return self._json(200,result)
             if route.path == "/api/status":
                 with db() as connection:
                     participant = setting(connection, "participant_id")
@@ -1081,7 +1126,7 @@ class Handler(BaseHTTPRequestHandler):
             if name not in {"index.html", "app.js", "interval_time.js", "style.css", "data.html", "data.js", "data.css",
                             "eeg.html", "eeg.js", "eeg.css", "patterns.html", "patterns.js", "patterns.css",
                             "scores.html", "bluetooth.html", "bluetooth.js", "bluetooth.css",
-                            "welcome.html", "welcome.js", "welcome.css", "quality.html", "quality.js", "quality.css"}:
+                            "welcome.html", "welcome.js", "welcome.css", "quality.html", "quality.js", "quality.css", "review.html", "review.js", "review.css"}:
                 return self._json(404, {"error": "Not found"})
             path = SOURCE_ROOT / "static" / name
             body = path.read_bytes()
@@ -1092,7 +1137,8 @@ class Handler(BaseHTTPRequestHandler):
                     "scores.html": "text/html",
                     "bluetooth.html": "text/html", "bluetooth.js": "text/javascript", "bluetooth.css": "text/css", "welcome.html": "text/html",
                     "welcome.js": "text/javascript", "welcome.css": "text/css",
-                    "quality.html": "text/html", "quality.js": "text/javascript", "quality.css": "text/css"}[name]
+                    "quality.html": "text/html", "quality.js": "text/javascript", "quality.css": "text/css",
+                    "review.html":"text/html","review.js":"text/javascript","review.css":"text/css"}[name]
             self.send_response(200)
             self.send_header("Content-Type", mime + "; charset=utf-8")
             self.send_header("Content-Length", str(len(body)))
@@ -1105,6 +1151,20 @@ class Handler(BaseHTTPRequestHandler):
             self._json(400, {"error": str(error)})
         except RuntimeError as error:
             self._json(502, {"error": str(error)})
+
+    def _review_candidates(self,participant):
+        with db() as connection:
+            stamps=connection.execute("SELECT MIN(timestamp_ms),MAX(timestamp_ms) FROM readings WHERE participant_id=? AND typeof(timestamp_ms)='integer' AND timestamp_ms BETWEEN 0 AND 253402300798000 GROUP BY timestamp_ms/86400000",(participant,)).fetchall()
+        zone=ZoneInfo('America/New_York')
+        dates=sorted({datetime.fromtimestamp(t/1000,zone).date().isoformat() for pair in stamps for t in pair})
+        result=[]
+        for date in dates:
+            value=self.server.analysis.daily_boundaries(participant,date)
+            if value['status']!='current':continue
+            for run in value['runs']:
+                for span in run['methods']['pelt']['segments']:
+                    result.append({**span,'candidateIdentity':value['candidateIdentity'],'method':'pelt','maxResolutionMs':run['maxResolutionMs']})
+        return result
 
     def _export_raw(self, params: dict) -> None:
         participant = self._selected()
@@ -1173,6 +1233,28 @@ class Handler(BaseHTTPRequestHandler):
                 return
             if desktop and not desktop.ready():
                 raise ValueError("Complete desktop setup first.")
+            if route in ('/api/review/action','/api/review/split','/api/review/undo'):
+                participant=self._selected()
+                candidates=self._review_candidates(participant) if body.get('cues') is True else []
+                with db() as connection:
+                    connection.execute('BEGIN IMMEDIATE')
+                    if not participant or body.get('participantId')!=participant or setting(connection,'participant_id')!=participant:raise ValueError('Participant changed. Refresh before saving.')
+                    if route.endswith('/split'):
+                        result=episode_review.split(connection,participant,body['labelId'],utc_ms(body['cut']),body['labelVersion'])
+                    elif route.endswith('/undo'):
+                        result=episode_review.undo(connection,participant,body['operationId'])
+                    else:
+                        page=episode_review.queue(connection,participant,candidates=candidates,task_key=body['key'])
+                        if not page['items']:raise ValueError('This review item changed. Refresh the queue.')
+                        task=page['items'][0]
+                        if body['action']=='confirm':
+                            if not task.get('labelId'):raise ValueError('Enter your own activity before confirming this period')
+                            row=episode_review.require_label(connection,participant,task['labelId'],task['labelVersion'])
+                            before=episode_review.snapshot(connection,participant)
+                            connection.execute("UPDATE labels SET review_state='confirmed',reviewed=1 WHERE id=?",(row['id'],))
+                            result={'operationId':episode_review.record(connection,participant,'confirm',before,context=task)}
+                        else:result=episode_review.decide(connection,participant,task,body['action'],body.get('note',''))
+                return self._json(200,result)
             if route == "/api/activities":
                 with db() as connection:
                     connection.execute("BEGIN IMMEDIATE")
@@ -1230,12 +1312,21 @@ class Handler(BaseHTTPRequestHandler):
                 start_ms = utc_ms(body["start"])
                 end_ms = utc_ms(body["end"]) if body.get("end") else None
                 label_id = int(route.split("/")[3]) if route.endswith("/edit") else None
-                saved_id = add_label(participant, str(body.get("label", "")), str(body.get("note", "")), start_ms, end_ms, label_id,body.get("activityId"),body.get("participantId"),body.get("evidence"))
+                note=str(body.get("note", ""))
+                if label_id is not None and body.get('preserveNote') is True:
+                    with db() as connection:
+                        previous=connection.execute('SELECT note FROM labels WHERE id=? AND participant_id=?',(label_id,participant)).fetchone()
+                        if previous is None:raise ValueError('Label not found')
+                        note=previous[0]
+                saved_id = add_label(participant, str(body.get("label", "")), note, start_ms, end_ms, label_id,body.get("activityId"),body.get("participantId"),body.get("evidence"),body.get("labelVersion"),body.get("reviewKey"),self._review_candidates if body.get("cues") is True else None)
                 return self._json(200 if label_id is not None else 201, {"id": saved_id})
             if route.startswith("/api/labels/") and route.endswith("/stop"):
                 label_id = int(route.split("/")[3])
                 end_ms = utc_ms(body["end"])
                 with db() as connection:
+                    connection.execute("BEGIN IMMEDIATE")
+                    participant=self._selected()
+                    before=episode_review.snapshot(connection,participant)
                     row = connection.execute("SELECT start_ms FROM labels WHERE id=? AND participant_id=? AND end_ms IS NULL",
                                              (label_id, self._selected())).fetchone()
                     if not row:
@@ -1243,14 +1334,19 @@ class Handler(BaseHTTPRequestHandler):
                     if end_ms <= row[0]:
                         raise ValueError("End must be later than start")
                     connection.execute("UPDATE labels SET end_ms=?,end_uncertainty_ms=CASE WHEN timing_precision='exact' THEN 0 ELSE NULL END WHERE id=?", (end_ms, label_id))
+                    episode_review.record(connection,participant,"stop",before)
                 return self._json(200, {"ok": True})
             if route.startswith("/api/labels/") and route.endswith("/delete"):
                 label_id = int(route.split("/")[3])
                 with db() as connection:
+                    connection.execute("BEGIN IMMEDIATE")
+                    participant=self._selected()
+                    before=episode_review.snapshot(connection,participant)
                     result = connection.execute("DELETE FROM labels WHERE id=? AND participant_id=?",
                                                 (label_id, self._selected()))
                     if result.rowcount != 1:
                         raise ValueError("Label not found")
+                    episode_review.record(connection,participant,"delete",before)
                 return self._json(200, {"ok": True})
             self._json(404, {"error": "Not found"})
         except (ValueError, KeyError, TypeError, json.JSONDecodeError) as error:

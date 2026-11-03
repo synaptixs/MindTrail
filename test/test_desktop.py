@@ -365,7 +365,7 @@ class DesktopTests(unittest.TestCase):
         body['evidence']['reviewState']='confirmed'
         self.assertEqual(self.request(f'/api/labels/{label_id}/edit',body)[0],200)
         export=json.loads(self.request('/api/export/activities.json')[1])
-        self.assertEqual(export['formatVersion'],2)
+        self.assertEqual(export['formatVersion'],3)
         row=export['assignments'][0];self.assertEqual((row['source'],row['batch_id'],row['review_state']),('schedule','original-batch','confirmed'))
         self.assertTrue(any(h['review_state']=='needs_review' and h['start_uncertainty_ms']==30000 for h in export['assignmentHistory']))
         import csv,io
@@ -384,6 +384,40 @@ class DesktopTests(unittest.TestCase):
             app.put_setting(c,'participant_id','Other')
         self.assertEqual(json.loads(self.request('/api/export/activities.json')[1])['assignmentHistory'],[])
 
+    def test_episode_queue_split_unknown_undo_authentication_and_export(self):
+        self.assertEqual(self.request('/api/review/queue')[0],403)
+        self.assertEqual(self.request('/api/review/undo',{'operationId':1})[0],403)
+        self.launch();self.request('/api/desktop/bluetooth',{})
+        with app.db() as c:
+            person=app.setting(c,'participant_id')
+            c.executemany("INSERT INTO readings VALUES(?,?,'D','[-1,1]',2,0,1,2)",[(person,t) for t in range(0,10000,1000)])
+            label=c.execute("INSERT INTO labels(participant_id,label,start_ms,end_ms,source,reviewed) VALUES(?,'Work',0,5000,'schedule',0)",(person,)).lastrowid
+        queue=json.loads(self.request('/api/review/queue')[1]);self.assertFalse(queue['cues'])
+        self.assertTrue(all('annotation' not in i for i in queue['items']))
+        revealed=json.loads(self.request('/api/review/queue?cues=1')[1]);self.assertEqual(revealed['items'][0]['annotation']['label'],'Work')
+        task=queue['items'][0]
+        wrong={'participantId':'Other','labelId':label,'labelVersion':task['labelVersion'],'cut':app.iso(2000)}
+        self.assertEqual(self.request('/api/review/split',wrong)[0],400)
+        body={**wrong,'participantId':person}
+        status,data,_,_=self.request('/api/review/split',body);self.assertEqual(status,200,data)
+        result=json.loads(data)
+        self.assertEqual(self.request('/api/review/split',body)[0],400)
+        undo={'participantId':person,'operationId':result['operationId']}
+        self.assertEqual(self.request('/api/review/undo',undo,extra_headers={'X-Awear-Local':''})[0],403)
+        self.assertEqual(self.request('/api/review/undo',undo)[0],200)
+        task=json.loads(self.request('/api/review/queue')[1])['items'][0]
+        decision={'participantId':person,'key':task['key'],'action':'unknown','cues':False}
+        self.assertEqual(self.request('/api/review/action',decision)[0],200)
+        self.assertEqual(self.request('/api/review/action',decision)[0],400)
+        exported=json.loads(self.request('/api/export/activities.json')[1])
+        self.assertEqual(exported['episodeDecisions'][0]['kind'],'unknown')
+        self.assertGreaterEqual(len(exported['episodeOperations']),3)
+        self.assertEqual(self.request('/review.html')[0],200)
+        self.assertEqual(self.request('/review.js')[0],200)
+        with app.db() as c:app.put_setting(c,'participant_id','Other')
+        self.assertEqual(json.loads(self.request('/api/review/history')[1])['operations'],[])
+        self.assertEqual(self.request('/api/review/undo',undo)[0],400)
+
     def test_restore_shipped_v1_archive_upgrades_review_without_inventing_timing(self):
         import sqlite3
         from contextlib import closing
@@ -396,6 +430,35 @@ class DesktopTests(unittest.TestCase):
             rows=c.execute('SELECT source,review_state,timing_precision FROM labels ORDER BY id').fetchall()
             self.assertEqual([tuple(r) for r in rows],[('manual','confirmed','unknown'),('schedule','needs_review','unknown')])
         self.assertEqual(source.read_bytes(),original)
+
+    def test_restore_episode_journal_unknown_decisions_and_undo(self):
+        import sqlite3,episode_review
+        from contextlib import closing
+        source=self.directory/'episode-source.sqlite3'
+        with closing(sqlite3.connect(source)) as c:
+            c.row_factory=sqlite3.Row
+            c.executescript((Path(__file__).parent/'fixtures'/'activities-v2.sql').read_text(encoding='utf-8'))
+            with c:episode_review.migrate(c,source,self.directory)
+            with c:
+                original=c.execute('SELECT id FROM labels').fetchone()[0]
+                result=episode_review.split(c,'A',original,512,episode_review.label_version(c,'A',original))
+                c.execute("INSERT INTO readings VALUES('A',20000,'D','[-1,1]',2,0,1,2)")
+            with c:episode_review.decide(c,'A',episode_review.queue(c,'A')['items'][0],'unknown')
+            expected_operations=[tuple(r) for r in c.execute('SELECT * FROM episode_operations ORDER BY id')]
+            expected_decisions=[tuple(r) for r in c.execute('SELECT * FROM episode_decisions ORDER BY id')]
+        original_bytes=source.read_bytes();self.launch()
+        status,data,_,_=self.request('/api/desktop/import',original_bytes);self.assertEqual(status,200,data)
+        self.assertEqual(self.request('/api/desktop/bluetooth',{})[0],200)
+        with app.db() as c:
+            self.assertEqual([tuple(r) for r in c.execute('SELECT * FROM episode_operations ORDER BY id')],expected_operations)
+            self.assertEqual([tuple(r) for r in c.execute('SELECT * FROM episode_decisions ORDER BY id')],expected_decisions)
+            app.put_setting(c,'participant_id','A')
+        status,data,_,_=self.request('/api/review/undo',{'participantId':'A','operationId':result['operationId']})
+        self.assertEqual(status,200,data)
+        with app.db() as c:
+            self.assertEqual(tuple(c.execute('SELECT start_ms,end_ms FROM labels WHERE id=?',(original,)).fetchone()),(0,1000))
+            self.assertEqual(c.execute('SELECT kind FROM episode_decisions').fetchone()[0],'unknown')
+        self.assertEqual(source.read_bytes(),original_bytes)
 
     def test_restore_preserves_personal_ids_name_history_and_archived_state(self):
         import sqlite3

@@ -142,7 +142,11 @@ def validate_archive_objects(connection: sqlite3.Connection) -> None:
     versions = connection.execute('SELECT version FROM activity_schema').fetchall()
     if len(versions) != 1 or versions[0][0] not in (1,VERSION):
         raise ValueError('This archive needs a different activity schema version')
-    supported = V1_TRIGGERS if versions[0][0] == 1 else TRIGGERS
+    supported = dict(V1_TRIGGERS if versions[0][0] == 1 else TRIGGERS)
+    if 'episode_schema' in tables:
+        import episode_review
+        episode_review.validate(connection)
+        supported.update(episode_review.TRIGGERS)
     normalize = lambda value: ' '.join(value.split()).rstrip(';')
     if {row[1] for row in objects} != set(supported) or any(
             row[0] != 'trigger' or normalize(row[2]) != normalize('CREATE TRIGGER '+row[1]+' '+supported[row[1]]) for row in objects):
@@ -350,11 +354,13 @@ def history(connection,participant,activity_id,*,offset=0,limit=50):
 
 def export_json(connection,participant):
     """Stream one consistent complete export, retaining all names and assignment history."""
-    yield ('{"formatVersion":2,"participantId":'+json.dumps(participant)+',').encode()
+    yield ('{"formatVersion":3,"participantId":'+json.dumps(participant)+',').encode()
     sections=(('activities','SELECT * FROM activities WHERE participant_id=? ORDER BY id'),
               ('activityHistory','SELECT * FROM activity_history WHERE participant_id=? ORDER BY activity_id,version'),
               ('assignments','SELECT * FROM labels WHERE participant_id=? ORDER BY id'),
-              ('assignmentHistory','SELECT * FROM activity_label_history WHERE participant_id=? ORDER BY event_id'))
+              ('assignmentHistory','SELECT * FROM activity_label_history WHERE participant_id=? ORDER BY event_id'),
+              ('episodeDecisions','SELECT * FROM episode_decisions WHERE participant_id=? ORDER BY id'),
+              ('episodeOperations','SELECT * FROM episode_operations WHERE participant_id=? ORDER BY id'))
     for index,(name,query) in enumerate(sections):
         if index:yield b','
         yield (json.dumps(name)+':[').encode()

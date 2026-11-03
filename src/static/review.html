@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101b23">
+  <title>Episode review · MindTrail Lab</title>
+  <meta name="description" content="Explore quality flags and recurring patterns in personal AWEAR recordings.">
+  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/review.css">
+  <script src="/interval_time.js" defer></script>
+  <script src="/review.js" defer></script>
+</head>
+<body>
+  <div class="shell">
+    <aside class="rail">
+      <div class="brand"><div class="brand-mark">M<span>·</span></div><div><strong>MindTrail</strong><small>LAB</small></div></div>
+      <div class="rail-rule"></div>
+      <nav aria-label="Sections">
+        <a class="nav-link" href="/"><span class="nav-icon">◫</span> Overview</a>
+        <a class="nav-link" href="/#activity"><span class="nav-icon">◷</span> Activity log</a>
+        <a class="nav-link" href="/#recorded-periods"><span class="nav-icon">▤</span> Recorded periods</a>
+        <a class="nav-link" href="/eeg.html"><span class="nav-icon">∿</span> EEG signal</a>
+        <a class="nav-link" href="/bluetooth.html"><span class="nav-icon">ᛒ</span> Bluetooth</a>
+        <a class="nav-link" href="/quality.html"><span class="nav-icon">✓</span> Recording quality</a>
+        <a class="nav-link active" aria-current="page" href="/review.html"><span class="nav-icon">☷</span> Episode review</a>
+        <a class="nav-link" href="/patterns.html"><span class="nav-icon">◩</span> Signal patterns</a>
+        <a class="nav-link" href="/data.html"><span class="nav-icon">▦</span> Data tables</a>
+        <a class="nav-link" href="/#exports"><span class="nav-icon">⇩</span> Exports</a>
+      </nav>
+      <div class="rail-bottom"><div class="local-card"><span class="green-dot"></span><div><strong>Private workspace</strong><small>Data stored on this computer</small></div></div><div class="rail-foot">AWEAR data · Local dashboard<br>Exploratory signal analysis</div></div>
+    </aside>
+    <main>
+      <header class="topbar"><div class="breadcrumb">Personal lab <span>/</span> Episode review</div><div class="top-actions"><span id="participant" class="pill">Loading source…</span></div></header>
+      <div class="content review-content">
+        <div class="eyebrow">PERSONAL ACTIVITIES AND EPISODE REVIEW</div>
+        <h1>Episode review<span class="title-dot">.</span></h1>
+        <p class="lead">Review ordinary recordings, use your own activity names, and preserve every change.</p>
+        <p>Cloud EEG was collected behind the right ear · RIGHT_TEMP · 256 Hz. Signal changes do not identify activities.</p>
+        <p id="notice" role="status" aria-live="polite"></p>
+        <section class="card review-card"><h2>Review queue</h2>
+          <label><input id="cues" type="checkbox"> Show existing annotations and optional PELT proposals</label>
+          <p>Off by default for blind labeling. Ordinary periods use a stable shuffled order, independent of signal features. The queue is not a statistically representative study sample.</p>
+          <div class="review-actions"><button id="refresh" class="button subtle">Refresh queue</button><a class="button subtle" href="/api/export/activities.json">Export activities, decisions &amp; history</a></div>
+          <p id="queue-count"></p><div id="queue"></div>
+          <div class="review-actions"><button id="previous" class="button subtle">Previous page</button><button id="next" class="button subtle">Next page</button></div>
+        </section>
+        <section id="editor" class="card review-card" hidden><h2>Review selected period</h2>
+          <p id="selection"></p><p id="selection-context"></p>
+          <svg id="preview" viewBox="0 0 800 150" role="img" aria-label="First ten seconds of the original selected period, centered per source second"></svg>
+          <p id="preview-note"></p><p><a id="eeg" href="/eeg.html">Inspect full EEG (may show existing annotations) ↗</a></p>
+          <form id="review-form">
+            <label>Activity name <input id="name" list="activities" maxlength="80" autocomplete="off"><datalist id="activities"></datalist></label>
+            <label>Note <input id="note" maxlength="500"></label>
+            <p>In blind mode, leave the note blank to retain an existing note. Saving always requires your activity name; no activity is inferred.</p>
+            <div class="review-grid"><label>Start · New York <input id="start" type="datetime-local" step="0.001" required></label><label>Start occurrence <select id="start-offset"><option value="">Choose if repeated</option><option value="-04:00">EDT · UTC-04:00</option><option value="-05:00">EST · UTC-05:00</option></select></label><label>End (exclusive) · New York <input id="end" type="datetime-local" step="0.001" required></label><label>End occurrence <select id="end-offset"><option value="">Choose if repeated</option><option value="-04:00">EDT · UTC-04:00</option><option value="-05:00">EST · UTC-05:00</option></select></label></div>
+            <label>Review state <select id="review-state"><option value="confirmed">Confirmed by me</option><option value="needs_review">Needs review</option><option value="uncertain">Unsure of activity</option></select></label>
+            <label>Timing precision <select id="precision"><option value="keep">Keep timing if boundaries unchanged</option><option value="unknown">Unknown</option><option value="exact">Known entered boundaries</option><option value="approximate">Approximate boundaries</option></select></label>
+            <div id="uncertainty" class="review-grid" hidden><label>Start uncertainty ± seconds <input id="start-uncertainty" type="number" min="0" max="86400" step="0.001"></label><label>End uncertainty ± seconds <input id="end-uncertainty" type="number" min="0" max="86400" step="0.001"></label></div>
+            <div class="review-actions"><button id="save" class="button primary" type="submit">Save my activity</button><button id="cancel" class="button subtle" type="button">Close editor</button></div>
+          </form>
+          <div id="split-controls" hidden><h3>Split existing interval</h3><p>The left period keeps its ID. Both retain the activity, source and review state; their new timing is unknown. Original timing stays in history. Edit either period afterward to assign a different activity.</p><div class="review-grid"><label>Split at · New York <input id="cut" type="datetime-local" step="0.001"></label><label>Split occurrence <select id="cut-offset"><option value="">Choose if repeated</option><option value="-04:00">EDT · UTC-04:00</option><option value="-05:00">EST · UTC-05:00</option></select></label></div><button id="split" type="button" class="button subtle">Split interval</button></div>
+        </section>
+        <section class="card review-card"><details id="history-panel"><summary>Change history and undo</summary><p>Undo restores touched intervals only. Later edits or conflicting assignments block restoration. Changes made before this feature remain in the complete assignment-history export.</p><p id="history-count"></p><div id="history"></div><div class="review-actions"><button id="history-previous" class="button subtle">Previous changes</button><button id="history-next" class="button subtle">Next changes</button></div></details></section>
+      </div>
+    </main>
+  </div>
+</body>
+</html>

@@ -50,7 +50,7 @@ def partition(runs,start,end,default):
     return result
 
 
-def lanes(preview,labels,start,end):
+def lanes(preview,labels,start,end,decisions=()):
     union=[]
     for run in preview['coverage']:
         a,b=epoch(run['start']),epoch(run['end'])
@@ -67,7 +67,8 @@ def lanes(preview,labels,start,end):
         if track==len(tracks):tracks.append(run['endMsExclusive'])
         else:tracks[track]=run['endMsExclusive']
         run['track']=track
-    return {'recording':partition(union,start,end,'missing'),'activities':activity,'activityTrackCount':len(tracks),
+    reviewed=[{**r,'startMs':max(start,r['startMs']),'endMsExclusive':min(end,r['endMsExclusive'])} for r in decisions if r['startMs']<end and r['endMsExclusive']>start]
+    return {'reviewDecisions':reviewed,'recording':partition(union,start,end,'missing'),'activities':activity,'activityTrackCount':len(tracks),
             'recordedMs':sum(max(0,min(end,r['endMsExclusive'])-max(start,r['startMs'])) for r in union)}
 
 

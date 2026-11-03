@@ -80,3 +80,5 @@ svg.day-lane-track{width:100%;display:block}.lane-span.recorded,.lane-span.compu
 .candidate-list > div { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .candidate-list button { white-space: normal; text-align: left; }
 .candidate-mark { stroke: #9566ac; stroke-width: 2; stroke-dasharray: 4 4; vector-effect: non-scaling-stroke; pointer-events: none; }
+
+.lane-span.activity_unknown { fill: #739eb8; }
