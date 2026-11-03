@@ -996,7 +996,7 @@ class Handler(BaseHTTPRequestHandler):
             name = route.path.lstrip("/") or "index.html"
             if name not in {"index.html", "app.js", "style.css", "data.html", "data.js", "data.css",
                             "eeg.html", "eeg.js", "eeg.css", "patterns.html", "patterns.js", "patterns.css",
-                            "scores.html", "scores.js", "scores.css", "bluetooth.html", "bluetooth.js", "bluetooth.css",
+                            "scores.html", "bluetooth.html", "bluetooth.js", "bluetooth.css",
                             "welcome.html", "welcome.js", "welcome.css"}:
                 return self._json(404, {"error": "Not found"})
             path = SOURCE_ROOT / "static" / name
@@ -1005,7 +1005,7 @@ class Handler(BaseHTTPRequestHandler):
                     "patterns.html": "text/html", "app.js": "text/javascript", "data.js": "text/javascript",
                     "eeg.js": "text/javascript", "patterns.js": "text/javascript", "style.css": "text/css",
                     "data.css": "text/css", "eeg.css": "text/css", "patterns.css": "text/css",
-                    "scores.html": "text/html", "scores.js": "text/javascript", "scores.css": "text/css",
+                    "scores.html": "text/html",
                     "bluetooth.html": "text/html", "bluetooth.js": "text/javascript", "bluetooth.css": "text/css", "welcome.html": "text/html",
                     "welcome.js": "text/javascript", "welcome.css": "text/css"}[name]
             self.send_response(200)

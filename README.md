@@ -17,14 +17,11 @@ amplitude trends, inspect EEG, compare activities, and export your recordings.
 
 ## Download installers
 
-**MindTrail Lab 0.2.5 — corrected chart release**
+**Available installer: 0.2.5 (previous release)**
 
-This release restores the prominent mobile-score chart missing from 0.2.4.
-The installed package is now checked for the chart above the entry form.
-
-Includes the new **Mobile score over time** chart, timed phone check-ins, and explicit
-right-ear EEG collection context. The chart plots saved phone readings; mobile scores
-are not imported automatically.
+The source now focuses on daily right-ear EEG recordings, coverage, and activity
+labels. Mobile-score entry and charts are retired; saved observations remain archived.
+Updated 0.2.6 installers are being prepared.
 
 | Your computer | Download | Signing status |
 | --- | --- | --- |
@@ -109,7 +106,6 @@ Keep keys out of GitHub, screenshots, bug reports, and command-line arguments.
 | Zoom into a day and assign or edit labels | **Activity log** |
 | Examine waveforms, spectra, and recording gaps | **EEG signal** |
 | Inspect raw samples, sessions, and stats | **Data tables** |
-| Record a score and state observed in the mobile app | **Mobile scores** |
 | Review optional offline clustering results | **Signal patterns** |
 | Scan and record directly from a device | **Bluetooth** |
 
@@ -187,20 +183,6 @@ Spectral estimates use 4-second Hann windows with 2-second steps and never join 
 
 </details>
 
-<details>
-<summary><strong>Mobile scores</strong></summary>
-
-The prominent **Mobile score over time** chart shows saved phone readings on a 0–100 axis, colored by the observed state. Click a point to inspect nearby EEG. With no readings, the chart keeps its axes and explains how to add data; it does not fabricate a series. Scores are not imported automatically. To add a point, manually enter the AWEAR mobile app's score (0–100), displayed state (Alert, Engaged, Relaxed, or Calm), and observation time. **Mark time now** fixes the observation time before you type; starting to enter a score also marks the time. Saving preserves that moment. Uncheck the live capture option to enter a past time. Editing preserves the original timestamp unless you deliberately change it.
-
-Time entry uses your computer's timezone and is saved as UTC, separately from the time you entered or edited the observation. Optional timing uncertainty, app version, and notes preserve context. States are transcribed, never inferred from score ranges.
-
-Browse, filter, edit, delete, and export every observation in the selected range as CSV or JSON. Each observation shows its current activity label and whether a stored one-second EEG record covers that time; gaps remain unmatched. **Inspect nearby EEG** opens a 60-second context window with the observation marker, activity shading, and raw EEG. The history shows recording coverage in the 30 seconds either side, separately from the exact-time match. This inspection window is not the mobile app's known averaging window. Recent-page context refreshes every ten seconds; a manual refresh also updates previously loaded older pages.
-
-You can also prefill an observation time from the EEG viewer. The app's score averaging window and processing delay are unknown, so matching timestamps does not establish sample-level or physiological equivalence. A point observation does not label an entire surrounding period.
-
-These manual entries stay in SQLite and remain independent of API exports and raw waveforms.
-
-</details>
 
 <details>
 <summary><strong>Signal patterns</strong></summary>
@@ -265,7 +247,7 @@ For source development, create `.venv-desktop`, install `requirements-desktop.tx
 <details>
 <summary><strong>Signal interpretation and device limitations</strong></summary>
 
-The [AWEAR API reference](https://awearlabs.com/docs#participant-data) describes one `RIGHT_TEMP` / TP10 channel with 256 samples in each one-second record, and the [device specifications](https://aweartech.com/pages/shop#specs) confirm one channel behind the right ear at 256 Hz. The app stores the waveform as returned. The overview's **AC RMS** subtracts each second's mean before summarizing oscillatory amplitude, avoiding the large baseline offset present in raw values. The EEG page centers only its displayed waveform; the raw table and exports retain exact samples. The public specifications do not define a voltage conversion, electrode reference, onboard filters, or whether each timestamp marks the first sample. All amplitudes therefore remain in **device units**, and sample positions within a second are displayed using an explicit timestamp-as-start assumption. Spectral band shares are descriptive and cannot identify focus, mood, or a clinical condition. Gaps remain gaps in the charts.
+The [AWEAR API reference](https://awearlabs.com/docs#participant-data) describes one `RIGHT_TEMP` / TP10 channel with 256 samples in each one-second record, and the [device specifications](https://aweartech.com/pages/shop#specs) confirm one channel behind the right ear at 256 Hz. The app stores the waveform as returned. Archived phone observations remain in SQLite and can be exported under **Exports → Archived phone observations**; no saved data is deleted. The overview's **AC RMS** subtracts each second's mean before summarizing oscillatory amplitude, avoiding the large baseline offset present in raw values. The EEG page centers only its displayed waveform; the raw table and exports retain exact samples. The public specifications do not define a voltage conversion, electrode reference, onboard filters, or whether each timestamp marks the first sample. All amplitudes therefore remain in **device units**, and sample positions within a second are displayed using an explicit timestamp-as-start assumption. Spectral band shares are descriptive and cannot identify focus, mood, or a clinical condition. Gaps remain gaps in the charts.
 
 </details>
 
@@ -498,8 +480,8 @@ In your development environment:
 ```bash
 python -m pip install -r requirements-build.txt numpy scikit-learn
 python -m unittest discover
-node --test test/test_scores_ui.js
 node --check src/static/welcome.js
+node --check src/static/eeg.js
 ```
 
 The JavaScript syntax check requires Node.js. Platform installer checks are described
