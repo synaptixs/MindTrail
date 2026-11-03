@@ -22,7 +22,7 @@ from archive_paths import ArchivePaths
 
 JOB_ID=re.compile(r'^[0-9a-f]{32}$')
 SOURCE_FILES=('analysis_quality.py','analysis_provenance.py','analysis_worker.py','analysis_view.py','analysis_cache.py','analysis_resources.py','daily_review.py','candidate_boundaries.py',
-              'exploratory_models.py','exploratory_stability.py','exploratory_views.py','exploration_access.py','similar_periods.py',
+              'exploratory_models.py','exploratory_stability.py','exploratory_views.py','exploration_access.py','similar_periods.py','activity_comparisons.py','activity_access.py',
               '../config/exploration.json','../config/exploration-stability.json')
 
 
@@ -43,7 +43,7 @@ def read_json(path: Path, limit=2_000_000) -> dict:
 
 def remove_quality_payloads(directory):
     for path in directory.iterdir():
-        if re.fullmatch(r'(?:(?:quality|boundaries)-(?:index|\d{4}-\d{2}-\d{2})|exploration-(?:index|[0-9a-f]{64}-(?:with_power|spectral_only)))\.(?:json|tmp)',path.name) and not path.is_symlink():path.unlink()
+        if re.fullmatch(r'(?:(?:quality|boundaries)-(?:index|\d{4}-\d{2}-\d{2})|exploration-(?:index|[0-9a-f]{64}-(?:with_power|spectral_only))|activities-(?:index|[0-9a-f]{64}))\.(?:json|tmp)',path.name) and not path.is_symlink():path.unlink()
 
 
 class AnalysisManager:
@@ -103,13 +103,15 @@ class AnalysisManager:
         if type(normalize) is not bool:raise ValueError('Invalid normalization setting')
         exploration=body.get('exploration',False)
         if type(exploration) is not bool:raise ValueError('Invalid exploration setting')
+        activities=body.get('activityComparisons',False)
+        if type(activities) is not bool:raise ValueError('Invalid activity comparison setting')
         timezone=body.get('timezone','America/New_York')
         if not isinstance(timezone,str):raise ValueError('Invalid timezone')
         try:ZoneInfo(timezone)
         except (ZoneInfoNotFoundError,ValueError):raise ValueError('Choose a valid timezone') from None
         from candidate_boundaries import settings as boundary_settings
         return {'startMs':start,'endMs':end,'normalize':normalize,'timezone':timezone,
-                'candidateBoundaries':boundary_settings(body.get('candidateBoundaries')),'exploration':exploration}
+                'candidateBoundaries':boundary_settings(body.get('candidateBoundaries')),'exploration':exploration,'activityComparisons':activities}
 
     def _recover(self):
         active=self.root/'active.json'
@@ -218,8 +220,16 @@ class AnalysisManager:
                                     for view in ('with_power','spectral_only'):
                                         path=directory/f"exploration-{group['acquisitionGroupId']}-{view}.json"
                                         if path.is_symlink() or not path.is_file():raise ValueError('Incomplete exploration view')
+                            if self.job.get('activityComparisons'):
+                                from analysis_provenance import fingerprint
+                                index=read_json(directory/'activities-index.json')
+                                if index['version']!=1 or index['participantId']!=self.job['participant'] or index['analysisIdentity']!=status['analysisIdentity']:raise ValueError('Incomplete activity comparisons')
+                                for group in index['groups']:
+                                    if not re.fullmatch(r'[0-9a-f]{64}',group['compatibilityId']):raise ValueError('Invalid comparison context')
+                                    value=read_json(directory/f"activities-{group['compatibilityId']}.json",limit=8_000_000)
+                                    if fingerprint(value)!=group['payloadHash'] or value['comparisonIdentity']!=index['comparisonIdentity']:raise ValueError('Incomplete comparison payload')
                             pointer={'id':self.job['id'],'signature':self.job['signature'],
-                                     'settings':{k:self.job[k] for k in ('startMs','endMs','normalize','timezone','candidateBoundaries','exploration')}}
+                                     'settings':{k:self.job[k] for k in ('startMs','endMs','normalize','timezone','candidateBoundaries','exploration','activityComparisons')}}
                             write_json(self.root/(self.job['scope']+'.json'),pointer)
                             try:self._prune()
                             except OSError:self.job['warning']='Older generated payloads could not be pruned.'

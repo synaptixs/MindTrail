@@ -61,7 +61,7 @@ def wait_for_workspace(process, profile):
                 analysis = json.load(response)
             assert analysis['available'] is False, "Numerical analysis must not start in the stdlib bundle"
             assert analysis['explorationAvailable'] is False, "Exploration must have an honest unavailable state"
-            for name,marker in [('review.html','id="review-form"'),('review.js','/api/review/undo'),('explore.html','id="pca"'),('explore.js','/api/exploration'),('similarity.js','/api/similarity/accept')]:
+            for name,marker in [('review.html','id="review-form"'),('review.js','/api/review/undo'),('explore.html','id="pca"'),('explore.js','/api/exploration'),('similarity.js','/api/similarity/accept'),('compare.html','id="daily-chart"'),('compare.js','/api/activity-comparisons'),('compare.css','coverage-strip')]:
                 with opener.open(url.split("/launch")[0]+'/'+name,timeout=1) as response:
                     assert marker in response.read().decode('utf-8')
             return
