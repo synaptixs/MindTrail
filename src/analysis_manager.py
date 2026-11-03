@@ -20,7 +20,7 @@ from archive_paths import ArchivePaths
 
 
 JOB_ID=re.compile(r'^[0-9a-f]{32}$')
-SOURCE_FILES=('analysis_quality.py','analysis_provenance.py','analysis_worker.py','analysis_view.py','analysis_cache.py')
+SOURCE_FILES=('analysis_quality.py','analysis_provenance.py','analysis_worker.py','analysis_view.py','analysis_cache.py','analysis_resources.py')
 
 
 def write_json(path: Path, value: dict) -> None:
@@ -33,7 +33,7 @@ def write_json(path: Path, value: dict) -> None:
 
 def read_json(path: Path, limit=2_000_000) -> dict:
     if path.is_symlink() or path.stat().st_size>limit:raise ValueError('Invalid analysis metadata')
-    result=json.loads(path.read_text())
+    result=json.loads(path.read_text(encoding='utf-8'))
     if not isinstance(result,dict):raise ValueError('Invalid analysis metadata')
     return result
 
@@ -231,7 +231,7 @@ class AnalysisManager:
 
     def _public_job(self,participant):
         if not self.job or self.job.get('scope')!=self.scope(participant):return None
-        return {k:self.job[k] for k in ('id','state','stage','done','total','error','reusedWindows','computedFeatures','external','warning') if k in self.job}
+        return {k:self.job[k] for k in ('id','state','stage','done','total','error','reusedWindows','computedFeatures','external','warning','peakMemoryBytes') if k in self.job}
 
     def state(self,participant):
         with self.lock:

@@ -60,14 +60,16 @@ class JobTests(unittest.TestCase):
         self.add(0,40);before=hashlib.sha256(self.database.read_bytes()).hexdigest()
         self.manager.start('P',{});first=self.wait()
         self.assertEqual(first['job']['state'],'completed',first)
+        self.assertGreater(first['job']['peakMemoryBytes'],0)
         self.assertFalse(first['stale']);self.assertTrue(first['summary']['demo'])
         self.assertEqual(first['summary']['coverage']['computedWindows'],10)
-        path=self.manager.report_path('P');cold=json.loads(path.read_text())
+        path=self.manager.report_path('P');cold_bytes=path.read_bytes();cold=json.loads(cold_bytes)
         self.assertEqual(hashlib.sha256(self.database.read_bytes()).hexdigest(),before)
         self.assertIsNone(self.manager.state('Other')['summary'])
         self.manager.start('P',{});warm=self.wait()
         self.assertEqual(warm['job']['reusedWindows'],10)
-        self.assertEqual(cold,json.loads(self.manager.report_path('P').read_text()))
+        self.assertEqual(cold,json.loads(self.manager.report_path('P').read_text(encoding='utf-8')))
+        self.assertEqual(cold_bytes,self.manager.report_path('P').read_bytes())
         self.add(40000,4);self.assertTrue(self.manager.state('P')['stale'])
         self.manager.start('P',{});updated=self.wait()
         self.assertEqual(updated['job']['reusedWindows'],10)
@@ -99,7 +101,7 @@ class JobTests(unittest.TestCase):
     def test_interrupted_recovery_does_not_adopt_partial_output(self):
         self.add(0,4);self.manager.start('P',{});self.wait()
         # Simulate crash after request persistence, before current-pointer adoption.
-        request=json.loads((self.manager.directory(self.manager.job['id'])/'request.json').read_text())
+        request=json.loads((self.manager.directory(self.manager.job['id'])/'request.json').read_text(encoding='utf-8'))
         from analysis_manager import write_json
         write_json(self.manager.root/'active.json',request)
         os.utime(self.manager.directory(request['id'])/'heartbeat',(time.time()-30,time.time()-30))

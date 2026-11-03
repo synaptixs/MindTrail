@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "referenceRecordLimit": 300000,
+  "coldSeconds": 180,
+  "cachedSeconds": 120,
+  "workerPeakBytes": 1610612736,
+  "navigationP95Seconds": 1,
+  "navigationMaxSeconds": 3,
+  "cancelSeconds": 3,
+  "jobTimeoutSeconds": 240
+}

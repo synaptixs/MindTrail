@@ -54,7 +54,7 @@ retain their existing OS/legacy-profile discovery behavior.
 
 Phase 1 source-provenance contracts and the read-only inventory command live in
 `src/analysis_provenance.py`; see [analysis provenance](ANALYSIS_PROVENANCE.md).
-They are not yet integrated into the desktop analysis UI or runtime bundle.
+They feed the source-workspace analysis UI; numerical runtime bundling remains pending.
 `src/analysis_quality.py` owns the shared spectral primitive and source-only
 quality/extraction core; see [quality analysis](ANALYSIS_QUALITY.md). The existing
 clustering feature wrapper reuses its primitive while preserving old outputs.
@@ -73,3 +73,8 @@ sources. Jobs and current pointers live under `ArchivePaths.quality`; raw storag
 and existing installer profile/credential identities remain unchanged. See
 [background analysis contracts](ANALYSIS_QUALITY.md#source-workspace-background-analysis)
 for cancellation, freshness, retention, and packaged-runtime limitations.
+
+The source-only `analysis_acceptance.py` runner checks a frozen private archive against
+`config/analysis-acceptance.json`. `analysis_resources.py` owns OS peak-memory measurement,
+which belongs to job metadata rather than deterministic feature reports. See
+[Phase 1 acceptance](PHASE1_ACCEPTANCE.md) for scope, preservation and resource ceilings.

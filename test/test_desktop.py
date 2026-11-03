@@ -259,6 +259,39 @@ class DesktopTests(unittest.TestCase):
         self.assertEqual(self.request("/api/desktop/import", payload)[0], 400)
         self.assertFalse(list(self.directory.glob("restore-*")))
 
+    def test_restore_legacy_profile_upgrades_without_changing_original_assignments(self):
+        import sqlite3
+        from contextlib import closing
+        source = self.directory / "legacy.sqlite3"
+        with closing(sqlite3.connect(app.DB_PATH)) as origin, closing(sqlite3.connect(source)) as copy:
+            origin.backup(copy)
+            copy.execute("ALTER TABLE readings DROP COLUMN device_id")
+            for name in ("source", "reviewed", "batch_id"):
+                copy.execute("ALTER TABLE labels DROP COLUMN " + name)
+            copy.execute("INSERT INTO labels(participant_id,label,note,start_ms,end_ms) VALUES('P','Personal activity','Original note',1000,3000)")
+            copy.execute("INSERT INTO readings(participant_id,timestamp_ms,waveform_json,sample_count,mean,rms,peak_to_peak) VALUES('P',1000,?,256,0,0,0)",(json.dumps([0]*256),))
+            copy.commit()
+        original = source.read_bytes()
+        self.launch()
+        self.assertEqual(self.request("/api/desktop/import", original)[0],200)
+        with app.db() as connection:
+            self.assertEqual(tuple(connection.execute("SELECT participant_id,label,note,start_ms,end_ms FROM labels").fetchone()),('P','Personal activity','Original note',1000,3000))
+            self.assertEqual(tuple(connection.execute("SELECT waveform_json,device_id FROM readings").fetchone()),(json.dumps([0]*256),None))
+        self.assertEqual(source.read_bytes(),original)
+
+    def test_restore_empty_profile_remains_empty_and_usable(self):
+        self.launch()
+        import sqlite3
+        from contextlib import closing
+        source = self.directory / "empty.sqlite3"
+        with closing(sqlite3.connect(app.DB_PATH)) as origin, closing(sqlite3.connect(source)) as copy:
+            origin.backup(copy)
+        self.assertEqual(self.request("/api/desktop/import", source.read_bytes())[0],200)
+        with app.db() as connection:
+            self.assertEqual(connection.execute("SELECT COUNT(*) FROM readings").fetchone()[0],0)
+            self.assertEqual(connection.execute("SELECT COUNT(*) FROM labels").fetchone()[0],0)
+        self.assertFalse(self.controller.ready())
+
     def test_restore_invalid_file_leaves_empty_database_usable(self):
         self.launch()
         self.assertEqual(self.request("/api/desktop/import", b"not-sqlite" * 20)[0], 400)
