@@ -19,3 +19,8 @@ test('epoch handle geometry preserves pinned selection while collection bounds g
   assert.deepEqual(clock.move(old,pin,'end',-10),{start:3000,end:3001});
   assert.equal(clock.move(old,null,'start',3210.5,false).start,3211);
 });
+
+test('browser-normalized whole minutes retain seconds for the canonical resolver',()=>{
+  assert.equal(clock.wallValue('2026-11-03T09:02'),'2026-11-03T09:02:00');
+  assert.equal(clock.wallValue('2026-11-03T09:02:00.123'),'2026-11-03T09:02:00.123');
+});

@@ -90,3 +90,7 @@ and backs up nonempty archives before its additive migration. See
 wall-clock resolution. Daily charts render those facts using the bundled `interval_time.js`
 geometry/formatting helpers. See [daily review](DAILY_REVIEW.md) for clipping, snapshot
 freshness, precise editing, DST choices and quality-sidecar lifecycle.
+
+`episode_review.py` owns the separately versioned review decisions and reversible operation
+ledger. Activity restore validation delegates the episode trigger contract to that module.
+See [episode review](EPISODE_REVIEW.md) and [Phase 2 acceptance](PHASE2_ACCEPTANCE.md).

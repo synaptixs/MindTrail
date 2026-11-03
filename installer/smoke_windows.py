@@ -60,6 +60,9 @@ def wait_for_workspace(process, profile):
             with opener.open(url.split("/launch")[0] + "/api/analysis/state", timeout=1) as response:
                 analysis = json.load(response)
             assert analysis['available'] is False, "Numerical analysis must not start in the stdlib bundle"
+            for name,marker in [('review.html','id="review-form"'),('review.js','/api/review/undo')]:
+                with opener.open(url.split("/launch")[0]+'/'+name,timeout=1) as response:
+                    assert marker in response.read().decode('utf-8')
             return
         except (OSError, ValueError, KeyError):
             time.sleep(.1)
@@ -155,6 +158,31 @@ assert manager.status()['totalSessions'] == 2
 for session in manager.status()['sessions']:
     assert manager.download_path(session['id'], 'eeg.csv').read_text() == 'synthetic capture\\n'
 """
+        episode_check="""from pathlib import Path
+import sys
+import app,episode_review
+app.configure_storage(Path(sys.argv[1]));app.setup_db()
+with app.db() as c:
+    existing=c.execute("SELECT id FROM labels WHERE participant_id='episode-qa'").fetchone()
+if existing is None:
+    label=app.add_label('episode-qa','Native review','Synthetic only',1000,10000)
+    with app.db() as c:
+        c.execute('BEGIN IMMEDIATE')
+        result=episode_review.split(c,'episode-qa',label,5123,episode_review.label_version(c,'episode-qa',label))
+    with app.db() as c:
+        c.execute('BEGIN IMMEDIATE');episode_review.undo(c,'episode-qa',result['operationId'])
+        c.execute("INSERT INTO readings VALUES('episode-qa',20000,'D','[-1,1]',2,0,1,2)")
+    with app.db() as c:
+        c.execute('BEGIN IMMEDIATE')
+        task=episode_review.queue(c,'episode-qa')['items'][0]
+        episode_review.decide(c,'episode-qa',task,'unknown')
+with app.db() as c:
+    assert tuple(c.execute("SELECT start_ms,end_ms,timing_precision FROM labels WHERE participant_id='episode-qa'").fetchone())==(1000,10000,'unknown')
+    assert c.execute("SELECT COUNT(*) FROM episode_operations WHERE participant_id='episode-qa'").fetchone()[0]==4
+    assert c.execute("SELECT kind FROM episode_decisions WHERE participant_id='episode-qa'").fetchone()[0]=='unknown'
+"""
+        subprocess.run([str(executable), '-c', episode_check, str(profile)],check=True,env=environment,timeout=30)
+        checks['episodeSplitUndoAndUnknown']=True
         subprocess.run([str(executable), '-c', archive_check, str(profile)], check=True, env=environment, timeout=30)
         command = [str(executable), str(entry), "--data-dir", str(profile), "--no-browser", "--no-key-store"]
         process = subprocess.Popen(command, env=environment)
@@ -206,6 +234,10 @@ for session in manager.status()['sessions']:
                 assert db.execute("SELECT favorite,archived FROM activities WHERE id=?",(activity_id,)).fetchone() == (1,1)
                 assert db.execute("SELECT COUNT(*) FROM activity_history WHERE activity_id=?",(activity_id,)).fetchone() == (2,)
                 assert db.execute("SELECT source,review_state,timing_precision,start_uncertainty_ms FROM labels WHERE participant_id='qa-only'").fetchone() == ('manual','uncertain','approximate',5000)
+            with closing(sqlite3.connect(profile / 'awear_data.sqlite3')) as db:
+                assert db.execute("SELECT COUNT(*) FROM episode_operations WHERE participant_id='episode-qa'").fetchone()==(4,)
+                assert db.execute("SELECT kind FROM episode_decisions WHERE participant_id='episode-qa'").fetchone()==('unknown',)
+            checks['episodeLedgerAndUnknownPreserved']=True
             checks['personalActivityIdentityAndHistoryPreserved'] = True
             checks['labelEvidencePreserved'] = True
             checks['uninstallPreservesArchive'] = True

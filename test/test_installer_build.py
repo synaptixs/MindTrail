@@ -352,7 +352,7 @@ class MobileScoreArchivePackagingTests(unittest.TestCase):
                 responses = iter([io.BytesIO(b""), io.BytesIO(b'{"ready":false,"keyConfigured":false}'),
                     io.BytesIO(b'<div id="api-key-guide">MindTrail Lab</div>'), io.BytesIO(body),io.BytesIO(b'MindTrailTime'),io.BytesIO(b'{"choices":[{"offset":"-04:00"},{"offset":"-05:00"}]}'),io.BytesIO(b'{"activities":[],"total":0}'),
                     io.BytesIO((source / "scores.html").read_bytes()), io.BytesIO((source / "eeg.html").read_bytes()),
-                    io.BytesIO((source / "quality.html").read_bytes()), io.BytesIO(b'{"available":false}')])
+                    io.BytesIO((source / "quality.html").read_bytes()), io.BytesIO(b'{"available":false}'),io.BytesIO((source/'review.html').read_bytes()),io.BytesIO((source/'review.js').read_bytes())])
                 opener = SimpleNamespace(open=lambda *args, **kwargs: next(responses))
                 with patch("installer.smoke_windows.urllib.request.build_opener", return_value=opener):
                     if accepted:

@@ -268,7 +268,7 @@ function dailyLanes(day,plot) {
     return activity?`<a href="#activity" data-edit="${r.id}" aria-label="Edit ${escapeHtml(r.label)} on daily chart">${rect}</a>`:rect;
   }).join('')}</svg></div>`;}
   const runs=valid&&status==='current'?quality.runs:[{startMs:a,endMsExclusive:b,state:'not_analyzed'}];
-  return `<div class="daily-lanes">${lane('Recording',facts.recording)}${lane('Quality',runs)}${Array.from({length:facts.activityTrackCount||1},(_,track)=>lane(track?'Activities '+(track+1):'Activities',facts.activities.filter(a=>(a.track||0)===track),true)).join('')}<p class="lane-note">${escapeHtml(status==='current'?'Quality: current completed snapshot. Grey = not analyzed; amber = screening flags; green = computed without flags. Screening does not establish artifact-free EEG.':status==='stale'?'Quality snapshot is stale; flags are not applied to this view.':'Quality unavailable or not loaded for this view.')} <a href="/quality.html">Review recording quality ↗</a></p></div>`;
+  return `<div class="daily-lanes">${lane('Recording',facts.recording)}${lane('Quality',runs)}${facts.reviewDecisions?.length?lane('Activity unknown',facts.reviewDecisions):''}${Array.from({length:facts.activityTrackCount||1},(_,track)=>lane(track?'Activities '+(track+1):'Activities',facts.activities.filter(a=>(a.track||0)===track),true)).join('')}<p class="lane-note">${escapeHtml(status==='current'?'Quality: current completed snapshot. Grey = not analyzed; amber = screening flags; green = computed without flags. Screening does not establish artifact-free EEG.':status==='stale'?'Quality snapshot is stale; flags are not applied to this view.':'Quality unavailable or not loaded for this view.')} <a href="/quality.html">Review recording quality ↗</a></p></div>`;
 }
 async function loadDayQuality(day) {
   const range=daySelection(day),participant=state.selected,token={};
@@ -408,7 +408,7 @@ function renderIntervals() {
     lastDay=key;
     const time=(date)=>date.toLocaleTimeString([], {timeZone:'America/New_York',hour:'numeric',minute:'2-digit',timeZoneName:'short'});
     const labels=[...new Set(period.labels.map(item=>item.label))];
-    const activityLabels=period.labels.map(label=>`<span class="interval-label"><span>${escapeHtml(label.label)}</span><button type="button" class="edit-activity" data-edit="${label.id}" aria-label="Edit ${escapeHtml(label.label)} activity">Edit</button><span class="label-suggested">${escapeHtml(evidenceText(label))}</span></span>`).join('');
+    const activityLabels=period.labels.map(label=>`<span class="interval-label"><span>${escapeHtml(label.label)}</span><button type="button" class="edit-activity" data-edit="${label.id}" aria-label="Edit ${escapeHtml(label.label)} activity">Edit</button><a class="edit-activity" href="/review.html?labelId=${label.id}">Split / history</a><span class="label-suggested">${escapeHtml(evidenceText(label))}</span></span>`).join('');
     const status=labels.length?`<div class="interval-labels">${activityLabels}</div>`:
       `<small>${period.complete?'Ready to label':'In progress'}</small>`;
     const suggestionsOnly=period.labels.length&&period.labels.every(l=>isPendingSuggestion(l));
