@@ -77,7 +77,7 @@ def values(window):
 
 def quartiles(windows):
     if not windows:return None
-    return np.percentile(np.asarray([values(w) for w in windows],dtype=float),[25,50,75],axis=0).T.tolist()
+    return np.percentile(np.asarray([values(w) for w in windows],dtype=float),[25,50,75],axis=0,method="linear").T.tolist()
 
 
 def example(window,kind,label):
@@ -169,7 +169,8 @@ def build(report,database,zone_name,*,check=lambda:None,progress=lambda *args:No
                 if row_key[:4]!=k:continue
                 usable=sum(w['endMsExclusive']-w['startMs'] for w in row['windows']);flagged=sum(w['endMsExclusive']-w['startMs'] for w in row['flagged'])
                 if usable:dates.append(row['date'])
-                daily.append({'stratumId':sid,'date':row['date'],'labeledMs':row['labeledMs'],'recordedMs':row['recordedMs'],
+                daily.append({'stratumId':sid,'date':row['date'],'labelCount':len(row['labels']),
+                    'timingCounts':dict(sorted(Counter(label['timing_precision'] for label in row['labels'].values()).items())),'labeledMs':row['labeledMs'],'recordedMs':row['recordedMs'],
                     'missingMs':row['labeledMs']-row['recordedMs'],'usableMs':usable,'flaggedMs':flagged,
                     'otherRecordedMs':row['recordedMs']-usable-flagged,'usableWindows':len(row['windows']),
                     'flaggedWindows':len(row['flagged']),'quartiles':quartiles(row['windows'])})

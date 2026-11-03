@@ -109,3 +109,9 @@ API/UI or infer session/contact measurements from recording paths.
 optional exploration branch of the quality worker. `exploration_access.py` reads only scoped
 current sidecars and verifies exact source-record digests before returning raw waveforms.
 The `/explore.html` page renders these facts. See [explorer contracts](EXPLORATORY_VIEWS.md).
+
+`activity_comparisons.py` owns optional full-quality-population personal activity/day/session
+facts in the isolated worker. `activity_access.py` serves bounded, scoped, content-verified
+facts and exact observed examples without numerical imports. `/compare.html` renders those
+facts; unknown cloud session IDs remain unknown. See [activity comparisons](ACTIVITY_COMPARISONS.md)
+for coverage, provenance filters, lifecycle and the still-open Phase 3 evidence gate.

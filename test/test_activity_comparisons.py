@@ -176,6 +176,13 @@ class ActivityComparisonTests(unittest.TestCase):
         self.assertEqual(m.job['state'],'failed');self.assertEqual(access.read(m,'P')['comparisonIdentity'],old);self.assertFalse((directory/'activities-index.json').exists())
         write_json(directory/'activities-index.json',{});write_json(directory/('activities-'+'a'*64+'.json'),{});write_json(directory/'keep.json',{})
         remove_quality_payloads(directory);self.assertTrue((directory/'keep.json').exists());self.assertEqual(list(directory.glob('activities-*.json')),[])
+        canceled=m.directory('d'*32);canceled.mkdir();m.job={'id':'d'*32,'participant':'P','scope':m.scope('P'),'signature':m.signature(),**m.settings({'activityComparisons':True})}
+        write_json(canceled/'status.json',{'state':'completed','analysisIdentity':'do-not-publish'});write_json(canceled/'report.json',{})
+        write_json(canceled/'activities-index.json',{});(canceled/'cancel').touch();write_json(m.root/'active.json',{})
+        m.process=SimpleNamespace(poll=lambda:0);m._watch_loop()
+        self.assertEqual(m.job['state'],'canceled');self.assertFalse((canceled/'activities-index.json').exists())
+        self.assertEqual(access.read(m,'P')['comparisonIdentity'],old)
+
 
     def test_real_http_assets_local_start_and_current_scoped_examples(self):
         self.source();server=app.AppServer(('127.0.0.1',0),app.Collector('',demo=True));thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start()

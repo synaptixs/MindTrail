@@ -1,6 +1,7 @@
 """Stdlib-only scoped/paged comparison facts and exact example waveform access."""
 from __future__ import annotations
 import re
+import sqlite3
 from analysis_provenance import fingerprint
 from exploration_access import verified_waveform
 
@@ -74,6 +75,7 @@ def waveform(manager,participant,group,window,identity):
     if payload['status']!='current' or payload['comparisonIdentity']!=identity:raise ValueError('Comparison is stale or unavailable; refresh analysis')
     example=next((e for s in payload['strata'] for e in s['examples'] if e['windowId']==window),None)
     if example is None:raise ValueError('Example is outside the selected comparison')
-    result=verified_waveform(manager.database,participant,example['acquisition'],example)
+    try:result=verified_waveform(manager.database,participant,example['acquisition'],example)
+    except sqlite3.Error:raise ValueError('Exact source waveform is unavailable; rerun analysis') from None
     if payload['sourceSignature']!=manager.signature():raise ValueError('Source changed; refresh analysis')
     return result
