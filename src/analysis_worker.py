@@ -24,7 +24,16 @@ def atomic_json(path: Path, value: dict, check=None) -> None:
                 if check:check()
                 output.write(''.join(buffer));buffer=[]
         output.write(''.join(buffer))
-    temporary.replace(path)
+    # Windows readers can briefly hold the destination without delete sharing.
+    # Keep the prior complete file until replacement succeeds; never retry other I/O errors.
+    for attempt in range(21):
+        if check:check()
+        try:
+            temporary.replace(path)
+            break
+        except PermissionError as error:
+            if sys.platform!='win32' or getattr(error,'winerror',None) not in (5,32,33) or attempt==20:raise
+            time.sleep(.025)
 
 
 def run(directory: Path) -> int:
