@@ -8,6 +8,10 @@ import time
 import traceback
 
 
+class AnalysisBudgetExceeded(Exception):
+    pass
+
+
 class AnalysisCancelled(Exception):
     pass
 
@@ -38,7 +42,16 @@ def atomic_json(path: Path, value: dict, check=None) -> None:
 
 def run(directory: Path) -> int:
     last_update=0
+    started=time.monotonic();last_memory_check=0
+    from analysis_resources import peak_memory_bytes
+    import analysis_runtime as runtime
     def check():
+        nonlocal last_memory_check
+        now=time.monotonic()
+        if now-started>runtime.MAX_SECONDS:raise AnalysisBudgetExceeded('Analysis exceeded the 240-second resource budget; prior results retained.')
+        if now-last_memory_check>.25:
+            last_memory_check=now
+            if peak_memory_bytes()>runtime.MAX_PEAK_BYTES:raise AnalysisBudgetExceeded('Analysis exceeded the 1.5 GiB memory budget; prior results retained.')
         if (directory/'cancel').exists() or time.time()-(directory/'heartbeat').stat().st_mtime>15:
             raise AnalysisCancelled()
     def progress(stage,done,total):
@@ -129,6 +142,11 @@ def run(directory: Path) -> int:
                 'reusedWindows':cache.hits,'computedFeatures':cache.misses,'analysisIdentity':report['analysisIdentity'],
                 'peakMemoryBytes':peak_memory_bytes()})
         return 0
+    except AnalysisBudgetExceeded as error:
+        (directory/'report.tmp').unlink(missing_ok=True)
+        (directory/'report.json').unlink(missing_ok=True)
+        atomic_json(directory/'status.json',{'state':'failed','stage':'failed','error':str(error)})
+        return 3
     except AnalysisCancelled:
         (directory/'report.tmp').unlink(missing_ok=True)
         (directory/'report.json').unlink(missing_ok=True)

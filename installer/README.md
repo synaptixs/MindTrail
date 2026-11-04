@@ -85,3 +85,28 @@ For Artifact Signing release builds, `AWEAR_WINDOWS_ARTIFACT_DLIB` selects the c
 - On clean Windows and Mac machines, verify genuine API key save/reopen/forget and connection; these require the owner's input. Run an explicit Bluetooth scan/record only when authorized. Automated tests use fakes and cannot establish real device or credential-store permission behavior.
 
 Run `python -m unittest discover` in the development test environment (the clustering tests require NumPy and scikit-learn), and `node --check src/static/welcome.js` for frontend syntax. Installer-specific and desktop tests can run independently using `python -m unittest test.test_desktop test.test_bluetooth test.test_installer_build`.
+
+## Numerical builds (P5-W4)
+
+New builds bundle the numerical worker offline; users install nothing besides the app.
+`analysis-runtime.lock.json` pins Python and each numerical wheel/CPU/SHA-256. Windows stages
+these alongside the existing desktop runtime, validates dependency closure and includes
+analysis sources plus the two exploration configuration files. The Mac builder stages a
+relocated Python runtime and distinct Intel/Apple Silicon vendor trees under app Resources,
+then signs the inner code and reseals the app. App and installer now require macOS 12+.
+Current published releases do not gain these changes until the P5-W5 release.
+
+Run `installer/prepare_mac_runtime.py` first as above. The prepared Python framework root
+must match the pinned version and contain both CPUs. `MINDTRAIL_MAC_PYTHON_ROOT` may explicitly
+select an already prepared root for a publisher build; it is not an end-user setting. No
+Rosetta is required for native Apple Silicon analysis. Static Intel architecture checks are
+not evidence of Intel execution: verify on an Intel Mac or Rosetta before final distribution.
+
+`--self-check` now includes a real numerical subprocess probe. `installer/smoke_analysis.py
+--executable <Mac app executable> --report <new JSON file>` exercises a separate synthetic,
+keyless offline profile through normal desktop authorization. Windows native smoke runs the
+same acceptance against its installed interpreter/entry point before its existing upgrade
+and uninstall checks. No device scan/record, real key or API sync is performed. Numerical
+features, optional exploration, cache repeatability, arrival/cancel/version/export behavior
+and resource facts are checked. Full signing/notarization, clean-machine and profile recovery
+acceptance remain P5-W5; passing development artifacts are not automatically released.

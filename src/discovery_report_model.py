@@ -24,10 +24,11 @@ BRANCHES={'continue_discovery':'Keep exploring without mandatory activity labels
 
 def analysis_context(report):
     import sys,platform
+    import analysis_runtime as runtime
     names=('analysis_worker.py','discovery_contracts.py','discovery_daily.py','recurrence_model.py','spectral_features.py','discovery_review_model.py','discovery_report_model.py')
     return {'spec':report['spec'],'qualityPolicy':report['qualityPolicy'],'implementation':report['implementation'],
         'qualityMethodVersion':report['methodVersion'],'python':list(sys.version_info[:3]),
-        'platform':platform.system(),'machine':platform.machine(),
+        'platform':platform.system(),'machine':platform.machine(),'runtime':runtime.versions(),'resourcePolicy':runtime.policy(),
         'numericalSources':{name:hashlib.sha256(Path(__file__).with_name(name).read_bytes()).hexdigest() for name in names}}
 
 

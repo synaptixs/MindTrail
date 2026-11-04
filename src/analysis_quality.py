@@ -109,8 +109,10 @@ class QualityPolicy:
 
 
 def implementation_identity() -> dict:
+    from analysis_runtime import numerical_identity
     return {"qualitySource": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
-            "provenanceSource": provenance.implementation_fingerprint(), "numpy": np.__version__}
+            "provenanceSource": provenance.implementation_fingerprint(), "numpy": np.__version__,
+            "numericalRuntime":numerical_identity()}
 
 
 class QualityExtractor:

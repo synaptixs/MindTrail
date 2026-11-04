@@ -20,7 +20,7 @@ jobs:
         with:
           python-version: '3.14.10'
       - name: Install publisher build dependencies
-        run: python -m pip install -r requirements-build.txt numpy scikit-learn
+        run: python -m pip install -r requirements-build.txt -r config/requirements/analysis.txt
       - name: Check worker lifecycle before the full suite
         run: python -m unittest test.test_analysis_jobs.JobTests.test_real_worker_reuses_features_stale_and_participant_isolation
       - name: Run source and packaging tests

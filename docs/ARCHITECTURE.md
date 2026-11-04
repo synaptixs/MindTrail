@@ -148,3 +148,12 @@ content digests. It reuses the existing report renderer, annotation exporters an
 quality facts. `analysis_history.export_all` owns complete scoped numerical-history reads
 in one transaction. Neither is an archive importer or a numerical runtime; see
 [auditable downloads](DISCOVERY_READINESS.md#auditable-analysis-and-retained-history-downloads-p5-w3).
+
+P5-W4 source builds add an isolated packaged analysis runtime. `analysis_runtime.py` owns
+runtime selection/manifest/availability and limits; `analysis_bootstrap.py` owns the worker
+entry point. `analysis_runtime_build.py` stages pinned publisher artifacts and source/config
+assets. Mac keeps a stdlib GUI and a separate universal CPython with per-CPU vendor trees;
+Windows extends its existing embedded interpreter. `installer/analysis-runtime.lock.json`
+pins numerical downloads; the existing Windows lock retains all embedded dependencies.
+Native acceptance is shared by Mac and Windows in `installer/smoke_analysis.py`. See
+[packaged analysis contracts](ANALYSIS_QUALITY.md#packaged-numerical-runtime-p5-w4-source-builds).

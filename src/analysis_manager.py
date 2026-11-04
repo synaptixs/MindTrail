@@ -18,10 +18,11 @@ import time
 import uuid
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from archive_paths import ArchivePaths
+import analysis_runtime as runtime
 
 
 JOB_ID=re.compile(r'^[0-9a-f]{32}$')
-SOURCE_FILES=('discovery_report_model.py','discovery_report_access.py','discovery_review_model.py','discovery_review_access.py','spectral_features.py','recurrence_model.py','recurrence_access.py','discovery_daily.py','discovery_daily_access.py','discovery_contracts.py','analysis_quality.py','analysis_provenance.py','analysis_worker.py','analysis_view.py','analysis_cache.py','analysis_resources.py','daily_review.py','candidate_boundaries.py',
+SOURCE_FILES=('analysis_runtime.py','analysis_bootstrap.py','discovery_report_model.py','discovery_report_access.py','discovery_review_model.py','discovery_review_access.py','spectral_features.py','recurrence_model.py','recurrence_access.py','discovery_daily.py','discovery_daily_access.py','discovery_contracts.py','analysis_quality.py','analysis_provenance.py','analysis_worker.py','analysis_view.py','analysis_cache.py','analysis_resources.py','daily_review.py','candidate_boundaries.py',
               'exploratory_models.py','exploratory_stability.py','exploratory_views.py','exploration_access.py','similar_periods.py','activity_comparisons.py','activity_access.py',
               '../config/exploration.json','../config/exploration-stability.json')
 
@@ -57,9 +58,10 @@ class AnalysisManager:
         self.job=None
         self.closed=False
         self.monitor=None
+        self.started_at=None
 
     def available(self) -> bool:
-        return not (getattr(sys,'frozen',False) or os.environ.get('AWEAR_BUNDLED_RUNTIME')=='1') and (Path(__file__).parent/'analysis_worker.py').is_file() and importlib.util.find_spec('numpy') is not None
+        return runtime.available()
 
     def running(self) -> bool:
         with self.lock:
@@ -67,12 +69,8 @@ class AnalysisManager:
             return self.process is not None or bool(self.job and self.job.get("external") and self.job["state"]=="running")
 
     def signature(self) -> str:
-        try:numpy_version=version('numpy')
-        except PackageNotFoundError:numpy_version=None
-        parts=[('python',list(sys.version_info[:3])),('numpy',numpy_version)]
-        for name in ('scikit-learn','scipy'):
-            try:parts.append((name,version(name)))
-            except PackageNotFoundError:parts.append((name,None))
+        info=runtime.versions()
+        parts=[('python',info['python']),('runtime',runtime.stamp()),('packages',info['packages'])]
         for path in (self.database,Path(str(self.database)+'-wal')):
             try:
                 s=path.stat()
@@ -81,7 +79,7 @@ class AnalysisManager:
                 else:parts.append((str(path),s.st_size,s.st_mtime_ns,s.st_ctime_ns,s.st_ino))
             except FileNotFoundError:parts.append((str(path),None))
         for name in SOURCE_FILES:
-            path=Path(__file__).parent/name
+            path=runtime.source_root()/name
             parts.append((name,hashlib.sha256(path.read_bytes()).hexdigest() if path.is_file() else None))
         return hashlib.sha256(json.dumps(parts).encode()).hexdigest()
 
@@ -140,7 +138,7 @@ class AnalysisManager:
         with self.lock:
             if self.closed:raise ValueError('Workspace is closing')
             if not self.available():raise ValueError('Analysis is unavailable in this build')
-            if config['exploration'] and importlib.util.find_spec('sklearn') is None:
+            if config['exploration'] and not runtime.available(exploration=True):
                 raise ValueError('Exploration requires the optional source analysis environment')
             if self.process:raise ValueError('An analysis is already running')
             self._recover()
@@ -163,11 +161,12 @@ class AnalysisManager:
             except FileExistsError:
                 self.job=None
                 raise ValueError('An analysis is already running in this workspace') from None
-            env=dict(os.environ);env.pop('AWEAR_API_KEY',None)
+            env=runtime.environment()
             try:
-                self.process=subprocess.Popen([sys.executable,str(Path(__file__).parent/'analysis_worker.py'),str(directory)],
-                    cwd=Path(__file__).parent,env=env,stdin=subprocess.DEVNULL,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
-            except OSError:
+                self.started_at=time.monotonic()
+                self.process=subprocess.Popen(runtime.command(directory),
+                    cwd=runtime.source_root(),env=env,stdin=subprocess.DEVNULL,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+            except (OSError,ValueError):
                 self.job.update(state='failed',stage='failed',error='Could not start analysis')
                 (self.root/'active.json').unlink(missing_ok=True)
                 raise ValueError('Could not start analysis') from None
@@ -200,6 +199,9 @@ class AnalysisManager:
                 code=self.process.poll()
                 try:status=read_json(directory/'status.json')
                 except (OSError,ValueError):status={}
+                if code is None and self.started_at is not None and time.monotonic()-self.started_at>runtime.MAX_SECONDS:
+                    self.process.kill();self.process.wait();code=self.process.returncode
+                    status={'state':'failed','stage':'failed','error':'Analysis exceeded the 240-second resource budget; prior results retained.'}
                 self.job.update(status)
                 if code is None:
                     if (directory/'cancel').exists():self.job.update(state='canceling',stage='canceling')
@@ -294,7 +296,7 @@ class AnalysisManager:
     def state(self,participant):
         with self.lock:
             self._recover()
-            result={'available':self.available(),'explorationAvailable':self.available() and importlib.util.find_spec('sklearn') is not None,'participantId':participant,'demo':self.demo,'job':self._public_job(participant),'summary':None,'stale':False,'settings':None}
+            result={'available':self.available(),'explorationAvailable':runtime.available(exploration=True),'participantId':participant,'demo':self.demo,'job':self._public_job(participant),'summary':None,'stale':False,'settings':None,'resourceBudget':runtime.policy()}
             if not participant:return result
             try:
                 pointer=read_json(self.root/(self.scope(participant)+'.json'))

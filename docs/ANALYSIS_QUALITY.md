@@ -203,3 +203,49 @@ On Windows only, a reader may briefly deny deletion of the destination. Sharing/
 checking cancellation before each attempt. Persistent permission errors and unrelated I/O
 failures propagate; no partially written JSON is substituted. Native Windows and controlled
 sharing/cancellation checks cover this publication boundary.
+
+## Packaged numerical runtime (P5-W4 source builds)
+
+New installer builds include pinned CPython 3.14.10, NumPy 2.5.4, SciPy 1.18.1,
+scikit-learn 1.9.1 and their locked transitive dependencies. Existing published releases
+are unchanged until P5-W5. End users install no Python packages and analysis downloads
+nothing. Mac builds now require macOS 12 or later, with separate native arm64/x86_64
+libraries inside the universal app. Intel payload/ABI validation is distinct from actual
+Intel execution; this development Mac lacks Rosetta, so Intel execution remains a W5 gate.
+
+`analysis_runtime.py` owns worker paths, availability, package metadata and resource policy.
+The GUI stays free of numerical imports. Windows extends its isolated embedded interpreter;
+Mac launches a relocated official universal interpreter from the signed app resources, rather
+than treating the PyInstaller GUI executable as Python. `analysis_bootstrap.py` supplies
+explicit source/vendor paths under isolated interpreter flags, validates actual Python and
+numerical dependency versions against the manifest, drops the API key and forces BLAS/OpenMP
+thread counts to one. It performs no profile setup, sync, keychain access or Bluetooth action.
+The normal source CLI remains supported. See [PyInstaller runtime paths](https://pyinstaller.org/en/stable/runtime-information.html)
+for the distinction between the frozen executable and an interpreter.
+
+The pinned runtime manifest, native binary metadata, actual worker Python/package versions,
+analysis source bytes and configuration enter freshness. Numerical feature identity additionally
+hashes native NumPy libraries from the owning installed distribution's recorded membership,
+including its linked BLAS wheel libraries, and records the actual thread environment. Same-version
+native builds cannot silently share feature-cache entries. File timestamps are not numerical
+identities. Re-signing/replacing native libraries can conservatively invalidate the cache.
+Old reports/captures remain historical; runtime changes do not rewrite their values.
+
+The worker checks its OS peak memory (maximum 1.5 GiB, sampled at most every quarter second)
+and wall time (240 seconds) during cooperative cancellation checks. The supervisor also
+terminates its own live worker after that wall deadline, including a blocked numerical call.
+This is a bounded worker policy, not an OS-wide hard allocation/CPU quota: a single native
+allocation can overshoot before the next check. Timeout/memory failure is explicit and preserves
+prior complete results and retained versions. Automatic refresh remains off by default and
+browser-local; no retry scheduler or automatic analysis is added. Operational limits and
+Python/package details are included in the analysis context. Source library calls outside
+the supervised worker retain their CLI behavior and record their actual thread environment.
+
+Publisher staging verifies wheel checksums, CPython/CPU tags and dependency closure for each
+target. Mac Python/extensions must contain both architectures, and each vendor tree's libraries
+must contain its target CPU. Source/config assets are explicit; no profiles, keys, private data,
+builder environments or tests enter the payload. The package self-check runs a real numerical
+probe without credentials. Native acceptance uses new synthetic profiles, verifies a known RMS,
+optional feature exploration/boundaries/comparisons, cold/cache equality, arrival freshness,
+cancellation, exact exports and retained versions. Full release signing, clean-machine/Intel
+execution and recovery acceptance remain P5-W5.

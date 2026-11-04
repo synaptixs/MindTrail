@@ -18,6 +18,10 @@ def main() -> None:
     make_icons(icons)
     subprocess.run([sys.executable, "-m", "PyInstaller", "--noconfirm", "--clean", str(root / "awear-desktop.spec")], cwd=root, check=True,
                    env={**os.environ, "PYINSTALLER_CONFIG_DIR": str(root / "build" / "pyinstaller-cache")})
+    if sys.platform=='darwin':
+        from analysis_runtime_build import stage_mac,sign_mac_tree
+        stage_mac(root/'dist/MindTrail Lab.app/Contents/Resources/analysis-runtime')
+        sign_mac_tree(root/'dist/MindTrail Lab.app')
     metadata = {"platform": platform.platform(), "architecture": platform.machine(),
                 "python": platform.python_version(),
                 "packages": {package: importlib.metadata.version(package) for package in ("pyinstaller", "bleak", "keyring", "tzdata", "certifi")}}
