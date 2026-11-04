@@ -491,3 +491,58 @@ users must run or enable it again explicitly. Version comparison/refresh alone s
 analysis. Raw recordings, labels, personal questions/context/directions remain unchanged.
 Packaged numerical runtime remains W4, native release acceptance W5; current stdlib bundles
 include historical readers and assets while numerical analysis stays explicitly unavailable.
+
+## Auditable analysis and retained-history downloads (P5-W3)
+
+**Download analysis audit ZIP** on Discovery report follows the displayed, applied
+question/lens/snapshot. It contains the same self-contained HTML and composed JSON,
+full canonical `quality-report.json`, every computed (flagged and unflagged) window in
+`feature-windows.csv`, and complete selected-participant activity and window-context
+audits. Scalar CSV columns use dotted canonical keys (for example `features.acRms` and
+`acquisition.placement`); arrays remain JSON cells. JSON preserves original types;
+CSV leaves nulls empty and escapes formula-like text using the existing sanitizer.
+Activity CSV includes timing precision, review state and origin. Activity/context JSON
+retains complete history, including undone context records. These annotations cover
+all dates for that participant, independently of the numerical range; the export does
+not infer a label for each window or treat recollection as verified activity.
+
+The worker seals a streaming canonical SHA-256 of the full quality report into the
+numerical discovery summary. Full export checks that digest, analysis/source identities,
+window scope and counts before writing a response. Older analyses without the seal need
+a rerun; no historical version is rewritten. Feature units, band definitions, method and
+runtime context, timezone, requested range and excluded/failed/remainder accounting remain
+in JSON and the manifest. Acquisition records retain right-ear cloud placement rather
+than relying on filenames. Quality group summaries are screening contexts, not clusters.
+
+**Download all retained numerical history** on Recording changes writes every scoped
+retained capture and its metadata in a single SQLite read transaction, including captures
+that never became active. `history.json` reports the complete count and zero omissions;
+`versions/<identity>.json` contains each validated sealed summary. This works without a
+numerical runtime and without current source data. It includes no other participants or
+sources. Empty history produces an explicit zero-version archive without initializing a
+store. Corrupt history fails the entire export; it is never silently skipped.
+
+Both ZIPs include `manifest.json` with SHA-256 and byte counts for every other member,
+row counts where applicable, a content identity, scope and explicit omissions. Fixed ZIP
+dates, permissions, order and uncompressed members make unchanged downloads byte-identical.
+The manifest does not hash itself; its identity hashes the manifest excluding that identity.
+These checks detect mismatches, not authenticity against a malicious editor who recomputes
+all hashes. HTML includes its charts/styles and requires no server or external assets.
+
+The audit ZIP excludes raw EEG samples, Bluetooth-file ingestion, optional clustering/PCA
+sidecars and complete question/direction histories (the composed report keeps its stated
+bounds). History is a separate download; it contains compact summaries, not full historical
+window rows or raw waveforms. Neither ZIP includes credentials. These are portable audit
+artifacts, **not implemented automatic restore/import formats**. Keep the complete profile
+separately for recovery. Downloading history neither deletes it nor lifts its existing
+200-version/128-MB limits; publication at capacity still fails explicitly.
+
+`GET /api/export/analysis-bundle.zip` requires the displayed `identity`, applied `question`
+and `lens`. `GET /api/export/monitoring-history.zip` exports the selected source/participant.
+Current export guards source/human/decision/presentation freshness again after preparation;
+a changed snapshot, invalid scope, corruption or output bound fails before HTTP 200. Bulk
+encoding runs outside the lifecycle lock. Secure temporary files are cleaned on success,
+failure or disconnected transfer. Full quality input is limited to 256 MB and total ZIP
+member content to 768 MB, all-or-error; narrow the analysis range if needed. Exports perform
+no migrations, extraction, label writes or history eviction. Numerical runtime bundling
+remains W4 and native release/recovery acceptance remains W5.

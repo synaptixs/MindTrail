@@ -44,6 +44,8 @@
         <p id="report-status" role="status" aria-live="polite">Loading…</p>
         <div class="discovery-actions"><button class="button primary" id="report-analyze">Analyze saved recordings</button><button class="button subtle" id="report-refresh">Refresh report</button><a class="button subtle" id="report-html" hidden>Download standalone HTML</a><a class="button subtle" id="report-json" hidden>Download report JSON</a></div>
         <p>The HTML download includes its charts and styles and works offline. Exported numerical and human sections retain their stated bounds and identities.</p>
+        <p><a class="button subtle" id="report-bundle" hidden>Download analysis audit ZIP</a></p>
+        <p>The audit ZIP adds every computed feature window in JSON/CSV, units, screening settings, complete activity and window-context audit histories, and a checksum manifest. It excludes raw EEG and full question/direction histories; it is not a profile restore file. Human annotations include all dates for the selected participant.</p>
         <section class="card report-controls"><h2>Choose the question for this report</h2>
           <p>Use the starter prompt or one of your own saved questions. Select an evidence view yourself; the app does not infer the meaning of a question.</p>
           <form id="report-view-form"><label for="report-view-question">Question for this report</label><select id="report-view-question"><option value="">Starter investigation (not saved)</option></select>
