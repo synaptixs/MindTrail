@@ -104,7 +104,7 @@ class WorkflowTests(unittest.TestCase):
             def handle_starttag(self,tag,attrs):
                 if tag in ('script','link','img','iframe'):raise AssertionError(tag)
                 for key,val in attrs:
-                    if key in ('src','href'):raise AssertionError((key,val))
+                    if key=='src' or key=='href' and not val.startswith('#'):raise AssertionError((key,val))
         Offline().feed(html.decode());self.assertNotIn(b'url(',html);self.assertNotIn(b'@import',html)
         for key in ('reportIdentity','analysisIdentity'):self.assertIn(n[key].encode(),html)
         clipped=deepcopy(v);g=clipped['numerical']['families'][0];g['conditions']=g['conditions']*100

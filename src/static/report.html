@@ -43,11 +43,18 @@
         <p id="report-status" role="status" aria-live="polite">Loading…</p>
         <div class="discovery-actions"><button class="button primary" id="report-analyze">Analyze saved recordings</button><button class="button subtle" id="report-refresh">Refresh report</button><a class="button subtle" id="report-html" hidden>Download standalone HTML</a><a class="button subtle" id="report-json" hidden>Download report JSON</a></div>
         <p>The HTML download includes its charts and styles and works offline. Exported numerical and human sections retain their stated bounds and identities.</p>
+        <section class="card report-controls"><h2>Choose the question for this report</h2>
+          <p>Use the starter prompt or one of your own saved questions. Select an evidence view yourself; the app does not infer the meaning of a question.</p>
+          <form id="report-view-form"><label for="report-view-question">Question for this report</label><select id="report-view-question"><option value="">Starter investigation (not saved)</option></select>
+            <label for="report-lens">Evidence view</label><select id="report-lens"><option value="recurrence_conditions">Spectral recurrence and recording conditions</option><option value="daily_variation">Daily feature variation</option><option value="open_review">Open question / manual evidence review</option></select>
+            <button class="button subtle" id="report-apply">Apply to report</button></form>
+          <p><a href="/discover.html#question">Write or edit your own question →</a></p><p id="report-view-message" role="status" aria-live="polite"></p>
+        </section>
         <div id="report-body"></div>
         <section class="card report-controls"><h2>Record your next direction</h2><p>Optional: record a direction against this evidence snapshot. This records intent without running inference, reserving dates, changing activity assignments or requiring matched tasks.</p>
           <form id="report-decision-form"><fieldset id="report-fields" disabled><legend>Owner direction</legend>
             <label>Direction<select id="report-choice" required><option value="">Choose a direction</option><option value="continue_discovery">Keep exploring without mandatory labels</option><option value="collect_context">Collect more data or optional context</option><option value="plan_matched_recording">Plan matched recordings later</option><option value="insufficient_evidence">Insufficient evidence for a next question</option></select></label>
-            <label>Personal question (optional)<select id="report-question"><option value="">No question selected</option></select></label>
+            <label>Question tied to this direction (optional)<select id="report-question"><option value="">No question selected</option></select></label>
             <label>Reason or missing evidence (optional)<textarea id="report-notes" maxlength="2000" rows="3"></textarea></label><button class="button primary" id="report-save">Save direction</button>
           </fieldset></form><p id="report-message" role="status" aria-live="polite"></p>
           <h3>Saved direction history</h3><p id="report-history-count"></p><div id="report-history" class="report-history"></div><button class="button subtle" id="report-more-history" hidden>More direction history</button>

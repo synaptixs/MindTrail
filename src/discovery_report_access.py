@@ -84,7 +84,7 @@ def capture(manager,participant):
         return value
 
 
-def page(manager,participant,expected=None,*,internal=False):
+def page(manager,participant,expected=None,*,internal=False,question=None,lens="recurrence_conditions"):
     value=capture(manager,participant)
     if value['status']!='current':return value
     from discovery_decisions import read,signature
@@ -92,6 +92,8 @@ def page(manager,participant,expected=None,*,internal=False):
     before=signature(manager);decision=read(manager,participant)
     if before!=signature(manager) or not guard_current(manager,value['_guard']):return {'status':'stale','participantId':participant}
     value['decision']=decision;value['decisionRelation']='not_recorded' if decision['record'] is None else 'current_evidence' if decision['record']['evidenceIdentity']==value['evidenceIdentity'] else 'earlier_evidence'
+    from discovery_insights import build
+    value['investigation']=build(value['numerical'],value['human'],question,lens)
     value['presentationIdentity']=presentation_identity()
     value['snapshotIdentity']=fingerprint({k:v for k,v in value.items() if k not in ('_guard','status')})
     if expected is not None and expected!=value['snapshotIdentity']:raise ValueError('Report changed. Refresh before exporting this snapshot.')

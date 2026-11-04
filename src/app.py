@@ -964,7 +964,7 @@ class Handler(BaseHTTPRequestHandler):
                 from discovery_report_access import page,recheck
                 from discovery_report_render import sections,document
                 from analysis_provenance import canonical_json
-                value=page(self.server.analysis,self._selected(),params.get('identity',[None])[0],internal=True)
+                value=page(self.server.analysis,self._selected(),params.get('identity',[None])[0],internal=True,question=params.get('question',[None])[0],lens=params.get('lens',['recurrence_conditions'])[0])
                 if route.path.startswith('/api/export/'):
                     if value['status']!='current':raise ValueError('A current discovery report is required before export')
                     html=route.path.endswith('.html');output=document(value) if html else canonical_json({k:v for k,v in value.items() if k!='_guard'}).encode('utf-8')
@@ -972,7 +972,7 @@ class Handler(BaseHTTPRequestHandler):
                     self.send_response(200);self.send_header('Content-Type','text/html; charset=utf-8' if html else 'application/json; charset=utf-8');self.send_header('Content-Disposition','attachment; filename="mindtrail-discovery-report.'+('html' if html else 'json')+'"');self.send_header('Cache-Control','no-store');self.send_header('Content-Length',str(len(output)));self.end_headers();self.wfile.write(output);return
                 if route.path.endswith('/view') and value['status']=='current':
                     markup=sections(value,live=True);recheck(self.server.analysis,value)
-                    value={k:value[k] for k in ('status','participantId','evidenceIdentity','snapshotIdentity','decision','decisionRelation')}|{'html':markup,'questions':value['human']['questions']['questions']}
+                    value={k:value[k] for k in ('status','participantId','evidenceIdentity','snapshotIdentity','decision','decisionRelation','investigation')}|{'html':markup,'questions':value['human']['questions']['questions']}
                 elif value['status']=='current':
                     recheck(self.server.analysis,value);value={k:v for k,v in value.items() if k!='_guard'}
                 return self._json(200,value)

@@ -584,3 +584,8 @@ Open **Discovery report** for a summary of daily variation, change cues, cross-d
 candidates and missing context. Download a self-contained HTML report or JSON snapshot,
 and optionally record what to explore next—including insufficient evidence. Labels are
 optional. See [report scope and export limits](docs/DISCOVERY_READINESS.md#discovery-report-and-next-direction-p4-w5).
+
+In **Discovery report**, use the starter investigation or apply your own saved question
+with a selected evidence view. Daily/context ranges, coverage and cross-day sensitivity
+stay linked to their detailed evidence. The view is exploratory; it does not infer the
+meaning of your question or provide a confirmed activity or mental-state result.

@@ -358,3 +358,62 @@ report page and direction-store preservation, but does not yet run numerical ana
 The report implements no inference, prediction, contact measurement, activity validation,
 confirmation holdout, Bluetooth-file ingestion or mental-state score. Any later inference
 requires its own justified protocol and the retained safeguards.
+
+## Question-linked longitudinal views (P5-W1)
+
+The report now begins with a question-led evidence summary. Use its **starter investigation**
+without saving anything, or select one of your own questions. Choose **Spectral recurrence
+and recording conditions**, **Daily feature variation**, or **Open question / manual evidence
+review**, then click **Apply to report**. Discover recordings also links each saved question
+to its report in the open/manual view. Titles remain unrestricted personal text; the app
+never interprets a question or automatically establishes that the evidence answers it.
+
+`discovery_insights.py` owns these deterministic stdlib facts. It consumes the existing sealed
+numerical report and exact question snapshot, not raw waveforms, paths or inferred activities.
+Within each incompatible acquisition family it retains complete window counts, dates and
+exact-context rows with feature support, known/unknown sessions and recorded/missing context
+durations. Context durations can overlap across contexts; they are not pooled wearing time.
+Whole-day support excludes day-boundary window touches, which remain explicitly accounted.
+The range of daily/exact-context **medians** identifies the exact first extremum row, its
+window counts and the number of tied rows. It is not a pooled effect, uncertainty interval,
+independent-day count or an inferential estimate. All condition quartiles remain in numerical
+JSON and the existing linked daily distributions.
+
+Recurrence summaries reuse the at most four existing ordinary probes and their unchanged
+view statuses, full support counts, top-ten date-minimum bounds, and common-shown-date
+sensitivity. Links open the existing reference details with distances and contributions;
+no new search, stability calculation, clustering default or recurrence-prevalence estimate
+is introduced. Empty, no-unflagged, no-whole-day, no-cross-day and uninformative sampled-probe
+support remain distinct from descriptive evidence. Uninformative probes do not establish
+absence of recurrence. A daily-only view may describe a single observed date without
+claiming longitudinal replication. Open/manual review makes no automatic answer.
+
+A saved question's ID, revision, title, notes, stage and saved analysis identity enter the
+report snapshot. Same-analysis versus earlier-analysis relationships are explicit; current
+viewing does not rewrite or revalidate old questions. A `candidate` still reserves no
+confirmation data and validates no finding. The starter prompt is clearly not a saved human
+question. No question-store migration, automatic question creation or activity-label write
+is needed. Viewing a report leaves recordings, human questions/context and directions intact.
+
+Existing report/view/HTML/JSON endpoints accept `question=<scoped question ID>` (empty means
+starter) and `lens=recurrence_conditions|daily_variation|open_review`. Unsupported views and
+unavailable/foreign IDs fail explicitly. The applied selection is carried in the page URL
+and export links. Its exact question/lens/facts/method hash enters `snapshotIdentity`; the
+underlying `evidenceIdentity` used for direction concurrency is independent of view choice.
+Question edits, source changes and model/renderer/CSS edits invalidate matching exports;
+post-render guards still apply. A draft selection does not silently alter the displayed
+report/export, and direction notes survive explicit view refresh. No invalid question is
+silently replaced by another. Wrong-scope and stale results are withheld.
+
+First 20 family summaries are shown with full/omitted totals; all summary families remain
+in JSON alongside the existing complete numerical condition rows. Existing 16 MB composite
+and 32 MB HTML limits fail explicitly. The same escaped renderer serves live and offline
+views. Offline inspection uses local fragment links and inline assets only; source IDs,
+cutoff, units, screening limits, unknown contact/session context, unconfirmed status and
+method identities remain available away from the app.
+
+P5-W2 new-session monitoring/version retention, P5-W3 expanded exports, P5-W4 numerical
+runtime bundling and P5-W5 native release acceptance remain separate increments. Current
+stdlib installers include the question-report reader/assets and continue to show numerical
+analysis as unavailable until the runtime is bundled. There is no activity/state recognition,
+causal interpretation, inferential estimator or confirmation reservation in this increment.
