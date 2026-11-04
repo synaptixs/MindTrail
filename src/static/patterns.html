@@ -9,40 +9,29 @@
   <link rel="stylesheet" href="/style.css">
   <link rel="stylesheet" href="/patterns.css">
   <script src="/patterns.js" defer></script>
+  <script src="/navigation.js" defer></script>
 </head>
 <body>
   <div class="shell">
     <aside class="rail">
       <div class="brand"><div class="brand-mark">M<span>·</span></div><div><strong>MindTrail</strong><small>LAB</small></div></div>
       <div class="rail-rule"></div>
-      <nav aria-label="Sections">
-        <a class="nav-link" href="/"><span class="nav-icon">◫</span> Overview</a>
-        <a class="nav-link" href="/#activity"><span class="nav-icon">◷</span> Activity log</a>
-        <a class="nav-link" href="/#recorded-periods"><span class="nav-icon">▤</span> Recorded periods</a>
-        <a class="nav-link" href="/eeg.html"><span class="nav-icon">∿</span> EEG signal</a>
-        <a class="nav-link" href="/bluetooth.html"><span class="nav-icon">ᛒ</span> Bluetooth</a>
-        <a class="nav-link" href="/quality.html"><span class="nav-icon">✓</span> Recording quality</a>
-        <a class="nav-link" href="/review.html"><span class="nav-icon">☷</span> Episode review</a>
-        <a class="nav-link active" href="/patterns.html" aria-current="page"><span class="nav-icon">◩</span> Signal patterns</a>
-        <a class="nav-link" href="/data.html"><span class="nav-icon">▦</span> Data tables</a>
-        <a class="nav-link" href="/#exports"><span class="nav-icon">⇩</span> Exports</a>
-      </nav>
+      <nav aria-label="Sections"><a class="nav-link" href="/"><span class="nav-icon" aria-hidden="true">◫</span> Overview</a><a class="nav-link" href="/#recorded-periods"><span class="nav-icon" aria-hidden="true">▤</span> Recordings</a><a class="nav-link" href="/journey.html"><span class="nav-icon" aria-hidden="true">◇</span> Explore</a><details class="nav-more"><summary>More tools</summary><a class="nav-link" href="/#activity"><span class="nav-icon" aria-hidden="true">◷</span> Activity log</a><a class="nav-link" href="/eeg.html"><span class="nav-icon" aria-hidden="true">∿</span> EEG signal</a><a class="nav-link" href="/quality.html"><span class="nav-icon" aria-hidden="true">✓</span> Recording quality</a><a class="nav-link" href="/discover.html"><span class="nav-icon" aria-hidden="true">◇</span> Daily discovery</a><a class="nav-link" href="/recurrence.html"><span class="nav-icon" aria-hidden="true">↔</span> Across days</a><a class="nav-link" href="/explore.html"><span class="nav-icon" aria-hidden="true">◌</span> Feature explorer</a><a class="nav-link" href="/compare.html"><span class="nav-icon" aria-hidden="true">≋</span> Activity comparisons</a><a class="nav-link" href="/context.html"><span class="nav-icon" aria-hidden="true">✎</span> Optional context</a><a class="nav-link" href="/report.html"><span class="nav-icon" aria-hidden="true">▧</span> Discovery report</a><a class="nav-link" href="/monitor.html"><span class="nav-icon" aria-hidden="true">↗</span> Recording changes</a><a class="nav-link" href="/review.html"><span class="nav-icon" aria-hidden="true">☷</span> Episode review</a><a class="nav-link" href="/data.html"><span class="nav-icon" aria-hidden="true">▦</span> Data tables</a><a class="nav-link" href="/bluetooth.html"><span class="nav-icon" aria-hidden="true">ᛒ</span> Bluetooth</a><a class="nav-link active" href="/patterns.html" aria-current="page"><span class="nav-icon" aria-hidden="true">◩</span> Archived patterns</a><a class="nav-link" href="/#exports"><span class="nav-icon" aria-hidden="true">⇩</span> Exports</a></details></nav>
       <div class="rail-bottom"><div class="local-card"><span class="green-dot"></span><div><strong>Private workspace</strong><small>Data stored on this computer</small></div></div><div class="rail-foot">AWEAR data · Local dashboard<br>Exploratory signal analysis</div></div>
     </aside>
     <main>
       <header class="topbar"><div class="breadcrumb">Personal lab <span>/</span> Signal patterns</div><div class="top-actions"><span id="participant" class="pill">Loading source…</span></div></header>
       <div class="content patterns-content">
         <div class="eyebrow">RIGHT TEMPORAL · EXPLORATORY</div>
-        <h1>Signal patterns<span class="title-dot">.</span></h1>
-        <p class="lead">See recurring signal shapes and recording-quality flags before assigning your own activity labels.</p>
+        <h1>Archived patterns<span class="title-dot">.</span></h1>
+        <p class="lead">Previously generated pattern reports are kept here. Start new exploration from your recordings.</p>
         <div id="notice" class="notice" role="status" hidden></div>
         <section id="empty" class="card patterns-empty" hidden>
-          <h2>No analysis report yet</h2>
-          <p>Run the local analysis command, then reload this page. The analysis reads your saved EEG and does not change it.</p>
-          <code>python src/analyze_patterns.py</code>
-          <p>Use a Python environment with NumPy and scikit-learn. Your live dashboard still runs with standard Python.</p>
+          <h2>No archived pattern report</h2>
+          <p>You don’t need to generate one to explore. MindTrail can prepare a first look at your saved recordings inside the app.</p>
+          <a class="button primary" href="/journey.html">Explore my recordings →</a>
         </section>
-        <p><a href="/explore.html">Explore features and PCA →</a></p>
+
         <div id="report" hidden>
           <div class="patterns-meta"><span id="generated">—</span><span id="source-records">—</span><span id="source-status">—</span></div>
           <section class="patterns-metrics" aria-label="Pattern overview">

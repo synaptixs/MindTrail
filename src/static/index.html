@@ -9,30 +9,15 @@
   <link rel="stylesheet" href="/style.css">
   <script src="/interval_time.js"></script>
   <script src="/app.js" defer></script>
+  <script src="/journey.js" defer></script>
+  <script src="/navigation.js" defer></script>
 </head>
 <body>
   <div class="shell">
     <aside class="rail">
       <div class="brand"><div class="brand-mark">M<span>·</span></div><div><strong>MindTrail</strong><small>LAB</small></div></div>
       <div class="rail-rule"></div>
-      <nav aria-label="Sections">
-        <a class="nav-link active" href="#overview"><span class="nav-icon">◫</span> Overview</a>
-        <a class="nav-link" href="#activity"><span class="nav-icon">◷</span> Activity log</a>
-        <a class="nav-link" href="#recorded-periods"><span class="nav-icon">▤</span> Recorded periods</a>
-        <a class="nav-link" href="/eeg.html"><span class="nav-icon">∿</span> EEG signal</a>
-        <a class="nav-link" href="/bluetooth.html"><span class="nav-icon">ᛒ</span> Bluetooth</a>
-        <a class="nav-link" href="/discover.html"><span class="nav-icon">◇</span> Discover recordings</a>
-        <a class="nav-link" href="/recurrence.html"><span class="nav-icon">↔</span> Across days</a>
-        <a class="nav-link" href="/context.html"><span class="nav-icon">✎</span> Optional context</a>
-        <a class="nav-link" href="/report.html"><span class="nav-icon">▧</span> Discovery report</a>
-        <a class="nav-link" href="/quality.html"><span class="nav-icon">✓</span> Recording quality</a>
-        <a class="nav-link" href="/review.html"><span class="nav-icon">☷</span> Episode review</a>
-        <a class="nav-link" href="/patterns.html"><span class="nav-icon">◩</span> Signal patterns</a>
-        <a class="nav-link" href="/data.html"><span class="nav-icon">▦</span> Data tables</a>
-        <a id="desktop-settings" class="nav-link" href="/welcome.html" hidden><span class="nav-icon">⚙</span> Settings &amp; quit</a>
-        <a class="nav-link" href="#exports"><span class="nav-icon">⇩</span> Exports</a>
-        <a class="nav-link" href="/monitor.html"><span class="nav-icon">↗</span> Recording changes</a>
-      </nav>
+      <nav aria-label="Sections"><a class="nav-link active" href="/" aria-current="page"><span class="nav-icon" aria-hidden="true">◫</span> Overview</a><a class="nav-link" href="/#recorded-periods"><span class="nav-icon" aria-hidden="true">▤</span> Recordings</a><a class="nav-link" href="/journey.html"><span class="nav-icon" aria-hidden="true">◇</span> Explore</a><details class="nav-more"><summary>More tools</summary><a class="nav-link" href="/#activity"><span class="nav-icon" aria-hidden="true">◷</span> Activity log</a><a class="nav-link" href="/eeg.html"><span class="nav-icon" aria-hidden="true">∿</span> EEG signal</a><a class="nav-link" href="/quality.html"><span class="nav-icon" aria-hidden="true">✓</span> Recording quality</a><a class="nav-link" href="/discover.html"><span class="nav-icon" aria-hidden="true">◇</span> Daily discovery</a><a class="nav-link" href="/recurrence.html"><span class="nav-icon" aria-hidden="true">↔</span> Across days</a><a class="nav-link" href="/explore.html"><span class="nav-icon" aria-hidden="true">◌</span> Feature explorer</a><a class="nav-link" href="/compare.html"><span class="nav-icon" aria-hidden="true">≋</span> Activity comparisons</a><a class="nav-link" href="/context.html"><span class="nav-icon" aria-hidden="true">✎</span> Optional context</a><a class="nav-link" href="/report.html"><span class="nav-icon" aria-hidden="true">▧</span> Discovery report</a><a class="nav-link" href="/monitor.html"><span class="nav-icon" aria-hidden="true">↗</span> Recording changes</a><a class="nav-link" href="/review.html"><span class="nav-icon" aria-hidden="true">☷</span> Episode review</a><a class="nav-link" href="/data.html"><span class="nav-icon" aria-hidden="true">▦</span> Data tables</a><a class="nav-link" href="/bluetooth.html"><span class="nav-icon" aria-hidden="true">ᛒ</span> Bluetooth</a><a class="nav-link" href="/patterns.html"><span class="nav-icon" aria-hidden="true">◩</span> Archived patterns</a><a class="nav-link" href="/#exports"><span class="nav-icon" aria-hidden="true">⇩</span> Exports</a></details></nav><a id="desktop-settings" class="nav-link" href="/welcome.html" hidden><span class="nav-icon">⚙</span> Settings &amp; quit</a>
       <div class="rail-bottom">
         <div class="local-card"><span class="green-dot"></span><div><strong>Private workspace</strong><small>Data stored on this computer</small></div></div>
         <div class="rail-foot">AWEAR data · Local dashboard<br>Exploratory signal analysis</div>
@@ -47,8 +32,8 @@
 
       <div class="content">
         <section class="heading-row">
-          <div><div class="eyebrow">YOUR EEG WORKSPACE</div><h1>Signal overview<span class="title-dot">.</span></h1><p class="lead">Explore your recordings in context, one activity at a time.</p></div>
-          <div class="heading-actions"><button id="source-button" class="button subtle" type="button">◈ Source</button><button id="sync-button" class="button subtle" type="button">↻ <span>Sync now</span></button><div class="range-switch" role="group" aria-label="Time range"><button type="button" data-range="4" aria-pressed="false">4h</button><button type="button" data-range="24" aria-pressed="false">24h</button><button type="button" data-range="168" class="selected" aria-pressed="true">7d</button></div></div>
+          <div><div class="eyebrow">YOUR EEG WORKSPACE</div><h1>Your recordings<span class="title-dot">.</span></h1><p class="lead">Connect once. See your recordings as they arrive. Explore when you’re ready.</p></div>
+          <div class="heading-actions"><details class="recording-controls"><summary>Recording controls</summary><div class="recording-controls-body"><button id="source-button" class="button subtle" type="button">◈ Source</button><button id="sync-button" class="button subtle" type="button">↻ <span>Sync now</span></button><div class="range-switch" role="group" aria-label="Time range"><button type="button" data-range="4" aria-pressed="false">4h</button><button type="button" data-range="24" aria-pressed="false">24h</button><button type="button" data-range="168" class="selected" aria-pressed="true">7d</button></div></div></details></div>
         </section>
 
         <div id="notice" class="notice" role="status" hidden></div>
@@ -58,6 +43,50 @@
           <form id="setup-form" class="setup-form"><label>Participant ID<select id="participant-select" required><option value="">Loading participants…</option></select></label><label>Sync recordings since<input id="sync-start" type="datetime-local" required></label><button id="connect-button" class="button primary" type="submit">Connect &amp; sync <span>↗</span></button></form>
         </section>
 
+        <section class="card journey-card" id="journey-card" aria-labelledby="journey-title">
+          <div><div class="eyebrow">ONE STEP AT A TIME</div><h2 id="journey-title">Finding your recordings…</h2><p id="journey-note">Your saved recordings will appear here.</p><small id="journey-records"></small></div>
+          <div class="journey-actions"><button type="button" class="button primary" id="journey-action" hidden></button><a class="button primary" id="journey-link" hidden></a><progress id="journey-progress" aria-label="Preparing recording insights" hidden></progress></div>
+          <div id="journey-error" role="status" hidden><span id="journey-error-text">We couldn’t check your workspace.</span> <button type="button" class="button subtle" id="journey-retry">Try again</button></div>
+        </section>
+        <section id="recorded-periods" class="recorded-section card" aria-labelledby="recorded-title">
+          <div class="section-head recorded-heading"><div><div class="eyebrow">EVERY RECORDING · FIRST TO LAST</div><h2 id="recorded-title">Daily recordings</h2><p>Your full recording day, from first to last sample. Drag either edge to zoom; add an activity only if you want to.</p><p id="recorded-refreshed" role="status">Refreshes every 10 seconds while this page is open.</p></div><span id="interval-count" class="count-badge">Loading…</span></div>
+          <div id="intervals-list" class="intervals-list" role="list"><div class="empty-state">Loading recorded periods…</div></div>
+          <div class="intervals-footer"><button id="load-older" class="button subtle" type="button" hidden>Load older periods ↓</button></div>
+        </section>
+
+        <div id="journey-options" class="journey-options" hidden>
+          <a id="journey-days" href="/recurrence.html" hidden><strong>Compare recording days →</strong><span>Inspect recurring shapes and recording conditions.</span></a>
+          <a href="/report.html"><strong>See my recording summary →</strong><span>Review findings, missing context and a downloadable report.</span></a>
+        </div>
+        <details class="optional-tools" id="activity-tools"><summary>Add or edit an activity <span>Optional</span></summary>
+        <section id="activity" class="activity-section">
+          <div class="section-head activity-heading"><div><div class="eyebrow">ADD CONTEXT</div><h2>Activity log</h2><p>Add an activity here, or click Edit beside a label in Recorded periods to change its name, note, or times.</p></div></div>
+          <div class="activity-grid">
+            <div class="card label-editor"><div class="editor-tabs" role="tablist" aria-label="Label mode"><button id="live-tab" class="selected" type="button" role="tab" aria-selected="true">Live activity</button><button id="past-tab" type="button" role="tab" aria-selected="false">Past interval</button></div>
+              <form id="label-form"><div class="form-fields"><label>Activity name<input id="label-name" list="personal-activities" maxlength="80" placeholder="e.g. Reading, walking, focused work" required></label><datalist id="personal-activities"></datalist><label>Note <span class="optional">optional</span><input id="label-note" maxlength="500" placeholder="What was happening?" /></label><fieldset class="label-evidence"><legend>Label confidence and timing</legend><label for="label-review">Review state<select id="label-review"><option value="confirmed">Confirmed by me</option><option value="needs_review">Needs review</option><option value="uncertain">Unsure of activity</option></select></label><label for="label-precision">Timing precision<select id="label-precision"><option value="unknown">Unknown / not recorded</option><option value="exact">Known boundaries</option><option value="approximate">Approximate boundaries</option></select></label><div id="label-uncertainty" hidden><label>Start uncertainty ± seconds<input id="label-start-uncertainty" type="number" min="0" max="86400" step="0.001" placeholder="Unknown"></label><label>End uncertainty ± seconds<input id="label-end-uncertainty" type="number" min="0" max="86400" step="0.001" placeholder="Unknown"></label></div><p id="label-origin">Origin: entered by you. Timing stays unknown unless you specify it.</p><small>Review confidence and timing are independent. Approximate timing needs a positive uncertainty; leave an unknown boundary blank. These are your estimates, not EEG quality scores.</small></fieldset><div id="interval-fields" class="interval-fields" hidden><label>Start · New York<input id="label-start" type="datetime-local" step="0.001"></label><label>Start occurrence<select id="label-start-offset"><option value="">Resolve entered time</option></select></label><label>End · New York<input id="label-end" type="datetime-local" step="0.001"></label><label>End occurrence<select id="label-end-offset"><option value="">Resolve entered time</option></select></label><p id="label-clock-status" role="status">Times use America/New_York. Repeated hours require an explicit EDT/EST choice.</p></div></div><button id="label-submit" class="button primary full" type="submit">Start activity <span>→</span></button><button id="delete-label-edit" class="button subtle delete-edit" type="button" hidden>Delete activity</button><button id="cancel-label-edit" class="button subtle cancel-edit" type="button" hidden>Cancel editing</button></form>
+              <div id="active-activity" class="active-activity" hidden></div>
+            </div>
+
+          </div>
+          <details class="personal-activities card" id="personal-activity-manager">
+            <summary>Your activities <span id="activity-total" class="small-badge">Loading…</span></summary>
+            <p>Use names that fit your life. Favorites appear first, followed by recently labeled or edited activities. Archived activities keep their existing periods and history.</p>
+            <form id="activity-definition-form">
+              <div class="personal-fields"><label>Name<input id="activity-definition-name" maxlength="80" required placeholder="Your activity name"></label><label>Category <small>optional</small><input id="activity-definition-category" maxlength="80" placeholder="Your grouping"></label><label>Context <small>optional</small><input id="activity-definition-context" maxlength="500" placeholder="Description of this activity"></label></div>
+              <label class="personal-checkbox"><input id="activity-definition-favorite" type="checkbox"> Favorite</label>
+              <p id="activity-definition-impact" role="status">Add an activity here, or type a new name when labeling a period.</p>
+              <div class="personal-actions"><button class="button primary" id="activity-definition-save" type="submit">Add activity</button><button class="button subtle" id="activity-definition-cancel" type="button" hidden>Cancel editing</button><button class="button subtle" id="activity-refresh" type="button">Refresh list</button></div>
+            </form>
+            <p id="activity-list-status" role="status"></p>
+            <div class="personal-table-scroll"><table class="personal-table"><thead><tr><th>Activity</th><th>Periods</th><th>Manage</th></tr></thead><tbody id="personal-activity-list"></tbody></table></div>
+            <button class="button subtle" id="activity-load-more" type="button" hidden>Load more activities</button>
+            <div id="activity-name-history" class="personal-history" aria-live="polite"></div>
+            <div class="personal-actions"><a class="button subtle" href="/api/export/activity-assignments.csv">↓ Assignments with IDs · CSV</a><a class="button subtle" href="/api/export/activities.json">↓ Activities &amp; history · JSON</a></div>
+          </details>
+        </section>
+
+        </details>
+        <details class="optional-tools" id="signal-tools"><summary>Signal details and exports</summary>
         <section class="metrics" aria-label="Signal summary">
           <article class="metric card"><div class="metric-label">RECORDED TIME <span>◷</span></div><div id="recorded-time" class="metric-value">—</div><div class="metric-meta">One record ≈ one second</div></article>
           <article class="metric card"><div class="metric-label">WINDOW COVERAGE <span>◫</span></div><div id="coverage" class="metric-value">—</div><div class="metric-meta">Received seconds in selected window</div></article>
@@ -66,7 +95,7 @@
         </section>
 
         <section class="chart-card card" aria-labelledby="chart-title">
-          <div class="section-head"><div><div class="eyebrow">SIGNAL TREND · ALL RECORDED HOURS</div><h2 id="chart-title">Amplitude over time</h2><p>Includes recordings before 8 AM and after 4 PM. Shading marks activity labels; the work guideline does not limit the graph.</p></div><div class="legend"><span class="legend-line"></span> AC RMS <span class="legend-shade"></span> Activity</div></div>
+          <div class="section-head"><div><div class="eyebrow">SIGNAL TREND · ALL RECORDED HOURS</div><h2 id="chart-title">Amplitude over time</h2><p>All recorded hours in the selected range. Shading marks your activity labels.</p></div><div class="legend"><span class="legend-line"></span> AC RMS <span class="legend-shade"></span> Activity</div></div>
           <div class="chart-stage"><div id="trend-chart" class="chart" role="img" aria-label="EEG amplitude chart"></div>
               <svg id="range-brush" class="range-brush" viewBox="0 0 900 230" preserveAspectRatio="none" aria-label="Select a time interval on the amplitude graph">
                 <rect id="brush-before" class="brush-dim" y="12" height="192"/>
@@ -101,40 +130,9 @@
           <article class="card activities-card"><div class="section-head compact"><div><div class="eyebrow">ACTIVITY COMPARISON · ALL RECORDED HOURS</div><h2>Activities and unassigned time</h2></div></div><p class="card-intro">Includes every recording in the selected window. Time without a label appears as No activity assigned, including before and after work. Motion and contact quality can affect amplitude.</p><div id="activity-comparison" class="activity-comparison"><div class="empty-state">Loading recorded activities…</div></div></article>
         </section>
 
-        <section id="activity" class="activity-section">
-          <div class="section-head activity-heading"><div><div class="eyebrow">ADD CONTEXT</div><h2>Activity log</h2><p>Add an activity here, or click Edit beside a label in Recorded periods to change its name, note, or times.</p></div></div>
-          <div class="activity-grid">
-            <div class="card label-editor"><div class="editor-tabs" role="tablist" aria-label="Label mode"><button id="live-tab" class="selected" type="button" role="tab" aria-selected="true">Live activity</button><button id="past-tab" type="button" role="tab" aria-selected="false">Past interval</button></div>
-              <form id="label-form"><div class="form-fields"><label>Activity name<input id="label-name" list="personal-activities" maxlength="80" placeholder="e.g. Reading, walking, focused work" required></label><datalist id="personal-activities"></datalist><label>Note <span class="optional">optional</span><input id="label-note" maxlength="500" placeholder="What was happening?" /></label><fieldset class="label-evidence"><legend>Label confidence and timing</legend><label for="label-review">Review state<select id="label-review"><option value="confirmed">Confirmed by me</option><option value="needs_review">Needs review</option><option value="uncertain">Unsure of activity</option></select></label><label for="label-precision">Timing precision<select id="label-precision"><option value="unknown">Unknown / not recorded</option><option value="exact">Known boundaries</option><option value="approximate">Approximate boundaries</option></select></label><div id="label-uncertainty" hidden><label>Start uncertainty ± seconds<input id="label-start-uncertainty" type="number" min="0" max="86400" step="0.001" placeholder="Unknown"></label><label>End uncertainty ± seconds<input id="label-end-uncertainty" type="number" min="0" max="86400" step="0.001" placeholder="Unknown"></label></div><p id="label-origin">Origin: entered by you. Timing stays unknown unless you specify it.</p><small>Review confidence and timing are independent. Approximate timing needs a positive uncertainty; leave an unknown boundary blank. These are your estimates, not EEG quality scores.</small></fieldset><div id="interval-fields" class="interval-fields" hidden><label>Start · New York<input id="label-start" type="datetime-local" step="0.001"></label><label>Start occurrence<select id="label-start-offset"><option value="">Resolve entered time</option></select></label><label>End · New York<input id="label-end" type="datetime-local" step="0.001"></label><label>End occurrence<select id="label-end-offset"><option value="">Resolve entered time</option></select></label><p id="label-clock-status" role="status">Times use America/New_York. Repeated hours require an explicit EDT/EST choice.</p></div></div><button id="label-submit" class="button primary full" type="submit">Start activity <span>→</span></button><button id="delete-label-edit" class="button subtle delete-edit" type="button" hidden>Delete activity</button><button id="cancel-label-edit" class="button subtle cancel-edit" type="button" hidden>Cancel editing</button></form>
-              <div id="active-activity" class="active-activity" hidden></div>
-            </div>
-
-          </div>
-          <details class="personal-activities card" id="personal-activity-manager">
-            <summary>Your activities <span id="activity-total" class="small-badge">Loading…</span></summary>
-            <p>Use names that fit your life. Favorites appear first, followed by recently labeled or edited activities. Archived activities keep their existing periods and history.</p>
-            <form id="activity-definition-form">
-              <div class="personal-fields"><label>Name<input id="activity-definition-name" maxlength="80" required placeholder="Your activity name"></label><label>Category <small>optional</small><input id="activity-definition-category" maxlength="80" placeholder="Your grouping"></label><label>Context <small>optional</small><input id="activity-definition-context" maxlength="500" placeholder="Description of this activity"></label></div>
-              <label class="personal-checkbox"><input id="activity-definition-favorite" type="checkbox"> Favorite</label>
-              <p id="activity-definition-impact" role="status">Add an activity here, or type a new name when labeling a period.</p>
-              <div class="personal-actions"><button class="button primary" id="activity-definition-save" type="submit">Add activity</button><button class="button subtle" id="activity-definition-cancel" type="button" hidden>Cancel editing</button><button class="button subtle" id="activity-refresh" type="button">Refresh list</button></div>
-            </form>
-            <p id="activity-list-status" role="status"></p>
-            <div class="personal-table-scroll"><table class="personal-table"><thead><tr><th>Activity</th><th>Periods</th><th>Manage</th></tr></thead><tbody id="personal-activity-list"></tbody></table></div>
-            <button class="button subtle" id="activity-load-more" type="button" hidden>Load more activities</button>
-            <div id="activity-name-history" class="personal-history" aria-live="polite"></div>
-            <div class="personal-actions"><a class="button subtle" href="/api/export/activity-assignments.csv">↓ Assignments with IDs · CSV</a><a class="button subtle" href="/api/export/activities.json">↓ Activities &amp; history · JSON</a></div>
-          </details>
-        </section>
-
-        <section id="recorded-periods" class="recorded-section card" aria-labelledby="recorded-title">
-          <div class="section-head recorded-heading"><div><div class="eyebrow">EVERY RECORDING · FIRST TO LAST</div><h2 id="recorded-title">Daily recordings &amp; activities</h2><p>Drag either vertical handle on a daily graph, then release to zoom. Assign an activity to that selection, or show the entire day to follow new recordings. Arrow keys adjust seconds; Shift adjusts minutes. Times use America/New_York.</p><p id="recorded-refreshed" role="status">Refreshes every 10 seconds while this page is open.</p></div><span id="interval-count" class="count-badge">Loading…</span></div>
-          <div id="intervals-list" class="intervals-list" role="list"><div class="empty-state">Loading recorded periods…</div></div>
-          <div class="intervals-footer"><button id="load-older" class="button subtle" type="button" hidden>Load older periods ↓</button></div>
-        </section>
-
         <section id="exports" class="exports-card card"><div><div class="eyebrow">YOUR LOCAL COPY</div><h2>Keep your data portable</h2><p>Raw right-ear EEG waveform records are stored in SQLite. Download the selected window as JSONL, or export your activity labels as CSV.</p></div><div class="export-actions"><a id="raw-export" class="button subtle" href="/api/export/raw.jsonl">↓ Raw EEG · JSONL</a><a class="button subtle" href="/api/export/labels.csv">↓ Activity labels · CSV</a></div></section>
         <details class="legacy-observations"><summary>Archived phone observations</summary><p>Previously saved observations are preserved. <a href="/api/export/mobile-scores.csv">Export CSV</a> · <a href="/api/export/mobile-scores.json">Export JSON</a></p></details>
+        </details>
         <footer>Built for personal exploration. Signal amplitude alone does not measure focus, mood, or health.</footer>
       </div>
     </main>
