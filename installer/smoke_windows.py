@@ -301,12 +301,13 @@ with closing(sqlite3.connect(path)) as c,c:
             subprocess.run([str(root / "Uninstall.exe"), "/S"], check=True, timeout=30, env=environment)
             # NSIS runs its uninstaller from a temporary copy; the first process
             # can return before that copy has finished removing installed files.
-            for _ in range(100):
+            for _ in range(300):
                 if not root.exists():
                     break
                 time.sleep(.1)
             else:
-                raise RuntimeError("Uninstaller did not finish removing the temporary installation")
+                remaining=sorted(str(p.relative_to(root)) for p in root.rglob('*'))
+                raise RuntimeError(f"Uninstaller did not remove temporary installation within 30 seconds; {len(remaining)} paths remain; first 20: {remaining[:20]}")
             with closing(sqlite3.connect(profile / 'awear_data.sqlite3')) as db:
                 assert db.execute("SELECT label FROM labels WHERE participant_id='qa-only'").fetchone() == ('Windows upgrade QA',)
                 assert db.execute("SELECT score FROM mobile_scores WHERE participant_id='qa-only'").fetchone() == (42,)
