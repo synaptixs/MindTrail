@@ -4,8 +4,8 @@ End users install the packaged app, enter their API key, and click **Connect**. 
 
 ## Packages
 
-- **Windows x64:** open `MindTrail-Lab-0.2.7-Windows-x64-Setup.exe`. It installs privately under `%LOCALAPPDATA%\Programs\MindTrail Lab`, creates Start menu/Desktop shortcuts, and opens the dashboard automatically. It needs no administrator elevation. The installer contains the official embedded Python runtime and all dependencies; installation downloads nothing.
-- **Mac universal:** open the DMG, then double-click **Install MindTrail Lab**. It installs under `~/Applications/MindTrail Lab.app` and opens it automatically. There is no drag-and-drop step, configuration wizard, or administrator password. The application includes Intel and Apple Silicon code. Intel execution must still be verified on an Intel Mac or with Rosetta.
+- **Windows x64:** open `MindTrail-Lab-0.2.7-Windows-x64-Setup-unsigned.exe`. This preview is explicitly unsigned. It installs privately under `%LOCALAPPDATA%\Programs\MindTrail Lab`, creates Start menu/Desktop shortcuts, and opens the dashboard automatically. It needs no administrator elevation. The installer contains the official embedded Python runtime and all dependencies; installation downloads nothing.
+- **Mac universal:** open the DMG, then double-click **Install MindTrail Lab**. It installs under `~/Applications/MindTrail Lab.app` and opens it automatically. There is no drag-and-drop step, configuration wizard, or administrator password. The application includes Intel and Apple Silicon code. Native numerical analysis and recovery were validated on both architectures.
 
 First run chooses the previously selected participant if accessible, otherwise the first accessible participant in sorted ID order. Personal keys usually have one participant. Keys with several participants show the selected ID and an explanatory notice; **Advanced settings** offers a source selector. The app uses the API's `firstRecord`/`firstSeen` date to sync history automatically. If the earliest date cannot be read, a visible notice explains the seven-day fallback and how to expand it. Reconnecting preserves checkpoints when the source and sync start are unchanged. Raw records and labels are not rewritten.
 
@@ -94,7 +94,7 @@ these alongside the existing desktop runtime, validates dependency closure and i
 analysis sources plus the two exploration configuration files. The Mac builder stages a
 relocated Python runtime and distinct Intel/Apple Silicon vendor trees under app Resources,
 then signs the inner code and reseals the app. App and installer now require macOS 12+.
-Current published releases do not gain these changes until the P5-W5 release.
+The v0.2.7 release includes this offline numerical runtime and complete workspace recovery.
 
 Run `installer/prepare_mac_runtime.py` first as above. The prepared Python framework root
 must match the pinned version and contain both CPUs. `MINDTRAIL_MAC_PYTHON_ROOT` may explicitly
@@ -110,3 +110,33 @@ and uninstall checks. No device scan/record, real key or API sync is performed. 
 features, optional exploration, cache repeatability, arrival/cancel/version/export behavior
 and resource facts are checked. Full signing/notarization, clean-machine and profile recovery
 acceptance remain P5-W5; passing development artifacts are not automatically released.
+
+
+## v0.2.7 release evidence and remaining checks
+
+Application source matches `c8e3c8f63e09dd9bf9a69263bb8e28f0a5b780c2` (merged PR37).
+The v0.2.7 tag also includes the publisher-only Mac signing repair and download
+documentation. `release-provenance.json` records the exact source/build commits.
+The release contains no API keys, private recordings, signing keys or development
+profiles. Complete profile recovery is documented in [architecture](../docs/ARCHITECTURE.md#complete-workspace-recovery-p5-w5-source-builds).
+
+Windows native install/upgrade/credential-vault/uninstall, numerical analysis,
+backup/restore and preserved annotation/history checks run on a disposable GitHub
+Windows runner. Intel Mac native analysis/recovery and universal DMG checks passed
+in PR37; the same application source is used for this release. Mac signing, Apple
+notarization and final installed-app checks are recorded in the release assets.
+
+Windows is deliberately unsigned. Azure signing access is not configured for this
+public repository. The owner approved publishing with genuine-key Windows
+first-run testing **unverified** because no Windows PC is available. Automated
+vault tests use synthetic credentials; private keys are never sent to CI. The
+interactive in-app-browser file-picker check also remains unverified after its
+test backend stalled; automated native HTTP ZIP restore passed on all three CPUs.
+These limitations are retained in the release notes, not reported as passing tests.
+
+The relocated Python framework's root executable owns a resource seal for the
+whole runtime. Sign its child libraries and nested helper app first, then seal
+`runtime/Python`, and finally sign the outer app. The publisher now verifies every
+Mach-O for every architecture explicitly; the outer app's deep check alone does
+not discover all nonstandard nested code under Resources. This ordering follows
+[Apple TN2206](https://developer.apple.com/library/archive/technotes/tn2206/_index.html#//apple_ref/doc/uid/DTS40010466-CH1-TNTAG201).
