@@ -109,6 +109,7 @@ class DesktopTests(unittest.TestCase):
 
     def test_access_needs_launcher_cookie_and_same_origin(self):
         self.assertEqual(self.request("/api/status")[0], 403)
+        self.assertEqual(self.request("/api/workspace")[0], 403)
         self.assertEqual(self.request("/api/desktop/bluetooth", {})[0], 403)
         self.assertEqual(self.request("/launch?token=wrong")[0], 403)
         self.assertEqual(self.launch(), "/welcome.html")

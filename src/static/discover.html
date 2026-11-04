@@ -10,29 +10,14 @@
   <link rel="stylesheet" href="/discover.css">
   <script src="/discover.js" defer></script>
   <script src="/discovery_daily.js" defer></script>
+  <script src="/navigation.js" defer></script>
 </head>
 <body>
   <div class="shell">
     <aside class="rail">
       <div class="brand"><div class="brand-mark">M<span>·</span></div><div><strong>MindTrail</strong><small>LAB</small></div></div>
       <div class="rail-rule"></div>
-      <nav aria-label="Sections">
-        <a class="nav-link" href="/"><span class="nav-icon">◫</span> Overview</a>
-        <a class="nav-link" href="/#activity"><span class="nav-icon">◷</span> Activity log</a>
-        <a class="nav-link" href="/#recorded-periods"><span class="nav-icon">▤</span> Recorded periods</a>
-        <a class="nav-link" href="/eeg.html"><span class="nav-icon">∿</span> EEG signal</a>
-        <a class="nav-link" href="/bluetooth.html"><span class="nav-icon">ᛒ</span> Bluetooth</a>
-        <a class="nav-link active" aria-current="page" href="/discover.html"><span class="nav-icon">◇</span> Discover recordings</a>
-        <a class="nav-link" href="/recurrence.html"><span class="nav-icon">↔</span> Across days</a>
-        <a class="nav-link" href="/context.html"><span class="nav-icon">✎</span> Optional context</a>
-        <a class="nav-link" href="/report.html"><span class="nav-icon">▧</span> Discovery report</a>
-        <a class="nav-link" href="/quality.html"><span class="nav-icon">✓</span> Recording quality</a>
-        <a class="nav-link" href="/review.html"><span class="nav-icon">☷</span> Episode review</a>
-        <a class="nav-link" href="/patterns.html"><span class="nav-icon">◩</span> Signal patterns</a>
-        <a class="nav-link" href="/data.html"><span class="nav-icon">▦</span> Data tables</a>
-        <a class="nav-link" href="/#exports"><span class="nav-icon">⇩</span> Exports</a>
-        <a class="nav-link" href="/monitor.html"><span class="nav-icon">↗</span> Recording changes</a>
-      </nav>
+      <nav aria-label="Sections"><a class="nav-link" href="/"><span class="nav-icon" aria-hidden="true">◫</span> Overview</a><a class="nav-link" href="/#recorded-periods"><span class="nav-icon" aria-hidden="true">▤</span> Recordings</a><a class="nav-link" href="/journey.html"><span class="nav-icon" aria-hidden="true">◇</span> Explore</a><details class="nav-more"><summary>More tools</summary><a class="nav-link" href="/#activity"><span class="nav-icon" aria-hidden="true">◷</span> Activity log</a><a class="nav-link" href="/eeg.html"><span class="nav-icon" aria-hidden="true">∿</span> EEG signal</a><a class="nav-link" href="/quality.html"><span class="nav-icon" aria-hidden="true">✓</span> Recording quality</a><a class="nav-link active" href="/discover.html" aria-current="page"><span class="nav-icon" aria-hidden="true">◇</span> Daily discovery</a><a class="nav-link" href="/recurrence.html"><span class="nav-icon" aria-hidden="true">↔</span> Across days</a><a class="nav-link" href="/explore.html"><span class="nav-icon" aria-hidden="true">◌</span> Feature explorer</a><a class="nav-link" href="/compare.html"><span class="nav-icon" aria-hidden="true">≋</span> Activity comparisons</a><a class="nav-link" href="/context.html"><span class="nav-icon" aria-hidden="true">✎</span> Optional context</a><a class="nav-link" href="/report.html"><span class="nav-icon" aria-hidden="true">▧</span> Discovery report</a><a class="nav-link" href="/monitor.html"><span class="nav-icon" aria-hidden="true">↗</span> Recording changes</a><a class="nav-link" href="/review.html"><span class="nav-icon" aria-hidden="true">☷</span> Episode review</a><a class="nav-link" href="/data.html"><span class="nav-icon" aria-hidden="true">▦</span> Data tables</a><a class="nav-link" href="/bluetooth.html"><span class="nav-icon" aria-hidden="true">ᛒ</span> Bluetooth</a><a class="nav-link" href="/patterns.html"><span class="nav-icon" aria-hidden="true">◩</span> Archived patterns</a><a class="nav-link" href="/#exports"><span class="nav-icon" aria-hidden="true">⇩</span> Exports</a></details></nav>
       <div class="rail-bottom"><div class="local-card"><span class="green-dot"></span><div><strong>Private workspace</strong><small>Data stored on this computer</small></div></div><div class="rail-foot">AWEAR data · Local dashboard<br>Exploratory signal analysis</div></div>
     </aside>
     <main>
@@ -50,6 +35,8 @@
           <div class="daily-controls"><label>Recording context<select id="daily-group"></select></label><label>Observed day<select id="daily-date"></select></label></div>
           <div id="daily-body" hidden><p id="daily-provenance"></p><p id="daily-range-note"></p>
           <div class="discovery-stage"><svg id="daily-features" role="img" aria-label="Daily feature medians and recorded, quality and context lanes"></svg><button type="button" class="discovery-handle" id="daily-left" role="slider" aria-label="Start of discovery range">Ⅱ</button><button type="button" class="discovery-handle" id="daily-right" role="slider" aria-label="End of discovery range">Ⅱ</button></div>
+          <p class="daily-key">Signal summaries use device units. Green marks recorded windows; amber marks screening cues; grey marks missing data. Activity context is optional.</p>
+          <details class="optional-tools"><summary>Inspect timing, changes and source samples</summary>
           <p class="daily-key">u = source units. Green: recorded / computed without flags · amber: screening flag · grey: missing · red: excluded/failure · pale: remainder. Activity context is a separate time-based annotation lane; it does not verify EEG alignment.</p>
           <p>Drag either edge to zoom. For keyboard control, use arrow keys then Enter; Escape cancels. Or enter an ISO timestamp with a UTC offset below.</p>
           <div class="daily-controls"><label>Start (explicit offset)<input type="text" id="daily-start" placeholder="2026-11-03T09:00:00-05:00"></label><label>End, exclusive (explicit offset)<input type="text" id="daily-end" placeholder="2026-11-03T09:30:00-05:00"></label></div>
@@ -60,8 +47,10 @@
           <h3>Changes worth inspecting</h3><p>Heuristic cues compare 60 continuous unflagged seconds before and after each boundary. A score of 3 or more highlights a feature shift; this is not a statistical test or an activity/state boundary.</p><p id="daily-change-note"></p><div id="daily-changes"></div>
           <h3>Inspect actual source samples</h3><div class="discovery-actions"><button type="button" class="button subtle" id="daily-ordinary">Inspect ordinary source window</button><button type="button" class="button subtle" id="daily-flagged">Inspect flagged source window</button></div>
           <div class="daily-controls"><label>Feature bin (whole-window medians)<select id="daily-point"></select></label><button type="button" class="button subtle" id="daily-inspect-bin">Inspect selected bin example</button></div>
-          <svg id="daily-wave" role="img" aria-label="Exact unfiltered recorded source waveform"></svg><p id="daily-wave-note" role="status"></p><a id="daily-recur" href="/recurrence.html" hidden>Compare this inspected window on other dates →</a></div>
+          <svg id="daily-wave" role="img" aria-label="Exact unfiltered recorded source waveform"></svg><p id="daily-wave-note" role="status"></p><a id="daily-recur" href="/recurrence.html" hidden>Compare this inspected window on other dates →</a></details></div>
+
         </section>
+        <details class="optional-tools" id="discovery-details"><summary>Questions and technical details <span>Optional</span></summary>
         <div id="facts" hidden><section class="card"><h2>Which data supports exploration?</h2><p id="extent"></p><table aria-label="Source and window accounting"><tbody id="coverage"></tbody></table><p>Four-second windows. Record-second counts are not elapsed device-wearing duration. Flags are screening cues; unflagged does not establish artifact-free EEG.</p><details><summary>Source identities</summary><small id="identity"></small></details></section>
           <section class="card"><h2>Recording contexts</h2><p id="context-count"></p><div id="contexts"></div><p id="missing"></p></section>
         </div>
@@ -70,4 +59,5 @@
           <form id="question"><div class="question-fields"><label>Question<input id="title" required maxlength="240" placeholder="What changes across my recording days?"></label><label>Stage<select id="stage"><option value="discovery">Discovery — observe first</option><option value="candidate">Candidate — possible question to investigate</option></select></label><label>Notes or missing context (optional)<textarea id="notes" maxlength="4000"></textarea></label></div><div class="discovery-actions"><button type="submit" id="question-save" class="button primary" disabled><span id="question-action">Save question</span></button><button type="button" id="reset-question" class="button subtle">New question</button></div><p id="save-status" role="status" aria-live="polite"></p></form>
           <p>Confirmation: deferred. No dates are reserved or excluded from analysis by this question register. A future confirmation workflow must enforce that separation.</p><div id="questions"></div>
         </section>
+        </details>
       </div></main></div></body></html>

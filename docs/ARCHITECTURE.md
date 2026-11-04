@@ -189,3 +189,28 @@ without a marker keep their original scopes. Immutable question/context/directio
 and numerical histories remain accessible after restoration without rewriting
 records. Historical captures remain historical; full current analyses and caches
 must be regenerated. This is not an automatic cloud backup or a release gate pass.
+
+
+## Guided workspace and progressive navigation
+
+`workspace_journey.snapshot` owns the read-only `/api/workspace` facts: selected-source
+record count/extent, preparation state and supported next actions. It reuses
+`AnalysisManager.state` and `discovery_contracts.read`; only matching participant and
+analysis identities with a current, nonstale discovery report can enable exploration.
+Raw counts never establish valid feature support. A second observed date in a canonical
+context exposes the cross-day tool, whose own evidence/readiness rules still apply;
+it does not establish independent repetitions or successful recurrence.
+
+`journey.js` renders these facts on Overview and `/journey.html`. One explicit action
+starts the existing local analysis route, preserving saved options and using the
+existing worker/resource/cache contracts. Page polling is read-only and does not start
+jobs. There is no new always-on analysis loop, activity inference or automatic labeling.
+Bluetooth-only and offline empty workspaces receive separate instructions.
+
+Every dashboard page keeps three primary links and an expandable More tools group.
+Overview renders daily recordings first, with optional activity and signal/export panels.
+`navigation.js` reveals collapsed ancestors for existing hash links, daily selections and
+inline edits, retaining precise interval URLs and operation behavior. The legacy patterns
+reader and its stored reports remain available; only its empty-state instructions change.
+The first-run key guide remains on the welcome screen but expands at the user's choice.
+The shipped v0.2.7 artifacts are unchanged; distributing this UI requires a new release.

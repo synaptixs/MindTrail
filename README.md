@@ -94,6 +94,25 @@ lanes need a current completed analysis. See [daily review details](docs/DAILY_R
 Use **Show entire day** to reset a daily graph. New recordings extend the day's
 unzoomed graph automatically. A selected zoom stays pinned while data refreshes.
 
+### Guided workspace in source builds
+
+The source workspace now starts with **Overview**, **Recordings** and **Explore**;
+specialist pages remain under **More tools**. Daily recordings appear first. Activity
+editing and signal details expand only when needed. First run is still API key →
+**Connect**, with **Need an API key?** help beside the form.
+
+Once recordings arrive, **Explore my recordings** prepares local analysis with one
+click. No labels, question or algorithm selection is required. A current readiness
+report enables **Explore my day** and a summary; comparing dates is offered when
+multiple dates are present in the same recorded context. If no unflagged windows
+are available, the app directs you to recording quality instead. No insight job
+starts automatically from this screen. Existing analysis options are preserved.
+Archived pattern reports remain under More tools; their empty state leads back
+to Explore instead of asking users to run Python.
+
+These navigation changes require a new installer build; the published v0.2.7
+downloads retain their previous layout. All existing page URLs remain usable.
+
 ## Get your AWEAR API key
 
 An API key is a private access code that lets MindTrail Lab retrieve your recordings.

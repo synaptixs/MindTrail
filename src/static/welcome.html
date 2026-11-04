@@ -22,8 +22,13 @@
         <div class="connect-mark" aria-hidden="true">A<span>·</span></div>
         <h2>Connect your AWEAR</h2>
         <p>One key. Your recordings and activity labels, together in a private workspace.</p>
-        <details id="api-key-guide" class="key-guide" open>
-          <summary id="key-guide-title">How to get an AWEAR API key</summary>
+        <form id="key-form">
+          <label for="api-key">API key</label>
+          <div class="key-connect"><input id="api-key" type="password" autocomplete="off" spellcheck="false" required placeholder="Paste your AWEAR API key"><button class="button primary" type="submit">Connect <span>→</span></button></div>
+          <p id="storage-help" class="field-help">Your key stays on this computer.</p>
+        </form>
+        <details id="api-key-guide" class="key-guide">
+          <summary id="key-guide-title">Need an API key?</summary>
           <p class="key-guide-explanation">An API key is a private access code from AWEAR that lets MindTrail Lab retrieve your recordings.</p>
           <ol>
             <li><strong>Open AWEAR’s portal.</strong> Use the <strong>Open AWEAR portal</strong> button below. It opens a separate tab, so you can return here afterward.</li>
@@ -35,11 +40,6 @@
           <div class="key-guide-links"><a class="button subtle" href="https://awearlabs.com/login" target="_blank" rel="noopener noreferrer">Open AWEAR portal ↗</a><a href="https://awearlabs.com/docs#authentication" target="_blank" rel="noopener noreferrer">Official key instructions ↗</a></div>
           <p class="key-guide-help"><strong>No account access, API keys menu, or recordings?</strong> <a href="https://aweartech.com/pages/contact" target="_blank" rel="noopener noreferrer">Contact AWEAR</a>. You can ask: “I own an AWEAR device and would like API access to my own recordings. How do I enable it and create an API key?”</p>
         </details>
-        <form id="key-form">
-          <label for="api-key">API key</label>
-          <div class="key-connect"><input id="api-key" type="password" autocomplete="off" spellcheck="false" required placeholder="Paste your AWEAR API key"><button class="button primary" type="submit">Connect <span>→</span></button></div>
-          <p id="storage-help" class="field-help">Your key stays on this computer.</p>
-        </form>
         <div class="automatic-setup"><span>✓ Automatic account selection</span><span>✓ Background history sync</span><span>✓ New recordings stay up to date</span></div>
       </section>
       <details id="advanced" class="restore-section">

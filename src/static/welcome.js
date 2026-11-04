@@ -30,7 +30,7 @@ function showMembers(members){
 }
 async function load(){
   workspace=await request('/api/desktop/state');
-  $('api-key-guide').open=!workspace.keyConfigured;
+  // Keep key help user-controlled across status refreshes.
   $('use-current-key').hidden=!workspace.keyConfigured||workspace.mode!=='api';
   $('data-directory').textContent=workspace.dataDirectory;
   $('remember-key').disabled=!workspace.secureStorageAvailable;
