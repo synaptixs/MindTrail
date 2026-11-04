@@ -7,7 +7,7 @@
  async function request(path,body){const r=await fetch(path,body===undefined?{}:{method:'POST',headers:{'Content-Type':'application/json','X-Awear-Local':'1'},body:JSON.stringify(body)});const v=await r.json();if(!r.ok)throw Error(v.error||'Request failed');return v;}
  function message(v){el('report-message').textContent=v;}
  function options(target,questions,selected,empty){target.replaceChildren(new Option(empty,''),...questions.map(q=>new Option(q.title,q.id)));if(selected&&!questions.some(q=>q.id===selected))target.add(new Option('Unavailable question — choose another',selected));target.value=selected;}
- function withhold(text){report=null;el('report-body').replaceChildren();el('report-fields').disabled=true;el('report-html').hidden=true;el('report-json').hidden=true;el('report-status').textContent=text;el('report-view-message').textContent='The selected question and evidence view are retained. No report or export is available until current evidence can be shown.';}
+ function withhold(text){report=null;el('report-body').replaceChildren();el('report-fields').disabled=true;el('report-html').hidden=true;el('report-json').hidden=true;el('report-bundle').hidden=true;el('report-status').textContent=text;el('report-view-message').textContent='The selected question and evidence view are retained. No report or export is available until current evidence can be shown.';}
  async function history(reset=false){if(reset)historyOffset=0;const person=state?.participantId;try{const v=await request('/api/discovery/decision?offset='+historyOffset);if(person!==state?.participantId||v.participantId!==person)return;el('report-history-count').textContent=`Showing ${v.shown} of ${v.total} direction revisions (offset ${v.offset}). Saved choices retain their original evidence snapshot.`;el('report-history').replaceChildren();for(const r of v.history){const p=document.createElement('p');p.textContent=`Revision ${r.revision} · ${labels[r.choice]} · ${new Date(r.changedAt).toLocaleString()}\n${r.notes||'No reason entered'}${r.question?'\nQuestion: '+r.question.title:''}`;el('report-history').append(p);}el('report-more-history').hidden=!v.hasMore;}catch(e){message(e.message);}}
  async function refresh(force=false){
   if(saving)return;
@@ -29,12 +29,13 @@
     withhold(busy?`Analysis ${s.job.stage}…`:v.status==='stale'?'Source changed. Analyze saved recordings to refresh the report. Saved directions remain in history.':s.available?'No current report. Analyze saved recordings; labels and a direction are optional.':'Numerical reports are unavailable in this build; saved directions remain readable. Numerical installer support remains P5.');return;
    }
    if(v.snapshotIdentity===report?.snapshotIdentity&&!force)return;
-   if(dirty&&!force){el('report-body').hidden=true;el('report-fields').disabled=true;el('report-html').hidden=true;el('report-json').hidden=true;el('report-status').textContent='Evidence or direction changed. Your draft is preserved. Refresh the report to review the new snapshot before saving.';return;}
+   if(dirty&&!force){el('report-body').hidden=true;el('report-fields').disabled=true;el('report-html').hidden=true;el('report-json').hidden=true;el('report-bundle').hidden=true;el('report-status').textContent='Evidence or direction changed. Your draft is preserved. Refresh the report to review the new snapshot before saving.';return;}
    report=v;dirty=!!draft;el('report-body').hidden=false;el('report-body').innerHTML=v.html;el('report-fields').disabled=false;
    el('report-choice').value=draft?draft.choice:v.decision.record?.choice||'';el('report-notes').value=draft?draft.notes:v.decision.record?.notes||'';
    options(el('report-question'),v.questions,draft?draft.question:v.decision.record?.question?.id||'','No question tied to direction');
    el('report-status').textContent='Current source and human-evidence snapshot. Direction: '+v.decisionRelation.replaceAll('_',' ')+'.';
    for(const kind of ['html','json']){el('report-'+kind).href='/api/export/discovery-report.'+kind+'?'+new URLSearchParams({...selection,identity:v.snapshotIdentity});el('report-'+kind).hidden=false;}
+   el('report-bundle').href='/api/export/analysis-bundle.zip?'+new URLSearchParams({...selection,identity:v.snapshotIdentity});el('report-bundle').hidden=false;
    if(!viewDirty)el('report-view-message').textContent=draft?'Report refreshed. Your direction draft is preserved; review the evidence before saving.':'Displayed report and downloads use the applied question and evidence view. Viewing does not save or revalidate a question.';
    await history(true);
   }catch(e){withhold(e.message);}

@@ -142,3 +142,9 @@ this is a numerical-capture history, not a transactionally coupled adoption ledg
 accounting; `monitoring_access.py` separates historical facts from live lifecycle freshness.
 `monitor.html` renders those facts and offers browser-local opt-in refresh. See
 [monitoring/history contracts](DISCOVERY_READINESS.md#recording-changes-and-retained-versions-p5-w2).
+
+`analysis_exports.py` owns bounded deterministic audit ZIP composition and full-quality
+content digests. It reuses the existing report renderer, annotation exporters and canonical
+quality facts. `analysis_history.export_all` owns complete scoped numerical-history reads
+in one transaction. Neither is an archive importer or a numerical runtime; see
+[auditable downloads](DISCOVERY_READINESS.md#auditable-analysis-and-retained-history-downloads-p5-w3).

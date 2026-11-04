@@ -87,8 +87,9 @@ def run(directory: Path) -> int:
             review=review_build(recurrence_index,recurrence_payloads,daily_payloads,check)
             atomic_json(directory/'discovery-review.json',review,check)
             from discovery_report_model import build as report_build,analysis_context
+            from analysis_exports import quality_digest
             progress('discovery report',0,1)
-            discovery_summary=report_build(discovery,daily_index,daily_payloads,recurrence_index,recurrence_payloads,review,check,analysis_context=analysis_context(report))
+            discovery_summary=report_build(discovery,daily_index,daily_payloads,recurrence_index,recurrence_payloads,review,check,analysis_context=analysis_context(report),quality_report_digest=quality_digest(report,check))
             atomic_json(directory/'discovery-report.json',discovery_summary,check)
             del daily_payloads,recurrence_payloads
             days=quality_days(report,check)

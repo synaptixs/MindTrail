@@ -594,3 +594,12 @@ Use **Recording changes** to compare retained numerical versions, coverage and s
 as recordings change. Historical snapshots survive normal job pruning. An explicitly pinned
 pair stays selected; optional automatic analysis runs only while that page is open.
 See [monitoring and history limits](docs/DISCOVERY_READINESS.md#recording-changes-and-retained-versions-p5-w2).
+
+### Keep an analysis audit
+
+After analyzing your recordings, open **Discovery report → Download analysis audit ZIP**.
+It includes the report with offline charts, all computed feature windows in JSON/CSV,
+activity/context audit histories, units and a checksum manifest. On **Recording changes**,
+use **Download all retained numerical history** for every saved compact numerical version.
+The downloads state their omissions; keep your complete profile separately for recovery.
+They exclude raw EEG and credentials and do not provide automatic restore/import.

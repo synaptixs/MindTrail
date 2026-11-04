@@ -31,7 +31,7 @@ def analysis_context(report):
         'numericalSources':{name:hashlib.sha256(Path(__file__).with_name(name).read_bytes()).hexdigest() for name in names}}
 
 
-def build(discovery,daily_index,daily,family_index,families,review,check=lambda:None,*,analysis_context=None):
+def build(discovery,daily_index,daily,family_index,families,review,check=lambda:None,*,analysis_context=None,quality_report_digest=None):
     participant=discovery['participantId'];identity=discovery['analysisIdentity']
     if any(v['participantId']!=participant or v['analysisIdentity']!=identity for v in (daily_index,family_index,review)):raise ValueError('Report source scope differs')
     if family_index['dailyIdentity']!=daily_index['dailyIdentity'] or review['recurrenceIdentity']!=family_index['recurrenceIdentity']:raise ValueError('Report dependency differs')
@@ -69,6 +69,7 @@ def build(discovery,daily_index,daily,family_index,families,review,check=lambda:
         'delivered':['Label-free readiness','Daily features and heuristic changes','Point-to-point cross-day retrieval','Optional human context','Discovery summary and direction register'],
         'deferred':['Inferential estimator','Prediction and activity validation','Enforced confirmation holdout','Whole-episode sequence matching','Contact measurement','Bluetooth-file ingestion','Packaged numerical runtime/release'],
         'methodIdentity':hashlib.sha256(Path(__file__).read_bytes()).hexdigest()}
+    value['qualityReportDigest']=quality_report_digest
     value['reportIdentity']=fingerprint(value)
     if len(canonical_json(value).encode())>MAX_BYTES:raise ValueError('Discovery report exceeds8MB; narrow analysis range')
     check();return value

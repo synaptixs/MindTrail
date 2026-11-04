@@ -71,6 +71,25 @@ def header(row):
     return dict(meta,sequence=sequence,version=identifier,capturedAt=captured)
 
 
+def export_all(manager,participant):
+    """Yield every scoped validated capture in one read transaction, without a page cap."""
+    from discovery_report_access import validate as validate_report
+    path=location(manager)
+    if not participant:raise ValueError('Select a participant first')
+    if not path.exists():return
+    try:
+        with closing(sqlite3.connect(path.as_uri()+'?mode=ro',uri=True)) as c:
+            c.execute('PRAGMA query_only=ON');c.execute('BEGIN')
+            if not validate(c):return
+            for row in c.execute('SELECT sequence,version,captured_at,metadata,payload,bytes FROM versions WHERE scope=? ORDER BY sequence',(manager.scope(participant),)):
+                h=header(row[:4])
+                if row[5]>PAYLOAD_LIMIT or len(row[4].encode('utf-8'))!=row[5]:raise HistoryError('Invalid monitoring payload size')
+                value=validate_report(json.loads(row[4]),participant,h['analysisIdentity'])
+                if metadata(value)!={k:v for k,v in h.items() if k not in ('sequence','version','capturedAt')}:raise HistoryError('Monitoring payload and metadata differ')
+                yield h,value
+    except (OSError,sqlite3.Error,json.JSONDecodeError,KeyError,TypeError):raise HistoryError('Monitoring history export unavailable; saved versions unchanged') from None
+
+
 def read(manager,participant,*,offset=0,limit=20,selected=None,baseline=None,active=None):
     if type(offset) is not int or offset<0 or type(limit) is not int or not 1<=limit<=50:raise ValueError('Invalid history page')
     for value in (selected,baseline,active):

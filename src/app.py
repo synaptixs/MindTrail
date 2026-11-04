@@ -960,6 +960,20 @@ class Handler(BaseHTTPRequestHandler):
             if route.path == '/api/monitoring':
                 from monitoring_access import page
                 return self._json(200,page(self.server.analysis,self._selected(),{k:v[0] for k,v in params.items()}))
+            if route.path in ('/api/export/analysis-bundle.zip','/api/export/monitoring-history.zip'):
+                from contextlib import ExitStack
+                from analysis_exports import analysis_bundle,history_bundle
+                historical=route.path.endswith('monitoring-history.zip')
+                bundle=history_bundle(self.server.analysis,self._selected()) if historical else analysis_bundle(
+                    self.server.analysis,self._selected(),safe_csv,identity=params.get('identity',[None])[0],
+                    question=params.get('question',[None])[0],lens=params.get('lens',['recurrence_conditions'])[0])
+                with ExitStack() as stack:
+                    try:output=stack.enter_context(bundle)
+                    except (OSError,sqlite3.Error):raise ValueError('Export could not be prepared. Check local storage and retry; recordings unchanged.') from None
+                    size=output.seek(0,2);output.seek(0)
+                    self.send_response(200);self.send_header('Content-Type','application/zip');self.send_header('Content-Disposition','attachment; filename="mindtrail-'+('numerical-history' if historical else 'analysis-audit')+'.zip"');self.send_header('Cache-Control','no-store');self.send_header('Content-Length',str(size));self.end_headers()
+                    while chunk:=output.read(65536):self.wfile.write(chunk)
+                return
             if route.path == '/api/export/monitoring-version.json':
                 from monitoring_access import payload
                 from analysis_provenance import canonical_json
