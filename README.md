@@ -579,3 +579,8 @@ recollection, mixed activity, unknown or skip. Notes are optional, separate from
 activity assignments, and have editable history, undo and complete JSON/CSV exports.
 See [discovery contracts](docs/DISCOVERY_READINESS.md#selective-review-and-optional-context-p4-w4)
 for selection limits and context backup details.
+
+Open **Discovery report** for a summary of daily variation, change cues, cross-day
+candidates and missing context. Download a self-contained HTML report or JSON snapshot,
+and optionally record what to explore next—including insufficient evidence. Labels are
+optional. See [report scope and export limits](docs/DISCOVERY_READINESS.md#discovery-report-and-next-direction-p4-w5).

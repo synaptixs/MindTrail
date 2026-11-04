@@ -957,6 +957,25 @@ class Handler(BaseHTTPRequestHandler):
                 return
             if route.path == "/api/export/activity-assignments.csv":
                 return self._export_labels(extended=True)
+            if route.path == "/api/discovery/decision":
+                from discovery_decisions import read
+                return self._json(200,read(self.server.analysis,self._selected(),int(params.get('offset',['0'])[0])))
+            if route.path in ('/api/discovery/report','/api/discovery/report/view','/api/export/discovery-report.html','/api/export/discovery-report.json'):
+                from discovery_report_access import page,recheck
+                from discovery_report_render import sections,document
+                from analysis_provenance import canonical_json
+                value=page(self.server.analysis,self._selected(),params.get('identity',[None])[0],internal=True)
+                if route.path.startswith('/api/export/'):
+                    if value['status']!='current':raise ValueError('A current discovery report is required before export')
+                    html=route.path.endswith('.html');output=document(value) if html else canonical_json({k:v for k,v in value.items() if k!='_guard'}).encode('utf-8')
+                    recheck(self.server.analysis,value)
+                    self.send_response(200);self.send_header('Content-Type','text/html; charset=utf-8' if html else 'application/json; charset=utf-8');self.send_header('Content-Disposition','attachment; filename="mindtrail-discovery-report.'+('html' if html else 'json')+'"');self.send_header('Cache-Control','no-store');self.send_header('Content-Length',str(len(output)));self.end_headers();self.wfile.write(output);return
+                if route.path.endswith('/view') and value['status']=='current':
+                    markup=sections(value,live=True);recheck(self.server.analysis,value)
+                    value={k:value[k] for k in ('status','participantId','evidenceIdentity','snapshotIdentity','decision','decisionRelation')}|{'html':markup,'questions':value['human']['questions']['questions']}
+                elif value['status']=='current':
+                    recheck(self.server.analysis,value);value={k:v for k,v in value.items() if k!='_guard'}
+                return self._json(200,value)
             if route.path == "/api/discovery/review":
                 from discovery_review_access import page
                 cues=params.get('cues',['0'])[0]
@@ -1184,7 +1203,7 @@ class Handler(BaseHTTPRequestHandler):
             if name not in {"index.html", "app.js", "interval_time.js", "style.css", "data.html", "data.js", "data.css",
                             "eeg.html", "eeg.js", "eeg.css", "patterns.html", "patterns.js", "patterns.css",
                             "scores.html", "bluetooth.html", "bluetooth.js", "bluetooth.css",
-                            "welcome.html", "welcome.js", "welcome.css", "quality.html", "quality.js", "quality.css", "review.html", "review.js", "review.css", "explore.html", "explore.js", "explore.css", "similarity.js", "compare.html", "compare.js", "compare.css", "discover.html", "discover.js", "discover.css", "discovery_daily.js", "recurrence.html", "recurrence.js", "recurrence.css", "context.html", "context.js", "context.css"}:
+                            "welcome.html", "welcome.js", "welcome.css", "quality.html", "quality.js", "quality.css", "review.html", "review.js", "review.css", "explore.html", "explore.js", "explore.css", "similarity.js", "compare.html", "compare.js", "compare.css", "discover.html", "discover.js", "discover.css", "discovery_daily.js", "recurrence.html", "recurrence.js", "recurrence.css", "context.html", "context.js", "context.css", "report.html", "report.js", "report.css"}:
                 return self._json(404, {"error": "Not found"})
             path = SOURCE_ROOT / "static" / name
             body = path.read_bytes()
@@ -1197,7 +1216,7 @@ class Handler(BaseHTTPRequestHandler):
                     "welcome.js": "text/javascript", "welcome.css": "text/css",
                     "quality.html": "text/html", "quality.js": "text/javascript", "quality.css": "text/css",
                     "review.html":"text/html","review.js":"text/javascript","review.css":"text/css",
-                    "explore.html":"text/html","explore.js":"text/javascript","explore.css":"text/css","similarity.js":"text/javascript","compare.html":"text/html","compare.js":"text/javascript","compare.css":"text/css","discover.html":"text/html","discover.js":"text/javascript","discover.css":"text/css","discovery_daily.js":"text/javascript","recurrence.html":"text/html","recurrence.js":"text/javascript","recurrence.css":"text/css","context.html":"text/html","context.js":"text/javascript","context.css":"text/css"}[name]
+                    "explore.html":"text/html","explore.js":"text/javascript","explore.css":"text/css","similarity.js":"text/javascript","compare.html":"text/html","compare.js":"text/javascript","compare.css":"text/css","discover.html":"text/html","discover.js":"text/javascript","discover.css":"text/css","discovery_daily.js":"text/javascript","recurrence.html":"text/html","recurrence.js":"text/javascript","recurrence.css":"text/css","context.html":"text/html","context.js":"text/javascript","context.css":"text/css","report.html":"text/html","report.js":"text/javascript","report.css":"text/css"}[name]
             self.send_response(200)
             self.send_header("Content-Type", mime + "; charset=utf-8")
             self.send_header("Content-Length", str(len(body)))
@@ -1292,6 +1311,9 @@ class Handler(BaseHTTPRequestHandler):
                 return
             if desktop and not desktop.ready():
                 raise ValueError("Complete desktop setup first.")
+            if route == '/api/discovery/decision':
+                from discovery_decisions import save
+                return self._json(200,save(self.server.analysis,self._selected(),body))
             if route in ('/api/discovery/context/save','/api/discovery/context/undo'):
                 from discovery_context import mutate
                 return self._json(200,mutate(self.server.analysis,self._selected(),body,route.endswith('/undo')))

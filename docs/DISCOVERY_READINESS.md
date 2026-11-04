@@ -287,3 +287,74 @@ Endpoints: `GET /api/discovery/review` (`cues=0/1`), `/review/waveform`, and
 `/api/export/discovery-context.json` and `.csv`. Existing launcher authentication, selected
 participant, same-origin and local mutation-header gates apply. No raw or label bulk writes,
 mental-state recognition, inferential engine or numerical installer runtime are introduced.
+
+## Discovery report and next direction (P4-W5)
+
+Open **Discovery report** (`/report.html`) after analyzing saved recordings. No labels,
+clustering choice or personal question is required. The worker seals `discovery-report.json`
+from the existing readiness, daily, recurrence and selective-review owners. It retains the
+full population accounting, daily/exact-context condition quartiles, scaler identities,
+change-screening counts, missing context and selection denominators. It does not compute a
+new estimator or assign a meaning to a cluster.
+
+The report replays the same at most four W4 ordinary references through both existing
+recurrence views. It retains guards, all-other-window distance quartiles and the top ten
+per-date minima with feature contributions. View sensitivity compares nearest window IDs
+only on **shown dates common to both views**. An uninformative view is not comparable;
+it is not evidence of perfect stability. This is point-to-point retrieval, not episode
+sequence matching or an independent stability test.
+
+Daily charts show medians and Q1–Q3, **not confidence intervals**. Their day/exact-context
+positions are equally spaced and unjoined. Acquisition families remain separate. HTML
+shows first 20 families, first 100 chart rows and first 200 table rows per family, and
+first 25 context/day change rows with at most three ranked retained cues each. Full
+numerical day/context rows and aggregate counts remain in JSON; every presentation limit
+states shown/total/omitted. Raw EEG samples are not embedded. Live reference links open
+Across days for exact-source inspection.
+
+Human composition reads separate scoped stores without changing numerical output. It
+reports all current/tombstone/kind/history counts, all saved personal questions (existing
+maximum 100), and the first 50 active window observations by stored key. All current
+observation contents, including omitted records, enter the human evidence identity.
+Observations saved under this exact analysis identity **and** source revision are counted
+separately from other snapshots; earlier observations are preserved, not automatically
+revalidated or declared wrong. Facts, hypotheses, timing precision and uncertainty stay
+separate. Activity interval assignments retain their own daily-lane provenance and are
+not treated as verified tasks in this report.
+
+The optional direction register offers four explicit choices: continue discovery, collect
+more data/context, plan matched recordings later, or insufficient evidence. No choice is
+saved by default. A save requires current participant/evidence identity and previous
+revision, optionally a question belonging to that participant and a reason of at most
+2,000 characters. It stores that question's snapshot and source/evidence identities. Edits
+append history; they do not change recordings, labels, context, questions, analysis
+settings, inference or confirmation reservation. Current and append-only revisions live in
+`ArchivePaths.discovery / decisions.sqlite3`, separate from generated jobs and preserved
+through pruning, installer upgrades and uninstall. Include this file with the rest of the
+profile when backing up. Direction history remains readable when numerical analysis is
+unavailable. The live history pages 25 revisions (API maximum 100); an exported snapshot
+contains the latest 25 with total/omitted counts, not a full history audit.
+
+`GET /api/discovery/report` returns composed JSON; `/api/discovery/report/view` returns the
+same snapshot's escaped live presentation. `GET /api/discovery/decision` reads current
+state/history, and `POST /api/discovery/decision` retains desktop authorization, local
+header, same-origin, selected-participant and compare-and-swap safeguards. Report source
+and human DB/WAL signatures are checked before/after composition and again after rendering.
+Direction saves hold an archive read transaction and recheck evidence before commit.
+Numerical publication validates the report's content/scope and all four dependency IDs.
+Failure, cancellation and retention clean its sidecar without pruning human stores.
+
+Download **HTML** or **JSON** from the current report. The link includes the displayed
+snapshot identity; changed evidence, direction or renderer requires a refresh. Evidence
+identity excludes the decision; export snapshot identity includes it and the renderer/CSS
+source hashes. HTML uses the same renderer as the live page, with inline CSS/SVG and no
+scripts, remote fonts, images or stylesheets. User strings are escaped. Both exports are
+deterministic for unchanged source, human records, decisions and code. Bounds fail explicitly:
+8 MB numerical summary, 16 MB composite JSON, 32 MB HTML. These are private local exports;
+review them before sharing because they contain personal observations and source identities.
+
+Packaged numerical runtime and release delivery remain Phase 5. The installer includes the
+report page and direction-store preservation, but does not yet run numerical analysis.
+The report implements no inference, prediction, contact measurement, activity validation,
+confirmation holdout, Bluetooth-file ingestion or mental-state score. Any later inference
+requires its own justified protocol and the retained safeguards.

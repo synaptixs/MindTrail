@@ -121,3 +121,11 @@ worker; `discovery_review_access.py` serves verified current facts without numer
 `discovery_context.py` owns revisioned human observations in the separate discovery context
 database, reusing vocabulary/timing validators without altering activity assignments. See
 [selective review](DISCOVERY_READINESS.md#selective-review-and-optional-context-p4-w4).
+
+`discovery_report_model.py` seals the existing discovery owners' numerical facts in the
+worker. `discovery_report_access.py` composes verified human snapshots without numerical
+imports; `discovery_decisions.py` owns the separate scoped direction register.
+`discovery_report_render.py` is the single escaped live/offline renderer, with self-contained
+`report.css` for downloaded HTML. Renderer bytes and human revisions enter export identity;
+they are not silently inferred again by the browser. See the
+[report contract](DISCOVERY_READINESS.md#discovery-report-and-next-direction-p4-w5).

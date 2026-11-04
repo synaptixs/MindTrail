@@ -61,7 +61,7 @@ def wait_for_workspace(process, profile):
                 analysis = json.load(response)
             assert analysis['available'] is False, "Numerical analysis must not start in the stdlib bundle"
             assert analysis['explorationAvailable'] is False, "Exploration must have an honest unavailable state"
-            for name,marker in [('review.html','id="review-form"'),('review.js','/api/review/undo'),('explore.html','id="pca"'),('explore.js','/api/exploration'),('similarity.js','/api/similarity/accept'),('compare.html','id="daily-chart"'),('compare.js','/api/activity-comparisons'),('compare.css','coverage-strip'),('discover.html','id="question"'),('discover.js','/api/discovery'),('discover.css','discovery-content'),('discovery_daily.js','/api/discovery/daily'),('recurrence.html','id="rec-search"'),('recurrence.js','/api/discovery/recurrence'),('recurrence.css','rec-wave-pair'),('context.html','id="ctx-form"'),('context.js','/api/discovery/context/undo'),('context.css','context-content')]:
+            for name,marker in [('review.html','id="review-form"'),('review.js','/api/review/undo'),('explore.html','id="pca"'),('explore.js','/api/exploration'),('similarity.js','/api/similarity/accept'),('compare.html','id="daily-chart"'),('compare.js','/api/activity-comparisons'),('compare.css','coverage-strip'),('discover.html','id="question"'),('discover.js','/api/discovery'),('discover.css','discovery-content'),('discovery_daily.js','/api/discovery/daily'),('recurrence.html','id="rec-search"'),('recurrence.js','/api/discovery/recurrence'),('recurrence.css','rec-wave-pair'),('context.html','id="ctx-form"'),('context.js','/api/discovery/context/undo'),('context.css','context-content'),('report.html','id="report-decision-form"'),('report.js','/api/discovery/report/view'),('report.css','report-document')]:
                 with opener.open(url.split("/launch")[0]+'/'+name,timeout=1) as response:
                     assert marker in response.read().decode('utf-8')
             with opener.open(url.split("/launch")[0]+"/api/discovery",timeout=1) as response:
@@ -75,6 +75,10 @@ def wait_for_workspace(process, profile):
                 assert json.load(response)['status']=='no_participant'
             with opener.open(url.split("/launch")[0]+"/api/discovery/context",timeout=1) as response:
                 assert json.load(response)['total']==0
+            with opener.open(url.split("/launch")[0]+"/api/discovery/report",timeout=1) as response:
+                assert json.load(response)['status']=='no_participant'
+            with opener.open(url.split("/launch")[0]+"/api/discovery/decision",timeout=1) as response:
+                assert json.load(response)['revision']==0
             with opener.open(url.split("/launch")[0]+"/api/discovery/questions",timeout=1) as response:
                 questions=json.load(response)
             assert questions['total']==0 and questions['questions']==[]
@@ -225,6 +229,19 @@ with closing(sqlite3.connect(path)) as c,c:
         subprocess.run([str(executable),'-c',context_check,str(profile)],check=True,env=environment,timeout=30)
         context_file=question_file.with_name('context.sqlite3')
         context_digest=hashlib.sha256(context_file.read_bytes()).hexdigest()
+        decision_check="""from pathlib import Path
+from contextlib import closing
+import sys,sqlite3
+from discovery_decisions import initialize
+path=Path(sys.argv[1])/'data'/'processed'/'discovery'/'decisions.sqlite3'
+with closing(sqlite3.connect(path)) as c,c:
+    c.execute('BEGIN IMMEDIATE');initialize(c)
+    c.execute("INSERT OR IGNORE INTO decision VALUES(?,?,?)",('synthetic-decision',1,'{}'))
+"""
+        subprocess.run([str(executable),'-c',decision_check,str(profile)],check=True,env=environment,timeout=30)
+        decision_file=question_file.with_name('decisions.sqlite3')
+        decision_digest=hashlib.sha256(decision_file.read_bytes()).hexdigest()
+
 
         subprocess.run([str(executable), '-c', episode_check, str(profile)],check=True,env=environment,timeout=30)
         checks['episodeSplitUndoAndUnknown']=True
@@ -292,6 +309,8 @@ with closing(sqlite3.connect(path)) as c,c:
         assert hashlib.sha256(question_file.read_bytes()).hexdigest()==question_digest
         checks['discoveryQuestionsPreserved']=True
         checks['discoveryContextPreserved']=True
+        assert hashlib.sha256(decision_file.read_bytes()).hexdigest()==decision_digest
+        checks['discoveryDecisionsPreserved']=True
         checks['discoveryOfflineAssetsAndUnavailableState']=True
         checks['archiveLayoutsPreserved'] = True
         checks['archivePathCompatibility'] = True

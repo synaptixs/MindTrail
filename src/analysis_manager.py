@@ -21,7 +21,7 @@ from archive_paths import ArchivePaths
 
 
 JOB_ID=re.compile(r'^[0-9a-f]{32}$')
-SOURCE_FILES=('discovery_review_model.py','discovery_review_access.py','spectral_features.py','recurrence_model.py','recurrence_access.py','discovery_daily.py','discovery_daily_access.py','discovery_contracts.py','analysis_quality.py','analysis_provenance.py','analysis_worker.py','analysis_view.py','analysis_cache.py','analysis_resources.py','daily_review.py','candidate_boundaries.py',
+SOURCE_FILES=('discovery_report_model.py','discovery_report_access.py','discovery_review_model.py','discovery_review_access.py','spectral_features.py','recurrence_model.py','recurrence_access.py','discovery_daily.py','discovery_daily_access.py','discovery_contracts.py','analysis_quality.py','analysis_provenance.py','analysis_worker.py','analysis_view.py','analysis_cache.py','analysis_resources.py','daily_review.py','candidate_boundaries.py',
               'exploratory_models.py','exploratory_stability.py','exploratory_views.py','exploration_access.py','similar_periods.py','activity_comparisons.py','activity_access.py',
               '../config/exploration.json','../config/exploration-stability.json')
 
@@ -43,7 +43,7 @@ def read_json(path: Path, limit=2_000_000) -> dict:
 
 def remove_quality_payloads(directory):
     for path in directory.iterdir():
-        if re.fullmatch(r'(?:discovery-review|recurrence-(?:index|[0-9a-f]{64})|discovery|discovery-daily-index|discovery-day-[0-9a-f]{64}-\d{4}-\d{2}-\d{2}|(?:quality|boundaries)-(?:index|\d{4}-\d{2}-\d{2})|exploration-(?:index|[0-9a-f]{64}-(?:with_power|spectral_only))|activities-(?:index|[0-9a-f]{64}))\.(?:json|tmp)',path.name) and not path.is_symlink():path.unlink()
+        if re.fullmatch(r'(?:discovery-report|discovery-review|recurrence-(?:index|[0-9a-f]{64})|discovery|discovery-daily-index|discovery-day-[0-9a-f]{64}-\d{4}-\d{2}-\d{2}|(?:quality|boundaries)-(?:index|\d{4}-\d{2}-\d{2})|exploration-(?:index|[0-9a-f]{64}-(?:with_power|spectral_only))|activities-(?:index|[0-9a-f]{64}))\.(?:json|tmp)',path.name) and not path.is_symlink():path.unlink()
 
 
 class AnalysisManager:
@@ -221,6 +221,8 @@ class AnalysisManager:
                             validate_recurrence(directory,self.job['participant'],status['analysisIdentity'])
                             from discovery_review_access import validate as validate_review
                             validate_review(read_json(directory/'discovery-review.json'),self.job['participant'],status['analysisIdentity'])
+                            from discovery_report_access import validate_files as validate_discovery_report
+                            validate_discovery_report(directory,self.job['participant'],status['analysisIdentity'])
                             if self.job.get('exploration'):
                                 index=read_json(directory/'exploration-index.json')
                                 if index['participantId']!=self.job['participant'] or index['analysisIdentity']!=status['analysisIdentity']:raise ValueError('Incomplete exploration')

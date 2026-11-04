@@ -86,6 +86,10 @@ def run(directory: Path) -> int:
             progress('selective review',0,1)
             review=review_build(recurrence_index,recurrence_payloads,daily_payloads,check)
             atomic_json(directory/'discovery-review.json',review,check)
+            from discovery_report_model import build as report_build
+            progress('discovery report',0,1)
+            discovery_summary=report_build(discovery,daily_index,daily_payloads,recurrence_index,recurrence_payloads,review,check)
+            atomic_json(directory/'discovery-report.json',discovery_summary,check)
             del daily_payloads,recurrence_payloads
             days=quality_days(report,check)
             for date,runs in sorted(days.items()):
