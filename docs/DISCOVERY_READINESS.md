@@ -417,3 +417,77 @@ runtime bundling and P5-W5 native release acceptance remain separate increments.
 stdlib installers include the question-report reader/assets and continue to show numerical
 analysis as unavailable until the runtime is bundled. There is no activity/state recognition,
 causal interpretation, inferential estimator or confirmation reservation in this increment.
+
+## Recording changes and retained versions (P5-W2)
+
+Open **Recording changes** (`/monitor.html`). Analyze saved recordings to start a retained
+history; old job summaries are not fabricated into historical versions. The page shows live
+`current`, `stale`, `recomputing` or `unavailable` status separately from the selected saved
+pair. A failed/canceled attempt retains earlier snapshots. Historical evidence stays readable
+without a numerical runtime and is never relabeled as a new live result.
+
+A complete worker now seals `analysisContext` in its numerical discovery summary: extraction
+specification, quality policy/implementation, numerical-owner source hashes, Python/NumPy,
+platform, timezone and requested range. `discovery_report_model.analysis_context` owns those
+facts; renderers do not reconstruct methods from file or session names. A legacy report with
+unknown context is not assumed comparable. Numerical output remains deterministic for the
+same pinned source/settings/runtime/code; capture time and sequence are separate operational
+metadata and do not enter EEG analysis identities.
+
+After all sidecars validate, the lifecycle captures the compact numerical summary in
+`ArchivePaths.discovery / monitoring.sqlite3` and records its version in the current pointer.
+This store is separate from generated jobs: pruning old full reports does not remove retained
+numerical captures. Unchanged `reportIdentity` values deduplicate; repeated runs do not append
+identical versions or rewrite their first-capture time. The versioned table has append-only
+triggers, canonical payload and self-hashed compact metadata. Reads never initialize/migrate
+it. Source/participant scope uses the existing manager path identity.
+
+Capture precedes pointer replacement. A fully validated snapshot can therefore survive a
+later pointer-publication failure without ever having become active. The page labels these
+as retained captures, **not an adoption/job ledger**, and marks only the version referenced
+by the active pointer as active. Failed/partial/canceled workers are not captured. Storage
+failure preserves the prior pointer. No silent history deletion is implemented: at most 200
+distinct captures per source/participant and 128 MB of UTF-8 payload across the profile.
+Reaching a cap fails publication explicitly with an error; it does not erase prior versions.
+Capacity management/expanded export workflows remain later release work. Back up this SQLite
+store with the profile; legacy recording-only restore does not import it. Native upgrades and
+uninstall preserve it. Summaries retain no raw EEG samples; a later raw-data edit can prevent
+reinspection of the old waveform even though its numerical snapshot remains available.
+
+Choose a retained version and baseline, or follow latest active versus the preceding
+retained distinct capture. An explicit pair stays pinned as new captures arrive. History is
+paged 20 at a time (API maximum 50), with complete totals/omissions. The green/amber bars
+render unflagged/flagged computed-window counts, scaled within the shown history page; they
+are not a time axis, session duration, drift score or physiological assessment.
+
+`monitoring_model.compare` computes deltas only when both versions have exactly matching
+known analysis context, timezone and requested range. Changed normalization, policy, numerical
+implementation/runtime, timezone/range or unknown legacy methods yield `incompatible` with
+no deltas. Compatible changed source revisions support a descriptive version comparison;
+they do not prove append-only arrivals. Net source/window counts are not counts of newly
+arrived records. Relative-screening refits, edits, deletions and extended coverage can revise
+old day summaries. Match exact acquisition-group/date keys; no pooling across devices, ears,
+channels or sessions. Added/removed/revised/unchanged row totals cover the full union, with
+paged details (20, maximum 100). Missing rows/support remain missing, never zero-filled.
+Median deltas require supported matching rows and retain feature units and each side's
+coverage/flags. They describe different observed populations, not matched-window effects,
+statistical significance, causal activity changes or biological drift. Session differences
+use only explicit recorded identifiers, with first-50/full/omitted counts; gaps never imply
+sessions. Contact remains unmeasured, and unflagged does not establish artifact-free EEG.
+
+`GET /api/monitoring` reads history/selected/baseline in one transaction and checks lifecycle
+freshness before/after composition. `version`, `baseline`, history `offset`/`limit` and
+`rowOffset`/`rowLimit` select a scoped pair/page. Wrong-scope or malformed IDs fail explicitly.
+Concurrent source/lifecycle transitions yield `refresh_required` instead of mixed live state.
+`GET /api/export/monitoring-version.json?version=<ID>` downloads the exact validated retained
+numerical payload; it contains no raw EEG samples, API key or human notes. This inspection
+artifact is not a full history backup/importer or a new self-contained comparison report.
+Expanded exports remain W3.
+
+Automatic analysis is **off by default**. Enabling it allows this open browser page to run
+analysis when the source becomes stale, using existing settings, with starts at least 60
+seconds apart. No browser means no scheduler. Failure/cancellation stops automatic attempts;
+users must run or enable it again explicitly. Version comparison/refresh alone starts no
+analysis. Raw recordings, labels, personal questions/context/directions remain unchanged.
+Packaged numerical runtime remains W4, native release acceptance W5; current stdlib bundles
+include historical readers and assets while numerical analysis stays explicitly unavailable.

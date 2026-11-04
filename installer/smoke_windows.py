@@ -61,7 +61,7 @@ def wait_for_workspace(process, profile):
                 analysis = json.load(response)
             assert analysis['available'] is False, "Numerical analysis must not start in the stdlib bundle"
             assert analysis['explorationAvailable'] is False, "Exploration must have an honest unavailable state"
-            for name,marker in [('review.html','id="review-form"'),('review.js','/api/review/undo'),('explore.html','id="pca"'),('explore.js','/api/exploration'),('similarity.js','/api/similarity/accept'),('compare.html','id="daily-chart"'),('compare.js','/api/activity-comparisons'),('compare.css','coverage-strip'),('discover.html','id="question"'),('discover.js','/api/discovery'),('discover.css','discovery-content'),('discovery_daily.js','/api/discovery/daily'),('recurrence.html','id="rec-search"'),('recurrence.js','/api/discovery/recurrence'),('recurrence.css','rec-wave-pair'),('context.html','id="ctx-form"'),('context.js','/api/discovery/context/undo'),('context.css','context-content'),('report.html','id="report-decision-form"'),('report.js','/api/discovery/report/view'),('report.css','report-document')]:
+            for name,marker in [('review.html','id="review-form"'),('review.js','/api/review/undo'),('explore.html','id="pca"'),('explore.js','/api/exploration'),('similarity.js','/api/similarity/accept'),('compare.html','id="daily-chart"'),('compare.js','/api/activity-comparisons'),('compare.css','coverage-strip'),('discover.html','id="question"'),('discover.js','/api/discovery'),('discover.css','discovery-content'),('discovery_daily.js','/api/discovery/daily'),('recurrence.html','id="rec-search"'),('recurrence.js','/api/discovery/recurrence'),('recurrence.css','rec-wave-pair'),('context.html','id="ctx-form"'),('context.js','/api/discovery/context/undo'),('context.css','context-content'),('report.html','id="report-decision-form"'),('report.js','/api/discovery/report/view'),('report.css','report-document'),('monitor.html','id="monitor-form"'),('monitor.js','/api/monitoring'),('monitor.css','monitor-row')]:
                 with opener.open(url.split("/launch")[0]+'/'+name,timeout=1) as response:
                     assert marker in response.read().decode('utf-8')
             with opener.open(url.split("/launch")[0]+"/api/discovery",timeout=1) as response:
@@ -79,6 +79,8 @@ def wait_for_workspace(process, profile):
                 assert json.load(response)['status']=='no_participant'
             with opener.open(url.split("/launch")[0]+"/api/discovery/decision",timeout=1) as response:
                 assert json.load(response)['revision']==0
+            with opener.open(url.split("/launch")[0]+"/api/monitoring",timeout=1) as response:
+                monitoring=json.load(response);assert monitoring["liveStatus"]=="no_participant" and monitoring["history"]["total"]==0
             with opener.open(url.split("/launch")[0]+"/api/discovery/questions",timeout=1) as response:
                 questions=json.load(response)
             assert questions['total']==0 and questions['questions']==[]
@@ -241,6 +243,19 @@ with closing(sqlite3.connect(path)) as c,c:
         subprocess.run([str(executable),'-c',decision_check,str(profile)],check=True,env=environment,timeout=30)
         decision_file=question_file.with_name('decisions.sqlite3')
         decision_digest=hashlib.sha256(decision_file.read_bytes()).hexdigest()
+        monitoring_check="""from pathlib import Path
+from contextlib import closing
+import sys,sqlite3
+from analysis_history import initialize
+path=Path(sys.argv[1])/'data'/'processed'/'discovery'/'monitoring.sqlite3'
+with closing(sqlite3.connect(path)) as c,c:
+    c.execute('BEGIN IMMEDIATE');initialize(c)
+    c.execute("INSERT OR IGNORE INTO versions(scope,version,captured_at,metadata,payload,bytes) VALUES(?,?,?,?,?,?)",('synthetic-monitor','a'*64,'test','{}','{}',2))
+"""
+        subprocess.run([str(executable),'-c',monitoring_check,str(profile)],check=True,env=environment,timeout=30)
+        monitoring_file=question_file.with_name('monitoring.sqlite3')
+        monitoring_digest=hashlib.sha256(monitoring_file.read_bytes()).hexdigest()
+
 
 
         subprocess.run([str(executable), '-c', episode_check, str(profile)],check=True,env=environment,timeout=30)
@@ -311,6 +326,8 @@ with closing(sqlite3.connect(path)) as c,c:
         checks['discoveryContextPreserved']=True
         assert hashlib.sha256(decision_file.read_bytes()).hexdigest()==decision_digest
         checks['discoveryDecisionsPreserved']=True
+        assert hashlib.sha256(monitoring_file.read_bytes()).hexdigest()==monitoring_digest
+        checks['monitoringVersionsPreserved']=True
         checks['discoveryOfflineAssetsAndUnavailableState']=True
         checks['archiveLayoutsPreserved'] = True
         checks['archivePathCompatibility'] = True

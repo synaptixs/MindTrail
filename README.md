@@ -589,3 +589,8 @@ In **Discovery report**, use the starter investigation or apply your own saved q
 with a selected evidence view. Daily/context ranges, coverage and cross-day sensitivity
 stay linked to their detailed evidence. The view is exploratory; it does not infer the
 meaning of your question or provide a confirmed activity or mental-state result.
+
+Use **Recording changes** to compare retained numerical versions, coverage and screening
+as recordings change. Historical snapshots survive normal job pruning. An explicitly pinned
+pair stays selected; optional automatic analysis runs only while that page is open.
+See [monitoring and history limits](docs/DISCOVERY_READINESS.md#recording-changes-and-retained-versions-p5-w2).

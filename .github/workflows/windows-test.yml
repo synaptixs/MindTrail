@@ -41,6 +41,7 @@ jobs:
           node --check src/static/recurrence.js
           node --check src/static/context.js
           node --check src/static/report.js
+          node --check src/static/monitor.js
       - name: Install NSIS compiler
         run: choco install nsis --yes --no-progress
       - name: Verify signing prerequisites without signing
