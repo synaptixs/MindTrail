@@ -123,7 +123,7 @@ class DesktopController:
         with app.db() as connection:
             configured = app.setting(connection, "desktop_setup") == "1"
             mode = app.setting(connection, "desktop_mode")
-        return configured and (mode == "bluetooth" or (mode == "api" and bool(self.collector.key)))
+        return configured and (mode in ("bluetooth", "offline") or (mode == "api" and bool(self.collector.key)))
 
     def authorized(self, handler) -> bool:
         cookie = SimpleCookie()
@@ -172,11 +172,14 @@ class DesktopController:
                 "remembered": remembered, "participantId": participant,
                 "members": self.members, "dataDirectory": str(self.directory),
                 "bluetoothAvailable": handler.server.bluetooth.status()["available"],
-                "startupError": self.startup_error})
+                "archiveAvailable": bool(participant), "startupError": self.startup_error})
             return True
-        if route.path == "/api/participants" and self.mode() == "bluetooth":
+        if route.path == "/api/desktop/backup":
+            self.backup_workspace(handler)
+            return True
+        if route.path == "/api/participants" and self.mode() in ("bluetooth", "offline"):
             with app.db() as connection:
-                member = {"participantId": app.setting(connection, "participant_id"), "status": "local Bluetooth profile"}
+                member = {"participantId": app.setting(connection, "participant_id"), "status": "saved local archive"}
             handler._json(200, {"members": [member]})
             return True
         return False
@@ -261,7 +264,7 @@ class DesktopController:
             handler._json(200, {"ok": True})
             threading.Thread(target=handler.server.shutdown, daemon=True).start()
             return True
-        if route not in {"/api/desktop/api-key", "/api/desktop/bluetooth", "/api/desktop/forget-key", "/api/desktop/connect", "/api/select"}:
+        if route not in {"/api/desktop/offline", "/api/desktop/api-key", "/api/desktop/bluetooth", "/api/desktop/forget-key", "/api/desktop/connect", "/api/select"}:
             return False
         if not self.operation.acquire(blocking=False):
             raise ValueError("Another setup operation is in progress. Try again shortly.")
@@ -317,6 +320,13 @@ class DesktopController:
                 self.collector.enabled = True
                 self.collector.start_sync()
                 handler._json(200, {"ok": True})
+            elif route == "/api/desktop/offline":
+                with app.db() as connection:
+                    if not app.setting(connection, 'participant_id'):
+                        raise ValueError('Restore or connect an archive first.')
+                    app.put_setting(connection, 'desktop_mode', 'offline')
+                    app.put_setting(connection, 'desktop_setup', '1')
+                handler._json(200, {"ok": True})
             elif route == "/api/desktop/bluetooth":
                 with app.db() as connection:
                     participant = app.setting(connection, "desktop_local_participant") or "LOCAL-" + uuid.uuid4().hex[:12]
@@ -339,6 +349,67 @@ class DesktopController:
         finally:
             self.operation.release()
 
+    def backup_workspace(self, handler):
+        import profile_recovery
+        import shutil
+        if not self.operation.acquire(blocking=False):
+            raise ValueError('Another setup operation is in progress.')
+        previous = self.collector.enabled
+        sent = False
+        try:
+            self.idle(handler.server)
+            with profile_recovery.backup(self.directory, app.DB_PATH) as (path, manifest):
+                handler.send_response(200)
+                handler.send_header('Content-Type','application/zip')
+                handler.send_header('Content-Disposition','attachment; filename="mindtrail-workspace.zip"')
+                handler.send_header('Content-Length',str(path.stat().st_size))
+                handler.send_header('Cache-Control','no-store')
+                handler.end_headers()
+                sent = True
+                with path.open('rb') as source:
+                    shutil.copyfileobj(source,handler.wfile,1024*1024)
+        except (OSError, sqlite3.Error) as error:
+            if sent:
+                raise
+            raise ValueError('Backup could not finish. Check disk space and workspace permissions, then try again.') from error
+        finally:
+            self.collector.enabled = previous
+            self.operation.release()
+
+    def restore_workspace(self, handler, length):
+        import profile_recovery
+        if not self.operation.acquire(blocking=False):
+            raise ValueError('Another setup operation is in progress.')
+        previous = self.collector.enabled
+        try:
+            self.idle(handler.server)
+            if self.ready():
+                raise ValueError('Restore is available only in a new, empty workspace before setup.')
+            if not 16 <= length <= profile_recovery.MAX_BYTES + 64_000_000:
+                raise ValueError('Choose a workspace backup under 20 GB.')
+            handler.connection.settimeout(30)
+            with tempfile.TemporaryFile() as upload:
+                remaining = length
+                while remaining:
+                    block = handler.rfile.read(min(1024*1024, remaining))
+                    if not block:
+                        raise ValueError('Upload interrupted; workspace unchanged.')
+                    upload.write(block); remaining -= len(block)
+                upload.seek(0)
+                manifest = profile_recovery.restore(self.directory, app.DB_PATH, upload, app.setup_db)
+            # No credentials travel with the backup. Existing vault entries are untouched.
+            self.collector.key = ''
+            self.members = []
+            handler._json(200, {'ok':True, 'files':len(manifest['files']), 'bytes':manifest['totalBytes']})
+        except (OSError, sqlite3.Error) as error:
+            self.collector.enabled = previous
+            raise ValueError('Restore could not finish. Keep your original backup; check disk space and permissions before retrying.') from error
+        except Exception:
+            self.collector.enabled = previous
+            raise
+        finally:
+            self.operation.release()
+
     def import_archive(self, handler, length: int) -> None:
         if not self.operation.acquire(blocking=False):
             raise ValueError("Another setup operation is in progress.")
@@ -350,7 +421,8 @@ class DesktopController:
                 raise ValueError("Choose a SQLite archive under 5 GB.")
             with app.db() as connection:
                 occupied = any(connection.execute(f"SELECT 1 FROM {table} LIMIT 1").fetchone() for table in ("readings", "labels", "mobile_scores", "activities"))
-            captures = any(any(root.glob("session-*")) for root in handler.server.bluetooth.paths.bluetooth_roots)
+            from profile_recovery import empty
+            captures = not empty(self.directory, app.DB_PATH)
             if self.ready() or occupied or captures:
                 raise ValueError("Restore is available only in a new, empty workspace before setup.")
             with tempfile.NamedTemporaryFile(dir=self.directory, prefix="restore-", suffix=".sqlite3", delete=False) as output:

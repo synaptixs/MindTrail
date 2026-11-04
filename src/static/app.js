@@ -575,9 +575,10 @@ async function refresh() {
     const status=await api('/api/status');
     $('desktop-settings').hidden=!status.desktop;
     const bluetoothMode=status.connectionMode==='bluetooth';
+    const offlineMode=status.connectionMode==='offline';
     const pill=$('connection-pill');
-    pill.classList.toggle('offline',!status.keyConfigured&&!status.demo&&!bluetoothMode);
-    pill.innerHTML=`<span class="pill-dot"></span> ${bluetoothMode?'Bluetooth profile':status.demo?'Sample mode':!status.keyConfigured?'Key needed':status.syncing?'Syncing':'Connected'}`;
+    pill.classList.toggle('offline',!status.keyConfigured&&!status.demo&&!bluetoothMode&&!offlineMode);
+    pill.innerHTML=`<span class="pill-dot"></span> ${offlineMode?'Offline saved archive':bluetoothMode?'Bluetooth profile':status.demo?'Sample mode':!status.keyConfigured?'Key needed':status.syncing?'Syncing':'Connected'}`;
     $('demo-badge').hidden=!status.demo;
     if (state.selected!==status.participantId) {
       cancelLabelEdit();cancelActivityDefinition();
@@ -598,11 +599,11 @@ async function refresh() {
     state.selected=status.participantId;
     if(state.selected&&(state.activitiesLoadedFor!==state.selected||state.activityRevision!==status.activitiesRevision))await loadPersonalActivities();
     $('setup').hidden=!!status.participantId&&!state.showSetup;
-    $('key-help').hidden=!!status.keyConfigured||status.demo;
+    $('key-help').hidden=!!status.keyConfigured||status.demo||offlineMode;
     $('connect-button').disabled=!status.keyConfigured&&!status.demo;
-    $('sync-button').disabled=bluetoothMode||!status.participantId||status.syncing;
+    $('sync-button').disabled=offlineMode||bluetoothMode||!status.participantId||status.syncing;
     if (status.lastError) notice(status.lastError,'error');
-    else if (status.desktopNotice) notice(status.desktopNotice);
+    else if (status.desktopNotice&&!offlineMode) notice(status.desktopNotice);
     else if ($('notice').classList.contains('error')) notice('');
     if (status.participantId) {
       const range=windowRange();

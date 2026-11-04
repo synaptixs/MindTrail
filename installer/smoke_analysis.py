@@ -34,7 +34,7 @@ def exercise(command):
         with app.db() as c:
             app.put_setting(c,'participant_id',participant)
             # Offline archive mode passes normal setup guards without any key or scan.
-            app.put_setting(c,'desktop_setup','1');app.put_setting(c,'desktop_mode','bluetooth')
+            app.put_setting(c,'desktop_setup','1');app.put_setting(c,'desktop_mode','offline')
             c.executemany('INSERT INTO readings VALUES(?,?,?,?,?,?,?,?)',[record(base+day*86_400_000+i*1000,i,day) for day in range(3) for i in range(720)])
         original=hashlib.sha256(app.DB_PATH.read_bytes()).hexdigest()
         env=dict(os.environ);env.pop('AWEAR_API_KEY',None);env['AWEAR_DATA_DIR']=str(profile)
@@ -92,7 +92,46 @@ def exercise(command):
             third,arrival=analyze();assert third['summary']['coverage']['computedWindows']==541
             assert json.loads(get('/api/monitoring'))['history']['total']==2
             with zipfile.ZipFile(io.BytesIO(get('/api/export/monitoring-history.zip'))) as z:assert json.loads(z.read('manifest.json'))['versions']==2
-            result={'nativeNumericalAnalysis':True,'optionalExplorationAndComparisons':True,'knownRmsOracle':True,'coldCachedBytesEqual':True,
+            backup=get('/api/desktop/backup')
+            with tempfile.TemporaryDirectory(prefix='mindtrail-restored-native-') as restored_folder:
+                restored=Path(restored_folder)
+                child=subprocess.Popen([*command,'--data-dir',str(restored),'--no-browser','--no-key-store'],env=env,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+                client=urllib.request.build_opener(urllib.request.HTTPCookieProcessor());restore_url=None
+                try:
+                    deadline=time.monotonic()+30
+                    while time.monotonic()<deadline:
+                        if child.poll() is not None:raise RuntimeError('Restored app exited before startup')
+                        try:
+                            with (restored/'desktop.lock').open('rb') as f:f.seek(1);launch=json.load(f)['url']
+                            client.open(launch,timeout=2).close();restore_url=launch.split('/launch')[0];break
+                        except (OSError,ValueError,KeyError):time.sleep(.1)
+                    assert restore_url
+                    def restored_get(path):
+                        with client.open(restore_url+path,timeout=30) as response:return response.read()
+                    def restored_post(path,data,raw=False):
+                        request=urllib.request.Request(restore_url+path,data=data if raw else json.dumps(data).encode(),headers={'Content-Type':'application/octet-stream' if raw else 'application/json','X-Awear-Local':'1'})
+                        with client.open(request,timeout=30) as response:return json.load(response)
+                    restored_post('/api/desktop/restore',backup,True)
+                    assert not json.loads(restored_get('/api/desktop/state'))['ready']
+                    restored_post('/api/desktop/offline',{})
+                    assert json.loads(restored_get('/api/desktop/state'))['mode']=='offline'
+                    assert json.loads(restored_get('/api/monitoring'))['history']['total']==2
+                    assert restored_get('/api/export/monitoring-version.json?version='+selected)==old
+                    restored_post('/api/analysis/start',options);deadline=time.monotonic()+90
+                    while time.monotonic()<deadline:
+                        recovered=json.loads(restored_get('/api/analysis/state'))
+                        if recovered['job']['state'] not in ('running','canceling'):break
+                        time.sleep(.1)
+                    assert recovered['job']['state']=='completed',recovered
+                    assert recovered['summary']['coverage']['computedWindows']==541
+                    assert not (restored/'.env').exists()
+                finally:
+                    if restore_url:
+                        try:restored_post('/api/desktop/quit',{})
+                        except OSError:pass
+                    try:child.wait(timeout=10)
+                    except subprocess.TimeoutExpired:child.kill();child.wait()
+            result={'nativeNumericalAnalysis':True,'completeBackupRestoreOfflineAndReanalysis':True,'optionalExplorationAndComparisons':True,'knownRmsOracle':True,'coldCachedBytesEqual':True,
                 'sourcePreserved':True,'staleArrivalAndCancelPreservedVersion':True,'auditAndHistoryExports':True,
                 'coldSeconds':cold,'cachedSeconds':warm,'arrivalSeconds':arrival,'computedWindows':540,'reusedWindows':540,
                 'peakMemoryBytes':max(s['job']['peakMemoryBytes'] for s in (first,second,third))}

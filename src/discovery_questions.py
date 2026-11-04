@@ -23,6 +23,11 @@ def _page(manager, participant):
         'confirmation': 'not_reserved; enforced holdout workflow is deferred'}
 
 
+def initialize(connection):
+    connection.execute('CREATE TABLE IF NOT EXISTS questions(scope TEXT,id TEXT,revision INTEGER,title TEXT,notes TEXT,stage TEXT,analysis_identity TEXT,PRIMARY KEY(scope,id))')
+    connection.execute('CREATE TABLE IF NOT EXISTS history(scope TEXT,id TEXT,revision INTEGER,record_json TEXT,created_at TEXT,PRIMARY KEY(scope,id,revision))')
+
+
 def _save(manager, participant, body):
     if not participant or body.get('participantId') != participant:
         raise ValueError('Participant changed. Refresh before saving this question.')
@@ -50,8 +55,7 @@ def _save(manager, participant, body):
     with closing(sqlite3.connect(path)) as connection, connection:
         os.chmod(path,0o600)
         connection.execute('BEGIN IMMEDIATE')
-        connection.execute('CREATE TABLE IF NOT EXISTS questions(scope TEXT,id TEXT,revision INTEGER,title TEXT,notes TEXT,stage TEXT,analysis_identity TEXT,PRIMARY KEY(scope,id))')
-        connection.execute('CREATE TABLE IF NOT EXISTS history(scope TEXT,id TEXT,revision INTEGER,record_json TEXT,created_at TEXT,PRIMARY KEY(scope,id,revision))')
+        initialize(connection)
         scope = manager.scope(participant)
         if identifier is None:
             if connection.execute('SELECT COUNT(*) FROM questions WHERE scope=?', (scope,)).fetchone()[0] >= 100:

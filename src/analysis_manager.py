@@ -19,10 +19,11 @@ import uuid
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from archive_paths import ArchivePaths
 import analysis_runtime as runtime
+import profile_identity
 
 
 JOB_ID=re.compile(r'^[0-9a-f]{32}$')
-SOURCE_FILES=('analysis_runtime.py','analysis_bootstrap.py','discovery_report_model.py','discovery_report_access.py','discovery_review_model.py','discovery_review_access.py','spectral_features.py','recurrence_model.py','recurrence_access.py','discovery_daily.py','discovery_daily_access.py','discovery_contracts.py','analysis_quality.py','analysis_provenance.py','analysis_worker.py','analysis_view.py','analysis_cache.py','analysis_resources.py','daily_review.py','candidate_boundaries.py',
+SOURCE_FILES=('profile_identity.py','analysis_runtime.py','analysis_bootstrap.py','discovery_report_model.py','discovery_report_access.py','discovery_review_model.py','discovery_review_access.py','spectral_features.py','recurrence_model.py','recurrence_access.py','discovery_daily.py','discovery_daily_access.py','discovery_contracts.py','analysis_quality.py','analysis_provenance.py','analysis_worker.py','analysis_view.py','analysis_cache.py','analysis_resources.py','daily_review.py','candidate_boundaries.py',
               'exploratory_models.py','exploratory_stability.py','exploratory_views.py','exploration_access.py','similar_periods.py','activity_comparisons.py','activity_access.py',
               '../config/exploration.json','../config/exploration-stability.json')
 
@@ -49,7 +50,8 @@ def remove_quality_payloads(directory):
 
 class AnalysisManager:
     def __init__(self, profile: Path, database: Path, *, demo=False):
-        self.root=ArchivePaths(Path(profile).resolve()).quality
+        self.profile=Path(profile).resolve()
+        self.root=ArchivePaths(self.profile).quality
         self.discovery_root=ArchivePaths(Path(profile).resolve()).discovery
         self.database=Path(database).resolve()
         self.demo=bool(demo)
@@ -70,7 +72,7 @@ class AnalysisManager:
 
     def signature(self) -> str:
         info=runtime.versions()
-        parts=[('python',info['python']),('runtime',runtime.stamp()),('packages',info['packages'])]
+        parts=[('origin',profile_identity.origin(self.profile,self.database)),('python',info['python']),('runtime',runtime.stamp()),('packages',info['packages'])]
         for path in (self.database,Path(str(self.database)+'-wal')):
             try:
                 s=path.stat()
@@ -84,7 +86,7 @@ class AnalysisManager:
         return hashlib.sha256(json.dumps(parts).encode()).hexdigest()
 
     def scope(self,participant):
-        return hashlib.sha256((str(self.database)+'\0'+participant).encode()).hexdigest()
+        return hashlib.sha256((profile_identity.origin(self.profile,self.database)['scopeSeed']+'\0'+participant).encode()).hexdigest()
 
     def directory(self,job_id):
         if not isinstance(job_id,str) or not JOB_ID.fullmatch(job_id):raise ValueError('Invalid analysis job')

@@ -922,6 +922,27 @@ class Handler(BaseHTTPRequestHandler):
             return setting(connection, "participant_id")
 
     def do_GET(self) -> None:
+        self._workspace_request(self._do_GET, post=False)
+
+    def _workspace_request(self, action, *, post):
+        # Authenticate before acquiring an exclusive lease. Ordinary GETs remain concurrent.
+        if not self._check_host():
+            return self._json(403, {"error": "Local host only"})
+        route = urllib.parse.urlsplit(self.path).path
+        exclusive = route == '/api/desktop/backup' or (post and route in ('/api/desktop/restore','/api/desktop/import'))
+        if exclusive:
+            desktop = self.server.desktop
+            if not desktop or not desktop.authorized(self):
+                return self._json(403, {"error": "Open the desktop launcher to access this workspace."})
+            if post and (self.headers.get('X-Awear-Local') != '1' or self.headers.get('Origin','') not in ('','http://'+self.headers.get('Host',''))):
+                return self._json(403, {"error": "Local request required"})
+        try:
+            with self.server.workspace_gate.lease(exclusive=exclusive):
+                return action()
+        except ValueError as error:
+            return self._json(409, {"error": str(error)})
+
+    def _do_GET(self) -> None:
         if not self._check_host():
             return self._json(HTTPStatus.FORBIDDEN, {"error": "Local host only"})
         route = urllib.parse.urlsplit(self.path)
@@ -1310,6 +1331,9 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_POST(self) -> None:
+        self._workspace_request(self._do_POST, post=True)
+
+    def _do_POST(self) -> None:
         if not self._check_host():
             return self._json(403, {"error": "Local host only"})
         origin = self.headers.get("Origin", "")
@@ -1324,6 +1348,8 @@ class Handler(BaseHTTPRequestHandler):
             if desktop and not desktop.authorized(self):
                 return self._json(403, {"error": "Open the desktop launcher to access this workspace."})
             length = int(self.headers.get("Content-Length", "0"))
+            if desktop and route == "/api/desktop/restore":
+                return desktop.restore_workspace(self, length)
             if desktop and route == "/api/desktop/import":
                 return desktop.import_archive(self, length)
             if length < 0 or length > MAX_BODY:
@@ -1492,6 +1518,8 @@ class AppServer(ThreadingHTTPServer):
     allow_reuse_address = True
 
     def __init__(self, address: tuple[str, int], collector: Collector, desktop=None, worker_command=None):
+        from profile_recovery import WorkspaceGate
+        self.workspace_gate = WorkspaceGate()
         self.collector = collector
         self.desktop = desktop
         self.analysis = AnalysisManager(data_root(), DB_PATH, demo=collector.demo)

@@ -438,7 +438,7 @@ class DesktopTests(unittest.TestCase):
         with closing(sqlite3.connect(source)) as c:
             c.row_factory=sqlite3.Row
             c.executescript((Path(__file__).parent/'fixtures'/'activities-v2.sql').read_text(encoding='utf-8'))
-            with c:episode_review.migrate(c,source,self.directory)
+            with c:episode_review.migrate(c,source,self.directory/"source-profile")
             with c:
                 original=c.execute('SELECT id FROM labels').fetchone()[0]
                 result=episode_review.split(c,'A',original,512,episode_review.label_version(c,'A',original))
