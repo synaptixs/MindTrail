@@ -241,10 +241,15 @@ class AnalysisManager:
                                     if fingerprint(value)!=group['payloadHash'] or value['comparisonIdentity']!=index['comparisonIdentity']:raise ValueError('Incomplete comparison payload')
                             pointer={'id':self.job['id'],'signature':self.job['signature'],
                                      'settings':{k:self.job[k] for k in ('startMs','endMs','normalize','timezone','candidateBoundaries','exploration','activityComparisons')}}
+                            from analysis_history import capture
+                            numerical=read_json(directory/'discovery-report.json',limit=8_000_000)
+                            pointer['monitoringVersion']=capture(self,self.job['participant'],numerical)
                             write_json(self.root/(self.job['scope']+'.json'),pointer)
                             try:self._prune()
                             except OSError:self.job['warning']='Older generated payloads could not be pruned.'
-                        except (OSError,ValueError,KeyError,TypeError):self.job.update(state='failed',stage='failed',error='Could not publish complete analysis')
+                        except (OSError,ValueError,KeyError,TypeError) as error:
+                            from analysis_history import HistoryError
+                            self.job.update(state='failed',stage='failed',error=str(error) if isinstance(error,HistoryError) else 'Could not publish complete analysis')
                     else:self.job.update(state='failed',stage='failed',error=status.get('error','Analysis stopped unexpectedly. Retry analysis.'))
                     if self.job['state']!='completed':
                         try:remove_quality_payloads(directory)

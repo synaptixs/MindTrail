@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101b23">
+  <title>Recording changes · MindTrail Lab</title>
+  <meta name="description" content="Explore quality flags and recurring patterns in personal AWEAR recordings.">
+  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/discover.css">
+  <link rel="stylesheet" href="/monitor.css">
+  <script src="/monitor.js" defer></script>
+
+</head>
+<body>
+  <div class="shell">
+    <aside class="rail">
+      <div class="brand"><div class="brand-mark">M<span>·</span></div><div><strong>MindTrail</strong><small>LAB</small></div></div>
+      <div class="rail-rule"></div>
+      <nav aria-label="Sections">
+        <a class="nav-link" href="/"><span class="nav-icon">◫</span> Overview</a>
+        <a class="nav-link" href="/#activity"><span class="nav-icon">◷</span> Activity log</a>
+        <a class="nav-link" href="/#recorded-periods"><span class="nav-icon">▤</span> Recorded periods</a>
+        <a class="nav-link" href="/eeg.html"><span class="nav-icon">∿</span> EEG signal</a>
+        <a class="nav-link" href="/bluetooth.html"><span class="nav-icon">ᛒ</span> Bluetooth</a>
+        <a class="nav-link" href="/recurrence.html"><span class="nav-icon">↔</span> Across days</a>
+        <a class="nav-link" href="/discover.html"><span class="nav-icon">◇</span> Discover recordings</a>
+        <a class="nav-link" href="/context.html"><span class="nav-icon">✎</span> Optional context</a>
+        <a class="nav-link" href="/report.html"><span class="nav-icon">▧</span> Discovery report</a>
+        <a class="nav-link" href="/quality.html"><span class="nav-icon">✓</span> Recording quality</a>
+        <a class="nav-link" href="/review.html"><span class="nav-icon">☷</span> Episode review</a>
+        <a class="nav-link" href="/patterns.html"><span class="nav-icon">◩</span> Signal patterns</a>
+        <a class="nav-link" href="/data.html"><span class="nav-icon">▦</span> Data tables</a>
+        <a class="nav-link" href="/#exports"><span class="nav-icon">⇩</span> Exports</a>
+        <a class="nav-link active" aria-current="page" href="/monitor.html"><span class="nav-icon">↗</span> Recording changes</a>
+      </nav>
+      <div class="rail-bottom"><div class="local-card"><span class="green-dot"></span><div><strong>Private workspace</strong><small>Data stored on this computer</small></div></div><div class="rail-foot">AWEAR data · Local dashboard<br>Exploratory signal analysis</div></div>
+    </aside>
+    <main>
+      <header class="topbar"><div class="breadcrumb">Personal lab <span>/</span> Recording changes</div><div class="top-actions"><span class="pill">Local exploration</span></div></header>
+      <div class="content discovery-content report-content">
+        <div class="eyebrow">VERSIONS, COVERAGE AND CONTEXT</div><h1>Recording changes<span class="title-dot">.</span></h1>
+        <p class="lead">Compare retained feature and quality snapshots as recordings change. Unknown sessions stay unknown; changes are not biological or activity conclusions.</p>
+        <p id="monitor-status" role="status" aria-live="polite">Loading…</p>
+        <div class="discovery-actions"><button class="button primary" id="monitor-run">Analyze saved recordings</button><button class="button subtle" id="monitor-cancel" disabled>Cancel analysis</button><button class="button subtle" id="monitor-refresh">Refresh view</button></div>
+        <label class="monitor-auto"><input type="checkbox" id="monitor-auto"> Automatically analyze changed recordings while this page is open</label><p id="monitor-auto-status">Off by default. No background scheduler runs after this page closes.</p>
+        <p id="monitor-error" role="status"></p>
+        <section class="card monitor-controls"><h2>Choose retained versions</h2><p>Latest follows the active version. An explicit pair stays pinned when new captures arrive. Captures are complete numerical snapshots, not proof that a version previously became active.</p>
+          <form id="monitor-form"><label for="monitor-version">Selected version</label><select id="monitor-version"><option value="">Latest active version</option></select><label for="monitor-baseline">Baseline</label><select id="monitor-baseline"><option value="">Previous retained version</option></select><button class="button subtle">Apply comparison</button></form>
+          <p id="monitor-selection-status"></p><a id="monitor-export" class="button subtle" hidden>Download selected numerical snapshot</a>
+        </section>
+        <section class="card"><h2>Retained captures</h2><p id="monitor-history-count"></p><p>Bars show unflagged (green) and flagged (amber) whole computed windows. Relative width uses the largest count on this history page; this is not a time axis or a drift score.</p><div id="monitor-history"></div><div class="discovery-actions"><button class="button subtle" id="monitor-history-prev">Newer captures</button><button class="button subtle" id="monitor-history-next">Older captures</button></div></section>
+        <section class="card"><h2>Version comparison</h2><div id="monitor-comparison"></div><p id="monitor-rows-count"></p><div id="monitor-rows"></div><div class="discovery-actions"><button class="button subtle" id="monitor-rows-prev">Previous rows</button><button class="button subtle" id="monitor-rows-next">More rows</button></div></section>
+      </div></main></div></body></html>

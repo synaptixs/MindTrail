@@ -134,3 +134,11 @@ they are not silently inferred again by the browser. See the
 numerical report and exact scoped question snapshot, without numerical imports or human-store
 writes. View selection and model identity enter the final report snapshot; rendering and
 export reuse the same facts. See the [question-view contract](DISCOVERY_READINESS.md#question-linked-longitudinal-views-p5-w1).
+
+`analysis_history.py` owns immutable compact numerical captures under the existing discovery
+path. The manager captures validated worker output before current-pointer replacement;
+this is a numerical-capture history, not a transactionally coupled adoption ledger.
+`monitoring_model.py` owns compatible, exact-context version differences and complete row
+accounting; `monitoring_access.py` separates historical facts from live lifecycle freshness.
+`monitor.html` renders those facts and offers browser-local opt-in refresh. See
+[monitoring/history contracts](DISCOVERY_READINESS.md#recording-changes-and-retained-versions-p5-w2).

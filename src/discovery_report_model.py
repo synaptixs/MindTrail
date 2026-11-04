@@ -22,7 +22,16 @@ BRANCHES={'continue_discovery':'Keep exploring without mandatory activity labels
  'insufficient_evidence':'Record insufficient evidence for a next question'}
 
 
-def build(discovery,daily_index,daily,family_index,families,review,check=lambda:None):
+def analysis_context(report):
+    import sys,platform
+    names=('analysis_worker.py','discovery_contracts.py','discovery_daily.py','recurrence_model.py','spectral_features.py','discovery_review_model.py','discovery_report_model.py')
+    return {'spec':report['spec'],'qualityPolicy':report['qualityPolicy'],'implementation':report['implementation'],
+        'qualityMethodVersion':report['methodVersion'],'python':list(sys.version_info[:3]),
+        'platform':platform.system(),'machine':platform.machine(),
+        'numericalSources':{name:hashlib.sha256(Path(__file__).with_name(name).read_bytes()).hexdigest() for name in names}}
+
+
+def build(discovery,daily_index,daily,family_index,families,review,check=lambda:None,*,analysis_context=None):
     participant=discovery['participantId'];identity=discovery['analysisIdentity']
     if any(v['participantId']!=participant or v['analysisIdentity']!=identity for v in (daily_index,family_index,review)):raise ValueError('Report source scope differs')
     if family_index['dailyIdentity']!=daily_index['dailyIdentity'] or review['recurrenceIdentity']!=family_index['recurrenceIdentity']:raise ValueError('Report dependency differs')
@@ -46,7 +55,7 @@ def build(discovery,daily_index,daily,family_index,families,review,check=lambda:
         probes.append({'family':reference['family'],'reference':reference['reference'],'withPower':power,'spectralOnly':shape,
             'viewSensitivity':{'status':'descriptive_comparison' if comparable else 'not_comparable','commonShownDates':len(common),
                 'changedNearestWindow':sum(a[d]!=b[d] for d in common),'uncomparedShownDates':len(set(a)|set(b))-len(common)}})
-    value={'version':1,'participantId':participant,'analysisIdentity':identity,'sourceRevision':discovery['sourceRevision'],
+    value={'version':1,'participantId':participant,'analysisIdentity':identity,'sourceRevision':discovery['sourceRevision'],'analysisContext':analysis_context,
         'discoveryIdentity':discovery['discoveryIdentity'],'dailyIdentity':daily_index['dailyIdentity'],
         'recurrenceIdentity':family_index['recurrenceIdentity'],'reviewIdentity':review['reviewIdentity'],
         'readiness':discovery['readiness'],'demo':discovery['demo'],'timezone':discovery['timezone'],
