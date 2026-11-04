@@ -7,12 +7,13 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 from analysis_provenance import fingerprint
 from discovery_decisions import CHOICES
+from discovery_insights import method_identity
 
 CSS=Path(__file__).with_name('static')/'report.css'
 LIMITS={'families':20,'chartRows':100,'tableRows':200,'changeDays':25}
 
 
-def presentation_identity():return fingerprint({'renderer':hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),'css':hashlib.sha256(CSS.read_bytes()).hexdigest()})
+def presentation_identity():return fingerprint({'renderer':hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),'css':hashlib.sha256(CSS.read_bytes()).hexdigest(),'insights':method_identity()})
 def e(value):return escape(str(value),quote=True)
 def fact_label(value):
     import re
@@ -42,8 +43,55 @@ def chart(group,feature):
     return ''.join(result)
 
 
+def investigation_sections(value):
+    view=value['investigation'];q=view['question'];record=q['record'];zone=view['source']['timezone']
+    status={'no_recordings':'No saved recordings in this range.',
+        'no_unflagged_support':'No unflagged feature support; inspect recording exclusions and screening.',
+        'no_whole_day_support':'No eligible whole-day feature support. Inspect cross-midnight window accounting and recording exclusions.',
+        'no_cross_day_support':'No family has unflagged support on another date for cross-day comparison.',
+        'no_informative_sampled_probe':'The sampled references do not provide an informative comparison between both feature views. This does not establish absence of recurrence.',
+        'exploratory_evidence':'Descriptive evidence is available for exploration; no confirmed answer.',
+        'manual_review':'Evidence is available for your manual review; the app has not interpreted this question.'}
+    body='<p class="eyebrow">QUESTION-LED EXPLORATION</p><h2>'+e(record['title'])+'</h2>'
+    body+=p('Starter investigation prompt — not a saved personal question.' if q['origin']=='starter_prompt' else
+        'Your saved question · revision '+str(record['revision'])+' · '+record['stage']+' · '+q['analysisRelation'].replace('_',' '))
+    if record.get('notes'):body+=p('Question notes: '+record['notes'])
+    body+=p('Evidence view: '+view['lensLabel'])+p(status[view['status']])+p(view['linkage'])
+    if q['analysisRelation']=='earlier_analysis':body+=p('This question was saved against another analysis snapshot. Viewing current evidence does not revalidate or rewrite the question.')
+    body+=p('Observed '+stamp(view['source']['observedExtent']['startMs'],zone)+' → '+stamp(view['source']['observedExtent']['endMsExclusive'],zone)+' (end exclusive); '+zone)
+    body+=p(f"All-source accounting: {view['coverage'].get('sourceRecords',0)} records; {view['coverage']['computedWindows']} computed, {view['coverage']['unflaggedWindows']} unflagged and {view['coverage']['flaggedWindows']} flagged windows. Labels remain optional.")
+    body+=p('Confirmation data: not reserved. Inferential estimator: not implemented. A candidate question is not a confirmed finding.')
+    shown=view['families'][:20];body+=p(f"Showing first {len(shown)} of {view['familyCount']} acquisition families; {view['familyCount']-len(shown)} omitted here. Full summary and numerical condition rows remain in JSON.")
+    for i,g in enumerate(shown):
+        a=g['acquisition'];body+='<details'+(' open' if i==0 else '')+'><summary>'+e(str(a['device_id'] or 'Unknown device')+' · '+a['placement']+' ear · '+str(g['featureDateCount'])+' feature-support dates')+'</summary>'
+        body+=p(status[g['status']])+p(f"{g['featureRows']} feature-bearing rows of {g['dayContextRows']} day/exact-context rows; {g['unflaggedWindows']} unflagged / {g['computedWindows']} whole-day computed windows; {g['flaggedWindows']} flagged. {g['dayBoundaryWindowsTouching']} day-boundary window touches are excluded from this whole-day feature view.")
+        body+=p(f"Recorded context-seconds {num(g['recordedContextMs']/1000)}; missing context-seconds {num(g['missingContextMs']/1000)}. {g['knownSessions']} known session IDs; {g['unknownSessionRows']} rows have unknown sessions. Contact is unmeasured. "+g['supportMeaning'])
+        if view['selection']['lens'] in ('daily_variation','recurrence_conditions'):
+            entries=[]
+            for f in g['features']:
+                r=f['medianRange']
+                if r is None:entries.append((f['label']+' ('+f['units']+')','No support','No support'));continue
+                def bound(point):
+                    source=point['firstSourceRow']
+                    return num(point['value'])+' · '+source['date']+' / session '+str(source['sessionId'] if source['sessionId'] is not None else 'unknown')+' · '+str(source['unflaggedWindows'])+' unflagged windows · '+str(point['tiedRows'])+' tied row(s)'
+                entries.append((f['label']+' ('+f['units']+')',bound(r['minimum']),bound(r['maximum'])))
+            body+=table(['Feature','Lowest day/context median','Highest day/context median'],entries)
+            body+=p('These are ranges of day/exact-context medians, not pooled-window effects, uncertainty intervals or independent repetitions. Exact extremum row IDs/times remain in JSON.')
+        if view['selection']['lens']=='recurrence_conditions':
+            body+=p(str(g['probeCount'])+' ordinary references inspected in this family, not all possible windows.')
+            for probe in g['probes']:
+                s=probe['viewSensitivity'];body+=p(stamp(probe['startMs'],zone)+' · '+s['status'].replace('_',' ')+f" · {s['changedNearestWindow']} changed nearest-window IDs among {s['commonShownDates']} common shown dates; {s['uncomparedShownDates']} shown dates not compared.")
+                body+=table(['View','Status','Other eligible windows','Date minima shown / total / omitted'],[(name,probe['views'][key]['status'].replace('_',' '),probe['views'][key]['counts']['eligibleOtherWindows'],f"{probe['views'][key]['counts']['shown']} / {probe['views'][key]['counts']['otherDates']} / {probe['views'][key]['counts']['omittedDates']}") for name,key in [('Ratios + power','withPower'),('Ratios only','spectralOnly')]])
+                body+='<a href="#probe-'+e(probe['reference'])+'">Inspect this reference, distances and contributions ↓</a>'
+        body+='<p><a href="#family-'+e(g['family'])+'">Inspect daily distributions, coverage and screening ↓</a></p></details>'
+    body+=p(f"Change screening retained {view['changes']['retained']} heuristic cues after {view['changes']['evaluatedBoundaries']} evaluated boundaries. These are not activity transitions or statistical tests.")
+    body+='<details><summary>Limits and evidence provenance</summary><ul>'+''.join('<li>'+e(s)+'</li>' for s in view['limitations'])+'</ul>'
+    body+=table(['Identity','Value'],[(k,view['source'][k]) for k in ('analysisIdentity','sourceRevision','reportIdentity')]+[(k,view[k]) for k in ('insightsIdentity','methodIdentity')])+'</details>'
+    return '<section class="report-section report-investigation">'+body+'</section>'
+
+
 def sections(value,*,live=False):
-    n=value['numerical'];human=value['human'];c=human['context'];zone=n['timezone'];parts=[]
+    n=value['numerical'];human=value['human'];c=human['context'];zone=n['timezone'];parts=[investigation_sections(value)] if 'investigation' in value else []
     def section(title,body):parts.append('<section class="report-section"><h2>'+e(title)+'</h2>'+body+'</section>')
     intro=p('Synthetic demonstration — no personal EEG' if n['demo'] else 'Personal cloud EEG discovery snapshot')
     intro+=p('Observed '+stamp(n['observedExtent']['startMs'],zone)+' → '+stamp(n['observedExtent']['endMsExclusive'],zone)+' (end exclusive); '+zone)
@@ -57,7 +105,7 @@ def sections(value,*,live=False):
     section('What was selected for review?',body)
     body=p(f"Showing {min(len(n['families']),LIMITS['families'])} of {n['familyCount']} families; {n['dayContextRows']} day/exact-context rows exist in the full numerical JSON.")
     for group in n['families'][:LIMITS['families']]:
-        a=group['acquisition'];rows=group['conditions'];body+='<details open><summary>'+e(str(a['device_id'])+' · '+a['source']+' · '+a['placement']+' ear · '+a['channel']+' · '+str(a['sample_rate'])+' Hz')+'</summary>'
+        a=group['acquisition'];rows=group['conditions'];body+='<details open id="family-'+e(group['compatibilityId'])+'"><summary>'+e(str(a['device_id'])+' · '+a['source']+' · '+a['placement']+' ear · '+a['channel']+' · '+str(a['sample_rate'])+' Hz')+'</summary>'
         body+=p(str(a['units'])+'; '+str(len(group['contexts']))+' exact contexts; explicit session IDs retained, unknown sessions remain unknown. Contact unmeasured.')
         body+=p(f"Charts: first {min(len(rows),LIMITS['chartRows'])} of {len(rows)} rows (rows without unflagged features have no dot). Equally spaced day/context positions, not elapsed-time spacing. Dots are medians; whiskers Q1–Q3, not confidence intervals. No lines bridge days or gaps.")
         for feature in range(3):body+='<h3>'+e(group['proxies'][feature]['label'])+'</h3>'+chart(group,feature)
@@ -76,7 +124,7 @@ def sections(value,*,live=False):
     section('Changes worth inspecting',body)
     body=p(str(n['probeCount'])+' ordinary reference windows were probed, using the W4 selection. This is not an all-pairs recurrence search or episode matching.')
     for probe in n['probes']:
-        ref=probe['withPower']['reference'];body+='<details><summary>'+e(stamp(ref['startMs'],zone)+' · observed reference '+probe['reference'][:12]+'…')+'</summary>'
+        ref=probe['withPower']['reference'];body+='<details id="probe-'+e(probe['reference'])+'"><summary>'+e(stamp(ref['startMs'],zone)+' · observed reference '+probe['reference'][:12]+'…')+'</summary>'
         sensitivity=probe['viewSensitivity'];body+=p('View sensitivity: '+sensitivity['status'].replace('_',' ')+f"; {sensitivity['changedNearestWindow']} nearest window IDs changed among {sensitivity['commonShownDates']} common shown dates; {sensitivity['uncomparedShownDates']} shown dates not compared. This is not a refit stability test.")
         for name,key in [('Ratios + power','withPower'),('Ratios only','spectralOnly')]:
             q=probe[key];counts=q['counts'];body+='<h3>'+e(name)+'</h3>'+p(q['status'].replace('_',' ')+'. '+q['supportNote'])

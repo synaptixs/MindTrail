@@ -129,3 +129,8 @@ imports; `discovery_decisions.py` owns the separate scoped direction register.
 `report.css` for downloaded HTML. Renderer bytes and human revisions enter export identity;
 they are not silently inferred again by the browser. See the
 [report contract](DISCOVERY_READINESS.md#discovery-report-and-next-direction-p4-w5).
+
+`discovery_insights.py` derives question-linked longitudinal summaries from the verified
+numerical report and exact scoped question snapshot, without numerical imports or human-store
+writes. View selection and model identity enter the final report snapshot; rendering and
+export reuse the same facts. See the [question-view contract](DISCOVERY_READINESS.md#question-linked-longitudinal-views-p5-w1).
