@@ -59,8 +59,8 @@ def wait_for_workspace(process, profile):
             assert 'id="timeline"' in quality and '/quality.js' in quality
             with opener.open(url.split("/launch")[0] + "/api/analysis/state", timeout=1) as response:
                 analysis = json.load(response)
-            assert analysis['available'] is False, "Numerical analysis must not start in the stdlib bundle"
-            assert analysis['explorationAvailable'] is False, "Exploration must have an honest unavailable state"
+            assert analysis['available'] is True, "Bundled numerical runtime must be available"
+            assert analysis['explorationAvailable'] is True, "Bundled exploration dependencies must be available"
             for name,marker in [('review.html','id="review-form"'),('review.js','/api/review/undo'),('explore.html','id="pca"'),('explore.js','/api/exploration'),('similarity.js','/api/similarity/accept'),('compare.html','id="daily-chart"'),('compare.js','/api/activity-comparisons'),('compare.css','coverage-strip'),('discover.html','id="question"'),('discover.js','/api/discovery'),('discover.css','discovery-content'),('discovery_daily.js','/api/discovery/daily'),('recurrence.html','id="rec-search"'),('recurrence.js','/api/discovery/recurrence'),('recurrence.css','rec-wave-pair'),('context.html','id="ctx-form"'),('context.js','/api/discovery/context/undo'),('context.css','context-content'),('report.html','id="report-decision-form"'),('report.js','/api/discovery/report/view'),('report.css','report-document'),('monitor.html','id="monitor-form"'),('monitor.js','/api/monitoring'),('monitor.css','monitor-row')]:
                 with opener.open(url.split("/launch")[0]+'/'+name,timeout=1) as response:
                     assert marker in response.read().decode('utf-8')
@@ -135,6 +135,9 @@ def main() -> None:
         report = folder / "self-check.json"
         subprocess.run([str(executable), str(entry), "--self-check", str(report)], check=True, timeout=30, env=environment)
         checks = json.loads(report.read_text())
+        sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
+        from installer.smoke_analysis import exercise
+        checks['numericalAcceptance']=exercise([str(executable),str(entry)])
         assert all(checks.values()), checks
         # Exercise only a synthetic credential under this disposable profile's
         # unique vault namespace. Never load the real default profile or key.
@@ -328,10 +331,10 @@ with closing(sqlite3.connect(path)) as c,c:
         checks['discoveryDecisionsPreserved']=True
         assert hashlib.sha256(monitoring_file.read_bytes()).hexdigest()==monitoring_digest
         checks['monitoringVersionsPreserved']=True
-        checks['discoveryOfflineAssetsAndUnavailableState']=True
+        checks['discoveryOfflineAssetsAndRuntimeReady']=True
         checks['archiveLayoutsPreserved'] = True
         checks['archivePathCompatibility'] = True
-        result = {**checks, "singleInstance": True, "shutdown": True, "setupPageAndGuide": True, "mobileScoresRetired": True, "qualityPageAndUnavailableState": True, "personalActivityPageAndEmptyVocabulary": True, "dailyClockAndTimezoneChoices": True,
+        result = {**checks, "singleInstance": True, "shutdown": True, "setupPageAndGuide": True, "mobileScoresRetired": True, "qualityPageAndRuntimeReady": True, "personalActivityPageAndEmptyVocabulary": True, "dailyClockAndTimezoneChoices": True,
                   "installerExercised": installed, "platform": platform.platform(),
                   "signaturesVerified": args.require_signed,
                   "installerSha256": hashlib.sha256(args.installer.read_bytes()).hexdigest() if installed else None}

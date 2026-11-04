@@ -15,7 +15,7 @@ function render(value,state){
  $('facts').hidden=!snapshot;$('question-save').disabled=!snapshot||pending;
  const busy=state.job&&['running','canceling'].includes(state.job.state);
  $('run').disabled=!state.available||!state.participantId||busy;
- $('analysis-status').textContent=busy?`Analysis ${state.job.stage}…`:state.job?.state==='failed'?state.job.error:state.available?'Analysis runs locally in the source workspace.':'Numerical analysis is unavailable in this build; packaged numerical support remains a later release step.';
+ $('analysis-status').textContent=busy?`Analysis ${state.job.stage}…`:state.job?.state==='failed'?state.job.error:state.available?'Analysis runs locally in the background.':'Analysis is unavailable in this build. Use a build with analysis included.';
  if(!snapshot){renderedIdentity=null;$('contexts').replaceChildren();$('coverage').replaceChildren();return;}
  if(renderedIdentity===value.discoveryIdentity)return;
  renderedIdentity=value.discoveryIdentity;

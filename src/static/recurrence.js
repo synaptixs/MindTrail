@@ -19,7 +19,7 @@
    state=s;const busy=s.job&&['running','canceling'].includes(s.job.state);el('rec-analyze').disabled=!s.available||!s.participantId||busy;
    if(s.participantId!==next.participantId){hide('Source changed; refresh before exploring.');return;}
    el('rec-source').textContent=s.demo?'Synthetic demo · right-ear cloud-format metadata · no personal EEG':'Cloud EEG · right ear · RIGHT_TEMP · 256 Hz. Bluetooth files are excluded.';
-   if(next.status!=='current'){hide(busy?`Analysis ${s.job.stage}…`:next.status==='stale'?'Recordings or analysis code changed. Run analysis to refresh recurrence.':s.available?'No current recurrence report. Analyze saved recordings; activity labels are optional.':'Numerical analysis is unavailable in this build; packaged numerical support remains P5.');return;}
+   if(next.status!=='current'){hide(busy?`Analysis ${s.job.stage}…`:next.status==='stale'?'Recordings or analysis code changed. Run analysis to refresh recurrence.':s.available?'No current recurrence report. Analyze saved recordings; activity labels are optional.':'Numerical analysis is unavailable in this build. Use a build with analysis included.');return;}
    if(next.recurrenceIdentity===index?.recurrenceIdentity)return;
    const changedPerson=person!==next.participantId;person=next.participantId;index=next;custom=null;clearQuery();offset=0;
    if(changedPerson)linked=false;

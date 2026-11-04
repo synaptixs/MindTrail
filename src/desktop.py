@@ -67,6 +67,14 @@ def main() -> None:
         ZoneInfo("America/New_York")
         report = {"bluetoothImports": True, "timezoneData": True, "httpsCertificates": True,
                   "nativeCredentialBackend": CredentialStore(Path.cwd()).available}
+        import analysis_runtime
+        import subprocess,tempfile
+        if not analysis_runtime.available(exploration=True):raise ValueError('Bundled numerical runtime unavailable')
+        with tempfile.TemporaryDirectory() as folder:
+            output=Path(folder)/'probe.json'
+            command=analysis_runtime.command(Path(folder))[:-1]+['--probe',str(output)]
+            subprocess.run(command,env=analysis_runtime.environment(),check=True,timeout=30)
+            report['analysisRuntime']=json.loads(output.read_text(encoding='utf-8'))
         Path(sys.argv[sys.argv.index("--self-check") + 1]).write_text(json.dumps(report))
         return
 

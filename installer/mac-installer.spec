@@ -14,4 +14,4 @@ exe = EXE(pyz, a.scripts, [], exclude_binaries=True, name='Install MindTrail Lab
 collection = COLLECT(exe, a.binaries, a.datas, strip=False, upx=False, name='Install MindTrail Lab')
 application = BUNDLE(collection, name='Install MindTrail Lab.app', version='0.2.7',
     icon=str(root / 'build' / 'icons' / 'awear.icns'), bundle_identifier='org.awearpersonallab.install',
-    info_plist={'CFBundleShortVersionString':'0.2.7','LSUIElement':True,'NSHighResolutionCapable':True,'LSMinimumSystemVersion':'10.15'})
+    info_plist={'CFBundleShortVersionString':'0.2.7','LSUIElement':True,'NSHighResolutionCapable':True,'LSMinimumSystemVersion':'12.0'})

@@ -603,3 +603,11 @@ activity/context audit histories, units and a checksum manifest. On **Recording 
 use **Download all retained numerical history** for every saved compact numerical version.
 The downloads state their omissions; keep your complete profile separately for recovery.
 They exclude raw EEG and credentials and do not provide automatic restore/import.
+
+### Analysis in the next installer build
+
+P5-W4 builds include local numerical analysis for **Windows x64** and **Mac Intel/Apple Silicon
+(macOS 12+)**, with no separate Python setup. Published downloads remain unchanged until the
+next release is tested and published. Analysis runs in a separate process with bounded memory
+and time; activity labels and clustering stay optional. Intel payload checks are complete only
+when recorded by the builder; actual Intel execution remains a release acceptance step.

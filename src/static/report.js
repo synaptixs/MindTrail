@@ -26,7 +26,7 @@
    if(!viewDirty)el('report-lens').value=selection.lens;
    if(v.error){withhold(v.error);return;}
    if(v.participantId!==s.participantId||v.status!=='current'){
-    withhold(busy?`Analysis ${s.job.stage}…`:v.status==='stale'?'Source changed. Analyze saved recordings to refresh the report. Saved directions remain in history.':s.available?'No current report. Analyze saved recordings; labels and a direction are optional.':'Numerical reports are unavailable in this build; saved directions remain readable. Numerical installer support remains P5.');return;
+    withhold(busy?`Analysis ${s.job.stage}…`:v.status==='stale'?'Source changed. Analyze saved recordings to refresh the report. Saved directions remain in history.':s.available?'No current report. Analyze saved recordings; labels and a direction are optional.':'Numerical reports are unavailable in this build; saved directions remain readable.');return;
    }
    if(v.snapshotIdentity===report?.snapshotIdentity&&!force)return;
    if(dirty&&!force){el('report-body').hidden=true;el('report-fields').disabled=true;el('report-html').hidden=true;el('report-json').hidden=true;el('report-bundle').hidden=true;el('report-status').textContent='Evidence or direction changed. Your draft is preserved. Refresh the report to review the new snapshot before saving.';return;}

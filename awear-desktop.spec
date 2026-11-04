@@ -9,6 +9,9 @@ static = [(str(path), 'static') for path in sorted((root / 'src' / 'static').ite
           if path.is_file() and path.suffix in {'.html', '.css', '.js'}]
 # Historical comparisons verify this module's source identity even in a frozen stdlib app.
 monitoring_sources = [(str(root / 'src' / 'monitoring_model.py'), '.')]
+sys.path.insert(0,str(root/'src'))
+from installer_build import APP_FILES
+analysis_sources=[(str(root/'src'/name),'.') for name in APP_FILES if name!='monitoring_model.py']
 hidden = ['tzdata', 'zoneinfo']
 if sys.platform == 'darwin':
     hidden += collect_submodules('bleak.backends.corebluetooth')
@@ -19,7 +22,7 @@ elif sys.platform == 'win32':
     hidden += ['keyring.backends.Windows']
 
 a = Analysis([str(root / 'src' / 'desktop.py')], pathex=[str(root / "src")],
-             binaries=[], datas=static + monitoring_sources + collect_data_files('tzdata') + collect_data_files('certifi'), hiddenimports=hidden,
+             binaries=[], datas=static + monitoring_sources + analysis_sources + collect_data_files('tzdata') + collect_data_files('certifi'), hiddenimports=hidden,
              hookspath=[], hooksconfig={}, runtime_hooks=[],
              excludes=['numpy', 'sklearn', 'matplotlib', 'pytest', 'IPython', 'notebook', 'tkinter'], noarchive=False)
 pyz = PYZ(a.pure)
@@ -37,4 +40,4 @@ if sys.platform == 'darwin':
         info_plist={'CFBundleShortVersionString': '0.2.7', 'LSUIElement': True,
             'NSBluetoothAlwaysUsageDescription': 'Record EEG from the AWEAR device you select.',
             'NSBluetoothPeripheralUsageDescription': 'Record EEG from the AWEAR device you select.',
-            'NSHighResolutionCapable': True, 'LSMinimumSystemVersion':'10.15'})
+            'NSHighResolutionCapable': True, 'LSMinimumSystemVersion':'12.0'})
