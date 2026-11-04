@@ -39,10 +39,11 @@ async function load(){
   $('current-workspace').hidden=!workspace.ready;
   $('page-title').textContent=workspace.ready?'Your workspace, your way.':'Your recordings, connected.';
   $('source-settings').hidden=!workspace.keyConfigured||workspace.mode!=='api';
-  $('connection-summary').textContent=workspace.mode==='bluetooth'?'Direct Bluetooth · local recording profile':'API sync · '+workspace.participantId;
+  $('connection-summary').textContent=workspace.mode==='offline'?'Offline saved archive · '+workspace.participantId:workspace.mode==='bluetooth'?'Direct Bluetooth · local recording profile':'API sync · '+workspace.participantId;
   $('open-workspace').href=workspace.mode==='bluetooth'?'/bluetooth.html':'/';
   $('forget-key').hidden=!workspace.remembered;
   $('restore-section').hidden=workspace.ready;
+  $('offline-section').hidden=!workspace.archiveAvailable||workspace.mode==='offline';
   $('bluetooth-help').hidden=workspace.bluetoothAvailable;
   if(workspace.startupError)feedback(workspace.startupError,true);
   if(workspace.members.length)showMembers(workspace.members);
@@ -63,10 +64,11 @@ $('bluetooth-setup').addEventListener('click',()=>busy(async()=>{await request('
 $('forget-key').addEventListener('click',async()=>{if(await confirmAction('Remove the saved API key from this computer? Your recordings and labels will stay.'))busy(async()=>{await request('/api/desktop/forget-key',{});await load();feedback('Saved key removed. Enter a key again when you want to sync.');});});
 $('quit').addEventListener('click',async()=>{if(await confirmAction('Quit MindTrail Lab? Any active Bluetooth recording will stop and be saved.'))busy(async()=>{await request('/api/desktop/quit',{});$('connect-card').hidden=true;$('advanced').hidden=true;$('current-workspace').hidden=true;$('restore-section').hidden=true;feedback('MindTrail Lab has stopped. You can close this tab and open the app whenever you’re ready.');});});
 $('restore').addEventListener('click',()=>busy(async()=>{
-  const file=$('archive-file').files[0];if(!file)throw new Error('Choose your AWEAR SQLite archive first.');
+  const file=$('archive-file').files[0];if(!file)throw new Error('Choose your workspace backup first.');
   feedback('Restoring your archive. Keep this tab open…');
-  const response=await fetch('/api/desktop/import',{method:'POST',headers:{'Content-Type':'application/octet-stream','X-Awear-Local':'1'},body:file});
+  const response=await fetch(file.name.toLowerCase().endsWith('.zip')?'/api/desktop/restore':'/api/desktop/import',{method:'POST',headers:{'Content-Type':'application/octet-stream','X-Awear-Local':'1'},body:file});
   const result=await response.json();if(!response.ok)throw new Error(result.error||'Restore failed.');
-  $('archive-file').value='';await load();feedback('Archive restored. Connect your API key or choose Bluetooth to continue.');
+  $('archive-file').value='';await load();feedback('Archive restored. Open recordings offline or connect your API key to resume syncing.');
 }));
+$('open-offline').addEventListener('click',()=>busy(async()=>{await request('/api/desktop/offline',{});location.assign('/');}));
 load().catch(error=>feedback(error.message,true));

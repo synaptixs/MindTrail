@@ -157,3 +157,35 @@ Windows extends its existing embedded interpreter. `installer/analysis-runtime.l
 pins numerical downloads; the existing Windows lock retains all embedded dependencies.
 Native acceptance is shared by Mac and Windows in `installer/smoke_analysis.py`. See
 [packaged analysis contracts](ANALYSIS_QUALITY.md#packaged-numerical-runtime-p5-w4-source-builds).
+
+## Complete workspace recovery (P5-W5 source builds)
+
+`profile_recovery.py` owns credential-free recovery ZIPs: the core SQLite snapshot,
+all persisted files under `ArchivePaths.data` (including both legacy layouts), and
+questions/context/direction/monitoring stores. Only regenerable quality jobs/cache
+are omitted from that data tree. The manifest lists every included file, size and
+SHA256, plus explicit exclusions. Recovery is bounded to 20 GiB, 100,000 files and
+5 GiB per database; unsupported paths/schemas stop the operation rather than
+silently producing a partial backup. This ZIP contains private recordings and
+human notes; the user must store and share it accordingly.
+
+SQLite backup incorporates committed WAL frames. HTTP requests share concurrent
+read leases; authenticated backup/restore takes an exclusive, bounded lease and
+checks sync/Bluetooth/analysis idleness. Ordinary navigation remains concurrent.
+Inventory/stat guards detect changes by external writers during snapshot or
+validation. Stop other programs that write the workspace before recovery.
+
+Restore accepts only a new, empty profile before setup. It validates the entire
+inventory, checksums, portable paths and owner-defined SQLite schemas before
+promoting owned files, with rollback if migration fails. It never restores keys,
+root configuration, OS vault entries, locks or logs. A legacy SQLite import remains
+a database-only compatibility route and cannot replace existing discovery stores.
+Settings → Advanced settings provides backup, restore, and an explicit offline
+archive mode. The normal first run remains API key → Connect.
+
+`profile_identity.py` preserves the original scope hash seed across profile moves.
+The marker's seed is opaque hash input, never an accessed path; existing profiles
+without a marker keep their original scopes. Immutable question/context/direction
+and numerical histories remain accessible after restoration without rewriting
+records. Historical captures remain historical; full current analyses and caches
+must be regenerated. This is not an automatic cloud backup or a release gate pass.
