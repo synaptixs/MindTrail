@@ -25,6 +25,6 @@ class GuidedNavigationTests(unittest.TestCase):
                 if self.nav and tag=='details':self.detail-=1
                 if tag=='nav':self.nav=False
         for path in (Path(__file__).parent.parent/'src/static').glob('*.html'):
-            p=Structure();p.feed(path.read_text())
+            p=Structure();p.feed(path.read_text(encoding="utf-8"))
             self.assertEqual(len(p.ids),len(set(p.ids)),str(path))
             if p.primary:self.assertEqual(p.primary,['/','/#recorded-periods','/journey.html'],str(path))
