@@ -19,7 +19,7 @@ test('no background start; one explicit preparation preserves settings and does 
  assert.equal(p.calls.some(c=>c.url.endsWith('/start')),false);
  await p.el('journey-action').click();
  const posts=p.calls.filter(c=>c.url.endsWith('/start'));assert.equal(posts.length,1);
- assert.deepEqual(JSON.parse(posts[0].options.body),p.settings);
+ assert.deepEqual(JSON.parse(posts[0].options.body),{...p.settings,participantId:'P'});
  assert.equal(p.el('journey-progress').hidden,false);
  await p.poll();assert.equal(p.calls.filter(c=>c.url.endsWith('/start')).length,1);
 });
@@ -31,6 +31,7 @@ test('choices follow live readiness and disappear when the source loses readines
 test('post errors survive a successful status refresh; a changed source never starts',async()=>{
  const p=await page();p.fail();await p.el('journey-action').click();
  assert.equal(p.el('journey-error').hidden,false);assert.equal(p.el('journey-error-text').textContent,'Analysis already running');
+ await p.poll();assert.equal(p.el('journey-error').hidden,false);
  const q=await page();q.value.analysisParticipant='OTHER';await q.el('journey-action').click();
  assert.equal(q.calls.some(c=>c.url.endsWith('/start')),false);assert.match(q.el('journey-error-text').textContent,/source changed/);
 });

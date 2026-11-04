@@ -90,6 +90,12 @@ class JourneyHttpTests(unittest.TestCase):
                 c = http.client.HTTPConnection('127.0.0.1',server.server_port,timeout=5)
                 c.request('GET','/api/workspace');r=c.getresponse()
                 self.assertEqual(json.loads(r.read())['stage'],'waiting');c.close()
+                with patch.object(server.analysis,'start') as start:
+                    c = http.client.HTTPConnection('127.0.0.1',server.server_port,timeout=5)
+                    c.request('POST','/api/analysis/start',json.dumps({'participantId':'PREVIOUS'}),
+                              {'Content-Type':'application/json','X-Awear-Local':'1'})
+                    r=c.getresponse();self.assertEqual(r.status,400);r.read();c.close()
+                    start.assert_not_called()
             finally:
                 server.shutdown();server.server_close();thread.join()
                 app.DATA_ROOT, app.DB_PATH = original

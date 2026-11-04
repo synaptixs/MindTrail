@@ -1439,7 +1439,10 @@ class Handler(BaseHTTPRequestHandler):
                 from discovery_questions import save
                 return self._json(200,save(self.server.analysis,self._selected(),body))
             if route == "/api/analysis/start":
-                return self._json(202, self.server.analysis.start(self._selected(), body))
+                participant = self._selected()
+                if 'participantId' in body and body['participantId'] != participant:
+                    raise ValueError("The recording source changed. Refresh and try again.")
+                return self._json(202, self.server.analysis.start(participant, body))
             if route == "/api/analysis/cancel":
                 return self._json(200, self.server.analysis.cancel())
             if route == "/api/select":

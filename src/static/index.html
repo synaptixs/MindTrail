@@ -48,16 +48,16 @@
           <div class="journey-actions"><button type="button" class="button primary" id="journey-action" hidden></button><a class="button primary" id="journey-link" hidden></a><progress id="journey-progress" aria-label="Preparing recording insights" hidden></progress></div>
           <div id="journey-error" role="status" hidden><span id="journey-error-text">We couldn’t check your workspace.</span> <button type="button" class="button subtle" id="journey-retry">Try again</button></div>
         </section>
-        <div id="journey-options" class="journey-options" hidden>
-          <a id="journey-days" href="/recurrence.html" hidden><strong>Compare recording days →</strong><span>Inspect recurring shapes and recording conditions.</span></a>
-          <a href="/report.html"><strong>See my recording summary →</strong><span>Review findings, missing context and a downloadable report.</span></a>
-        </div>
         <section id="recorded-periods" class="recorded-section card" aria-labelledby="recorded-title">
           <div class="section-head recorded-heading"><div><div class="eyebrow">EVERY RECORDING · FIRST TO LAST</div><h2 id="recorded-title">Daily recordings</h2><p>Your full recording day, from first to last sample. Drag either edge to zoom; add an activity only if you want to.</p><p id="recorded-refreshed" role="status">Refreshes every 10 seconds while this page is open.</p></div><span id="interval-count" class="count-badge">Loading…</span></div>
           <div id="intervals-list" class="intervals-list" role="list"><div class="empty-state">Loading recorded periods…</div></div>
           <div class="intervals-footer"><button id="load-older" class="button subtle" type="button" hidden>Load older periods ↓</button></div>
         </section>
 
+        <div id="journey-options" class="journey-options" hidden>
+          <a id="journey-days" href="/recurrence.html" hidden><strong>Compare recording days →</strong><span>Inspect recurring shapes and recording conditions.</span></a>
+          <a href="/report.html"><strong>See my recording summary →</strong><span>Review findings, missing context and a downloadable report.</span></a>
+        </div>
         <details class="optional-tools" id="activity-tools"><summary>Add or edit an activity <span>Optional</span></summary>
         <section id="activity" class="activity-section">
           <div class="section-head activity-heading"><div><div class="eyebrow">ADD CONTEXT</div><h2>Activity log</h2><p>Add an activity here, or click Edit beside a label in Recorded periods to change its name, note, or times.</p></div></div>
