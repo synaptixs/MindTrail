@@ -12,12 +12,12 @@ amplitude trends, inspect EEG, compare activities, and export your recordings.
 > of focus, mood, or health. Waveforms remain in device units.
 
 [Download installers](#download-installers) · [Get started](#get-started) · [Get an API key](#get-your-awear-api-key) ·
-[Use the dashboard](#use-the-dashboard) · [Run from source](#run-from-source) ·
+[Use the dashboard](#use-the-dashboard) · [Explore without labels](#explore-without-labels) · [Run from source](#run-from-source) ·
 [Build installers](#build-installers) · [Troubleshooting](#troubleshooting)
 
 ## Download installers
 
-**MindTrail Lab 0.2.7 — Discovery, history, and workspace recovery**
+**MindTrail Lab 0.2.7 preview — Discovery, history, and workspace recovery**
 
 Explore right-ear EEG quality and recurring patterns, add your own activity labels,
 compare recording days, and retain numerical history. Analysis runs locally with
@@ -79,19 +79,17 @@ while the app is running.
 3. Click **Assign activity to selection**, enter an activity name, and save.
 4. To change a label later, click **Edit** beside it.
 
-In the source workspace, expand **Your activities** in Activity log to manage your own
+Expand **Your activities** in Activity log to manage your own
 names, categories, context and favorites. Rename keeps saved periods and their original
 names in history; archive hides an activity from new choices. Export the vocabulary and
 history as JSON, or current assignments with IDs as CSV. When labeling a period, keep
 its review state separate from timing: mark known or approximate boundaries and optional
-± uncertainty in seconds. Original schedule/model origins stay visible after review. These Phase 2 changes are not
-in the 0.2.6 downloads above yet. See [personal activity details](docs/PERSONAL_ACTIVITIES.md).
+± uncertainty in seconds. Original schedule/model origins stay visible after review. See [personal activity details](docs/PERSONAL_ACTIVITIES.md).
 
-The source workspace also separates recording gaps, quality screening and activities into
+The dashboard also separates recording gaps, quality screening and activities into
 three daily lanes. Expand **Enter precise start and end** for millisecond selection;
 New York times show their UTC offset and ask for EDT/EST when an hour repeats. Quality
-lanes need a current completed source analysis. See [daily review details](docs/DAILY_REVIEW.md).
-These changes are not in the published downloads yet.
+lanes need a current completed analysis. See [daily review details](docs/DAILY_REVIEW.md).
 
 Use **Show entire day** to reset a daily graph. New recordings extend the day's
 unzoomed graph automatically. A selected zoom stays pinned while data refreshes.
@@ -121,9 +119,16 @@ Keep keys out of GitHub, screenshots, bug reports, and command-line arguments.
 | Zoom into a day and assign or edit labels | **Activity log** |
 | Examine waveforms, spectra, and recording gaps | **EEG signal** |
 | Inspect raw samples, sessions, and stats | **Data tables** |
-| Explore readiness without activity labels; save research questions (source workspace) | **Discover recordings** |
-| Review analysis coverage and screening cues (source workspace) | **Recording quality** |
-| Review optional offline clustering results | **Signal patterns** |
+| Explore readiness without activity labels; save research questions | **Discover recordings** |
+| Review analysis coverage and screening cues | **Recording quality** |
+| Review, edit, split and undo activity intervals | **Episode review** |
+| Inspect feature distributions, PCA, representative waveforms and similar periods | **Feature explorer** |
+| Compare confirmed activities across days and known sessions | **Activity comparisons** |
+| Inspect recurring spectral patterns and recording-condition sensitivity | **Across days** |
+| Add optional recollections without assigning activities | **Optional context** |
+| Review question-linked findings and download an analysis audit | **Discovery report** |
+| Compare retained numerical versions | **Recording changes** |
+| Read legacy offline clustering reports | **Signal patterns** |
 | Scan and record directly from a device | **Bluetooth** |
 
 **Activity labels:** live activities use **Start activity** and **Stop activity**.
@@ -228,6 +233,91 @@ the selected chart window downloads as raw JSONL; labels export as CSV. Timestam
 
 </details>
 
+## Explore without labels
+
+The v0.2.7 installers include local numerical analysis on **Windows x64** and
+**Mac Intel/Apple Silicon (macOS 12+)**. No Python installation or activity labels
+are required. Source users install [analysis dependencies](config/requirements/analysis.txt)
+in their development environment first.
+
+1. Open **Recording quality** and click **Run analysis**. Review coverage, gaps,
+   screening cues and exclusions before interpreting features.
+2. Open **Discover recordings** to inspect what is available. A saved research
+   question is optional; unlabeled data is a valid starting point.
+3. Use **Across days** to inspect recurring spectral patterns and recording-condition
+   sensitivity. Use **Feature explorer** for feature distributions, PCA, representative
+   waveforms and explainable similar-period retrieval. Optional model groups have no
+   default activity or mental-state meaning; PCA is a projection, not evidence of a group.
+4. Add a recollection in **Optional context** when useful, or select a known period in
+   **Activity log** and assign your own activity. **Episode review** supports edit,
+   split and undo. **Activity comparisons** needs suitable confirmed labels and shows
+   when day/session support is insufficient.
+5. Open **Discovery report** for daily variation, change cues, cross-day candidates
+   and missing context. Apply a saved question and evidence view, download the report,
+   or record what to explore next—including insufficient evidence.
+6. Use **Recording changes** to compare retained numerical versions as recordings
+   change. A pinned pair stays selected. Optional automatic analysis runs only while
+   that page is open; it is separate from cloud synchronization.
+
+Analysis runs in a separate process with time and memory limits. Jobs can be canceled
+and reuse unchanged feature windows; previous complete results remain available while
+new work runs. Bluetooth captures are preserved separately and are not inputs to this
+cloud-EEG analysis. Unknown sessions/contact conditions stay unknown. Similarity,
+recurrence and screening cues do not establish an activity, biological cause or diagnosis.
+
+Read the [analysis contracts](docs/ANALYSIS_QUALITY.md),
+[discovery guide](docs/DISCOVERY_READINESS.md),
+[feature explorer guide](docs/EXPLORATORY_VIEWS.md), and
+[activity comparison guide](docs/ACTIVITY_COMPARISONS.md) for exact scope and limits.
+[Phase 1 acceptance](docs/PHASE1_ACCEPTANCE.md) documents the reproducible archive
+resource and preservation checks.
+
+### Keep an analysis audit
+
+After analyzing your recordings, open **Discovery report → Download analysis audit ZIP**.
+It includes the report with offline charts, all computed feature windows in JSON/CSV,
+activity/context audit histories, units and a checksum manifest. On **Recording changes**,
+use **Download all retained numerical history** for every saved compact numerical version.
+The downloads state their omissions; keep your complete profile separately for recovery.
+They exclude raw EEG and credentials and do not provide automatic restore/import.
+
+## Delivery status and remaining limitations
+
+All five development phases are complete in the recorded software, discovery and
+preview-release scope:
+
+| Phase | Delivered |
+| --- | --- |
+| **1 — Data and quality** | Gap-safe feature extraction, provenance, quality coverage, background jobs and resource checks |
+| **2 — Personal activities** | Personal vocabulary, review/timing provenance, daily lanes, precise editing, split and undo |
+| **3 — Exploratory patterns** | Optional clustering diagnostics, interpretable features/PCA, representative waveforms, similar-period retrieval and activity comparisons |
+| **4 — Discovery-first review** | Zero-label readiness, questions, cross-day recurrence, optional context and evidence review |
+| **5 — Reporting and release** | Question-linked reports, retained numerical history, audit exports, bundled analysis, workspace recovery and Mac/Windows installers |
+
+Completion does not establish scientific interpretation or inferential readiness.
+Activity labels and clustering remain optional; no validated focus, mood or health
+score is provided. Mobile-score entry is retired because the available API supplies
+no mobile-score history; archived observations remain exportable.
+
+The v0.2.7 release records source provenance, checksums and validation reports:
+
+- **Mac:** Developer ID signed, Apple notarized and stapled; Gatekeeper accepted.
+  Native analysis/recovery ran on Intel and Apple Silicon. Genuine API connection
+  and Keychain save/reopen/forget were checked on Mac.
+- **Windows:** explicitly **unsigned**. Automated native install, upgrade, synthetic
+  credential storage, analysis, recovery and uninstall-preservation checks passed.
+  First run with a real AWEAR key remains **unverified**; the owner approved this
+  preview limitation because no Windows test PC was available.
+- **Restore:** automated native HTTP ZIP restore passed on all three architectures.
+  The interactive browser file-picker check remains **unverified** after its test
+  backend stalled. Bluetooth hardware was not exercised in release validation.
+
+Earlier manual activity-review checks were deferred by the owner; they are not
+reported as passed. Automatic app updates, signed Windows distribution and Bluetooth
+capture ingestion into cloud analysis remain future work. See the
+[release evidence](https://github.com/synaptixs/MindTrail/releases/tag/v0.2.7) and
+[publisher verification guide](installer/README.md#v027-release-evidence-and-remaining-checks).
+
 ## Your data and privacy
 
 - The dashboard listens on `127.0.0.1`, on your computer.
@@ -255,7 +345,7 @@ The key is saved in macOS Keychain or Windows Credential Manager. If secure stor
 
 Desktop data is separate from installed files. New installations use: `~/Library/Application Support/MindTrail Lab/` on Mac, `%LOCALAPPDATA%\MindTrail Lab\` on Windows. Existing installations automatically reuse their original `AWEAR Personal Lab` profile when no MindTrail Lab profile exists; the vault identifiers stay stable so saved keys remain accessible. The database is `awear_data.sqlite3`; session files, exports and reports live under `data/`. Existing source data is not moved automatically. In v0.2.7, use **Settings → Advanced settings → Download workspace backup** to save recordings, labels, Bluetooth files and discovery history together. Restore that ZIP through **Restore an existing archive** in a new, empty desktop workspace, then choose **Open recordings offline** or reconnect an API key. Keys are excluded; generated analyses must be run again. Older published builds accept only a SQLite file, which requires copying `data/` separately. Keep the original backup until you have checked the restored workspace.
 
-**Settings & quit** in Overview changes setup or stops MindTrail Lab. Closing the browser tab keeps sync running. Open the app again to return to the same workspace. Each desktop profile has one running instance and an automatically chosen local port. Upgrades stop the old instance gracefully and preserve data; Windows uninstall also preserves the archive. Existing offline pattern reports are readable, but the optional clustering dependencies are not bundled.
+**Settings & quit** in Overview changes setup or stops MindTrail Lab. Closing the browser tab keeps sync running. Open the app again to return to the same workspace. Each desktop profile has one running instance and an automatically chosen local port. Upgrades stop the old instance gracefully and preserve data; Windows uninstall also preserves the archive. Existing offline pattern reports remain readable. The v0.2.7 installers bundle the numerical runtime for dashboard analysis, including optional exploration; source commands use their own Python environment.
 
 [Installer build, signing and verification instructions](installer/README.md) describe both platforms and the simple end-user flow. Files containing **unsigned** in the name are development builds; production distribution requires signing/notarization and native Windows validation. Native analysis and recovery were validated on Intel and Apple Silicon Macs. Automatic update delivery remains a future feature.
 
@@ -394,7 +484,7 @@ cd MindTrail
 python3 src/export_data.py
 ```
 
-The command reads the same `.env` key, or use `--key-prompt` for a hidden prompt. It creates `data/` and saves each successful run in a new `data/export-<UTC timestamp>/` folder. It exports members and usage, and each participant's stats, sessions, and raw EEG in **both JSON and CSV**. With 2–10 participants it also writes a comparison JSON and separate comparison stats/timeline CSV files. Raw CSV has one row per second and 256 sample columns. A `manifest.json` records each participant's exported time window and counts. `data/` is excluded from Git.
+The command reads the same `.env` key, or use `--key-prompt` for a hidden prompt. It creates `data/` and saves each successful run in a new `data/raw/cloud/export-<UTC timestamp>/` folder. It exports members and usage, and each participant's stats, sessions, and raw EEG in **both JSON and CSV**. With 2–10 participants it also writes a comparison JSON and separate comparison stats/timeline CSV files. Raw CSV has one row per second and 256 sample columns. A `manifest.json` records each participant's exported time window and counts. `data/` is excluded from Git.
 
 By default, the raw and session export starts at each participant's `firstRecord` (or `firstSeen`, if returned) from `/stats` and ends now. For a shorter export, use `--start 2026-10-15T00:00:00Z`; use `--participant P-XXXXXX` to export only one participant. An all-history export can take a long time because the API limits raw data calls to 60 per minute. The exporter splits dense windows and does not rely on a pagination cursor. It preserves distinct raw records with the same timestamp and checks a full-history raw count against `/stats` before publishing a snapshot. If it fails, no partial snapshot is published; rerun the command.
 
@@ -419,28 +509,21 @@ All amplitude timelines and daily recording graphs include every recorded hour, 
 
 `python3 src/backfill_activity_labels.py` previews labels for unassigned recorded time from 08:00 to 16:00 Monday–Friday in `America/New_York`. Add `--apply` to save them as **Work (Misc)**, or `--all-days` only when your schedule includes weekends. Suggestions are in at most 30-minute pieces, clipped to recorded endpoints, and never overlap an existing activity. Small gaps within a piece remain schedule-inferred time. Five-minute breaks are not placed without actual times.
 
-Each suggestion has `source=schedule`, `reviewed=false`, and a batch ID. Existing annotations migrate as manual/reviewed and remain protected. Applying a batch saves the before-label snapshot, settings, proposed intervals, coverage counts and created IDs under `data/activity-backfill/<batch-id>/`. Repeating the backfill adds nothing where activities already exist. Raw EEG is never rewritten. Review suggestions through the **Edit** button beside each suggested label in **Recorded periods**; inferred activities should not be treated as observed ground truth in analysis.
+Each suggestion has `source=schedule`, `reviewed=false`, and a batch ID. Existing annotations migrate as manual/reviewed and remain protected. Applying a batch saves the before-label snapshot, settings, proposed intervals, coverage counts and created IDs under `data/processed/activity-backfill/<batch-id>/`. Repeating the backfill adds nothing where activities already exist. Raw EEG is never rewritten. Review suggestions through the **Edit** button beside each suggested label in **Recorded periods**; inferred activities should not be treated as observed ground truth in analysis.
 
 </details>
 
 <details>
 <summary><strong>Run optional offline signal clustering</strong></summary>
 
-First install the optional analysis dependencies into your chosen environment:
+The published installers already include dashboard analysis dependencies. To generate a separate legacy Signal patterns report from source, install the analysis requirements in your chosen environment:
 
 ```bash
-python -m pip install numpy scikit-learn
+python -m pip install -r config/requirements/analysis.txt
 python src/analyze_patterns.py
 ```
 
-The live app needs no packages. The optional offline clustering command requires NumPy and scikit-learn in the Python environment used to run it:
-
-```bash
-cd MindTrail
-python src/analyze_patterns.py
-```
-
-Use `--demo` to analyze the separate demo archive, or `--participant P-XXXXXX` to select a particular participant. The command reads the local SQLite archive and saves `data/patterns/<id>.json`; it does not call the AWEAR API or edit raw records. Rerun it after new recordings arrive. The page indicates when the archive's record count or endpoints have changed since the analysis.
+Use `--demo` to analyze the separate demo archive, or `--participant P-XXXXXX` to select a particular participant. The command reads the local SQLite archive and saves `data/processed/patterns/<id>.json`; it does not call the AWEAR API or edit raw records. Rerun it after new recordings arrive. The page indicates when the archive's record count or endpoints have changed since the analysis.
 
 The analysis builds **nonoverlapping four-second windows** of 256 Hz data and does not join gaps, device changes, or 30-minute labeling boundaries. It linearly detrends each window and computes 1–40 Hz power and relative delta, theta, alpha, beta, and 30–40 Hz shares. Windows above the archive's 95th percentile of centered RMS or peak-to-peak amplitude, above its 99th percentile of single-sample jumps, or nearly flat are **flagged and excluded from clustering**. These are relative screening thresholds, not validated artifact labels. A two-component diagonal Gaussian mixture assigns exploratory Pattern 1 or 2 with a fit probability; K-means supplies a second assignment for comparison. The page also compares two- and three-group fits using silhouette, BIC, and adjusted Rand agreement. Model inputs and seed are saved in the report. Pattern numbers have no inherent physiological meaning, and a high fit probability does not imply certainty about an activity. Compare patterns across days and with your own labels before interpreting them.
 
@@ -460,7 +543,7 @@ Restart the dashboard after updating its Python code. Disconnect the device from
 
 If scanning times out while waiting for macOS and no permission prompt appears, try the scan command below from the Mac's Terminal app and allow its Bluetooth prompt. Launching the dashboard from that same terminal lets its collector use the terminal's Bluetooth access. Close any other process using the chosen dashboard port first.
 
-Each session is saved under `data/bluetooth/session-<UTC time>-<id>/`, independently of `awear_data.sqlite3`:
+Each dashboard session is saved under `data/raw/bluetooth/session-<UTC time>-<id>/`, independently of `awear_data.sqlite3`:
 
 - `raw-notifications.jsonl`: every received notification as base64, with Mac Unix and monotonic arrival timestamps.
 - `eeg.jsonl` and `eeg.csv`: complete 256-sample blocks in unmodified ADC device units, device timestamp/ID, counter, format, replay flag and detected counter gaps. No baseline subtraction or voltage calibration is applied to saved samples. The preview alone is centered.
@@ -550,65 +633,3 @@ in the [installer guide](installer/README.md#verify-before-distribution).
 
 When reporting a problem, include your operating system, the step you tried, and
 the error message. Keep API keys and personal recordings out of reports.
-
-
-### Recording quality in the source workspace
-
-With the optional [analysis dependencies](config/requirements/analysis.txt) installed,
-open **Recording quality** and click **Run analysis**. The page shows coverage,
-quality screening cues, exclusions and incomplete windows. Jobs run in a separate
-process, can be canceled, and reuse unchanged feature windows. Previous complete
-results remain available while a new run is working. Automatic updates are opt-in.
-
-This currently analyzes saved cloud EEG with right-ear metadata. Bluetooth-file
-analysis and the packaged numerical runtime are still pending; current installer
-builds show this analysis as unavailable. See the [analysis contracts](docs/ANALYSIS_QUALITY.md)
-for exact accounting, units and limitations.
-
-For reproducible full-archive resource and preservation checks, see
-[Phase 1 acceptance](docs/PHASE1_ACCEPTANCE.md). Its runner uses private disposable
-copies and creates a self-contained coverage review report.
-
-Explore unlabeled recordings with
-[daily discovery and cross-day recurrence](docs/DISCOVERY_READINESS.md). In a source
-workspace, **Across days** compares observed spectral windows and displays
-recording-condition context; it does not identify activities. Numerical installer
-support remains planned for Phase 5.
-
-Use **Optional context** to review a small selection of recorded moments and add a
-recollection, mixed activity, unknown or skip. Notes are optional, separate from
-activity assignments, and have editable history, undo and complete JSON/CSV exports.
-See [discovery contracts](docs/DISCOVERY_READINESS.md#selective-review-and-optional-context-p4-w4)
-for selection limits and context backup details.
-
-Open **Discovery report** for a summary of daily variation, change cues, cross-day
-candidates and missing context. Download a self-contained HTML report or JSON snapshot,
-and optionally record what to explore next—including insufficient evidence. Labels are
-optional. See [report scope and export limits](docs/DISCOVERY_READINESS.md#discovery-report-and-next-direction-p4-w5).
-
-In **Discovery report**, use the starter investigation or apply your own saved question
-with a selected evidence view. Daily/context ranges, coverage and cross-day sensitivity
-stay linked to their detailed evidence. The view is exploratory; it does not infer the
-meaning of your question or provide a confirmed activity or mental-state result.
-
-Use **Recording changes** to compare retained numerical versions, coverage and screening
-as recordings change. Historical snapshots survive normal job pruning. An explicitly pinned
-pair stays selected; optional automatic analysis runs only while that page is open.
-See [monitoring and history limits](docs/DISCOVERY_READINESS.md#recording-changes-and-retained-versions-p5-w2).
-
-### Keep an analysis audit
-
-After analyzing your recordings, open **Discovery report → Download analysis audit ZIP**.
-It includes the report with offline charts, all computed feature windows in JSON/CSV,
-activity/context audit histories, units and a checksum manifest. On **Recording changes**,
-use **Download all retained numerical history** for every saved compact numerical version.
-The downloads state their omissions; keep your complete profile separately for recovery.
-They exclude raw EEG and credentials and do not provide automatic restore/import.
-
-### Analysis in the next installer build
-
-P5-W4 builds include local numerical analysis for **Windows x64** and **Mac Intel/Apple Silicon
-(macOS 12+)**, with no separate Python setup. Published downloads remain unchanged until the
-next release is tested and published. Analysis runs in a separate process with bounded memory
-and time; activity labels and clustering stay optional. Intel payload checks are complete only
-when recorded by the builder; actual Intel execution remains a release acceptance step.
