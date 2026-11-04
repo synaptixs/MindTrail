@@ -100,7 +100,7 @@ class WorkflowTests(unittest.TestCase):
     def test_full_windows_manifest_json_csv_offline_html_and_preservation(self):
         before=app.DB_PATH.read_bytes();a=self.bundle();self.assertEqual(a,self.bundle())
         self.assertEqual(app.DB_PATH.read_bytes(),before);m,files=inspect_archive(a)
-        raw=json.loads(self.manager.report_path('P').read_text());report=json.loads(files['quality-report.json'])
+        raw=json.loads(self.manager.report_path('P').read_text(encoding='utf-8'));report=json.loads(files['quality-report.json'])
         self.assertEqual(report,raw);self.assertEqual((m['windowRows'],m['omittedComputedWindows']),(9,0))
         csvrows=list(csv.DictReader(io.StringIO(files['feature-windows.csv'].decode())))
         self.assertEqual(len(csvrows),9)
@@ -119,7 +119,7 @@ class WorkflowTests(unittest.TestCase):
         with self.assertRaises(ValueError):self.bundle('f'*64)
         with self.assertRaises(ValueError):self.bundle(identity,lens='bad')
         path=self.manager.report_path('P');before=path.read_bytes();broken=json.loads(before)
-        broken['windows'][0]['features']['acRms']+=99;path.write_text(json.dumps(broken))
+        broken['windows'][0]['features']['acRms']+=99;path.write_text(json.dumps(broken),encoding='utf-8')
         with self.assertRaisesRegex(ValueError,'sealed'):self.bundle(identity)
         path.write_bytes(before)
         with patch.object(exports,'MAX_INPUT',10):
