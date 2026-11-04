@@ -53,6 +53,31 @@ class RuntimeTests(unittest.TestCase):
             with patch.object(runtime,'distribution',return_value=distribution):
                 a=runtime.numerical_identity();self.assertEqual(a,runtime.numerical_identity())
                 p.write_bytes(b'two');os.utime(p,ns=(stat.st_atime_ns,stat.st_mtime_ns));self.assertNotEqual(runtime.numerical_identity(),a)
+    def test_mac_framework_seal_is_created_after_all_nested_code_and_verified(self):
+        from analysis_runtime_build import sign_mac_tree
+        with tempfile.TemporaryDirectory() as folder:
+            application=Path(folder)/'Fixture.app';root=application/'Contents/Resources/analysis-runtime'
+            framework=root/'runtime/Python'
+            children=[root/'runtime/bin/python3.14',root/'runtime/lib/fixture.so',root/'runtime/Resources/Python.app/Contents/MacOS/Python',root/'vendor/arm64/fixture.so']
+            for p in [framework,*children]:p.parent.mkdir(parents=True,exist_ok=True);p.write_bytes(b'\xcf\xfa\xed\xfe-fixture')
+            seals={};verified=set();commands=[]
+            def run(command,**kwargs):
+                commands.append(command);target=Path(command[-1])
+                if '--sign' in command:
+                    self.assertIn('--timestamp',command);self.assertIn('runtime',command)
+                    if target.is_file():target.write_bytes(target.read_bytes()+b'-signed')
+                    elif target.name=='Python.app':
+                        executable=target/'Contents/MacOS/Python';executable.write_bytes(executable.read_bytes()+b'-bundle')
+                    if target==framework:seals['children']={p:p.read_bytes() for p in children}
+                elif target==framework:
+                    self.assertEqual(seals['children'],{p:p.read_bytes() for p in children})
+                    verified.add(target)
+                elif target.is_file():verified.add(target)
+                return SimpleNamespace(returncode=0)
+            with patch.dict(os.environ,{'AWEAR_MAC_SIGN_IDENTITY':'Synthetic Publisher'}),patch('analysis_runtime_build.subprocess.run',side_effect=run):sign_mac_tree(application)
+            self.assertEqual(verified,set([framework,*children]))
+            self.assertEqual(Path(commands[-1][-1]),application);self.assertIn('--verify',commands[-1])
+
     def test_locked_dependency_closure_and_explicit_packaging_members(self):
         from installer_build import APP_FILES,ROOT
         from analysis_runtime_build import lock

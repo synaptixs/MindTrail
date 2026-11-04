@@ -110,11 +110,21 @@ def sign_mac_tree(application):
     identity=os.environ.get('AWEAR_MAC_SIGN_IDENTITY') or '-'
     flags=['--options','runtime','--timestamp'] if identity!='-' else []
     runtime=application/'Contents/Resources/analysis-runtime'
+    framework=runtime/'runtime'/'Python'
+    binaries=[]
     for p in sorted(runtime.rglob('*')):
         if p.is_file() and not p.is_symlink():
             with p.open('rb') as f:magic=f.read(4)
-            if magic in MACHO:subprocess.run(['codesign','--force',*flags,'--sign',identity,str(p)],check=True)
+            if magic in MACHO:
+                binaries.append(p)
+                if p!=framework:subprocess.run(['codesign','--force',*flags,'--sign',identity,str(p)],check=True)
     for p in sorted(runtime.rglob('*.app'),key=lambda p:len(p.parts),reverse=True):
         subprocess.run(['codesign','--force',*flags,'--sign',identity,str(p)],check=True)
+    # This relocated framework executable seals the entire runtime directory.
+    # Signing it before its children leaves a stale resource seal. The outer
+    # app treats Resources as data, so --deep alone does not detect that defect.
+    subprocess.run(['codesign','--force',*flags,'--sign',identity,str(framework)],check=True)
+    for p in binaries:
+        subprocess.run(['codesign','--verify','--strict','--all-architectures',str(p)],check=True)
     subprocess.run(['codesign','--force',*flags,'--sign',identity,str(application)],check=True)
     subprocess.run(['codesign','--verify','--deep','--strict',str(application)],check=True)
