@@ -19,7 +19,7 @@ import zipfile
 import zlib
 from pathlib import Path, PurePosixPath
 
-VERSION = "0.2.7"
+VERSION = "0.2.8"
 ROOT = Path(__file__).resolve().parent.parent
 APP_FILES = ("app.py", "desktop.py", "desktop_runtime.py", "credential_store.py", "bluetooth_manager.py", "bluetooth_collector.py", "ble_protocol.py", "archive_paths.py", "analysis_manager.py", "personal_activities.py", "daily_review.py", "candidate_boundaries.py", "episode_review.py", "analysis_provenance.py", "exploration_access.py", "similar_periods.py", "activity_access.py", "discovery_contracts.py", "discovery_questions.py", "discovery_daily.py", "discovery_daily_access.py", "recurrence_access.py", "discovery_review_access.py", "discovery_context.py", "discovery_report_access.py", "discovery_insights.py", "analysis_history.py", "analysis_exports.py", "monitoring_access.py", "monitoring_model.py", "discovery_report_render.py", "discovery_decisions.py")
 APP_FILES += ('profile_identity.py','profile_recovery.py','analysis_runtime.py','analysis_bootstrap.py','analysis_worker.py','analysis_quality.py','analysis_resources.py','analysis_cache.py','analysis_view.py','spectral_features.py','recurrence_model.py','discovery_daily.py','discovery_review_model.py','discovery_report_model.py','activity_comparisons.py','exploratory_models.py','exploratory_stability.py','exploratory_views.py')

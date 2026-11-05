@@ -213,4 +213,4 @@ Overview renders daily recordings first, with optional activity and signal/expor
 inline edits, retaining precise interval URLs and operation behavior. The legacy patterns
 reader and its stored reports remain available; only its empty-state instructions change.
 The first-run key guide remains on the welcome screen but expands at the user's choice.
-The shipped v0.2.7 artifacts are unchanged; distributing this UI requires a new release.
+The guided workspace ships in v0.2.8; earlier v0.2.7 artifacts retain their previous UI.

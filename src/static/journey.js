@@ -13,7 +13,7 @@
   ready:['Your recordings are ready to explore','Start with how your signal changes during a day. Activity labels and questions can wait.','Explore my day','/discover.html#daily-discovery'],
   review:['Let’s check the recording first','The analysis could not find unflagged signal windows to explore yet. Check coverage and screening cues, or let more recordings arrive.','Review recording quality','/quality.html'],
   retry:['Preparation needs another try','Your saved recordings are safe. Retry preparation, or open recording quality for details.','Try again',null],
-  unavailable:['Your recordings are available','This build cannot prepare insights. You can keep viewing and labeling recordings, or install the current MindTrail release with analysis included.','Get the current release','https://github.com/synaptixs/MindTrail/releases/tag/v0.2.7']
+  unavailable:['Your recordings are available','This build cannot prepare insights. You can keep viewing and labeling recordings, or install the current MindTrail release with analysis included.','Get the current release','https://github.com/synaptixs/MindTrail/releases/tag/v0.2.8']
  };
  function render(value){
   if(current&&current.participantId!==value.participantId)actionError=null;

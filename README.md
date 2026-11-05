@@ -17,7 +17,7 @@ amplitude trends, inspect EEG, compare activities, and export your recordings.
 
 ## Download installers
 
-**MindTrail Lab 0.2.7 preview — Discovery, history, and workspace recovery**
+**MindTrail Lab 0.2.8 preview — Recordings first, guided exploration**
 
 Explore right-ear EEG quality and recurring patterns, add your own activity labels,
 compare recording days, and retain numerical history. Analysis runs locally with
@@ -26,8 +26,8 @@ Mobile-score entry remains retired; saved observations stay archived.
 
 | Your computer | Download | Signing status |
 | --- | --- | --- |
-| **Mac — Apple Silicon or Intel** | [Download the Mac installer (.dmg)](https://github.com/synaptixs/MindTrail/releases/download/v0.2.7/MindTrail-Lab-0.2.7-Mac-universal2.dmg) | Developer ID signed; Apple notarized |
-| **Windows x64** | [Download the Windows installer — UNSIGNED (.exe)](https://github.com/synaptixs/MindTrail/releases/download/v0.2.7/MindTrail-Lab-0.2.7-Windows-x64-Setup-unsigned.exe) | **Unsigned — Windows publisher signing is not configured** |
+| **Mac — Apple Silicon or Intel** | [Download the Mac installer (.dmg)](https://github.com/synaptixs/MindTrail/releases/download/v0.2.8/MindTrail-Lab-0.2.8-Mac-universal2.dmg) | Developer ID signed; Apple notarized |
+| **Windows x64** | [Download the Windows installer — UNSIGNED (.exe)](https://github.com/synaptixs/MindTrail/releases/download/v0.2.8/MindTrail-Lab-0.2.8-Windows-x64-Setup-unsigned.exe) | **Unsigned — Windows publisher signing is not configured** |
 
 > **Windows testers:** this preview installer is unsigned. Windows or your browser
 > may show an unknown-publisher warning, and organization security policies may
@@ -38,8 +38,8 @@ Mobile-score entry remains retired; saved observations stay archived.
 Open the download and follow the [three setup steps below](#get-started).
 Python is included; you do not need to install it yourself.
 
-[Release notes and verification reports](https://github.com/synaptixs/MindTrail/releases/tag/v0.2.7) ·
-[SHA-256 checksums](https://github.com/synaptixs/MindTrail/releases/download/v0.2.7/SHA256SUMS.txt)
+[Release notes and verification reports](https://github.com/synaptixs/MindTrail/releases/tag/v0.2.8) ·
+[SHA-256 checksums](https://github.com/synaptixs/MindTrail/releases/download/v0.2.8/SHA256SUMS.txt)
 
 ## Get started
 
@@ -94,9 +94,9 @@ lanes need a current completed analysis. See [daily review details](docs/DAILY_R
 Use **Show entire day** to reset a daily graph. New recordings extend the day's
 unzoomed graph automatically. A selected zoom stays pinned while data refreshes.
 
-### Guided workspace in source builds
+### Guided workspace
 
-The source workspace now starts with **Overview**, **Recordings** and **Explore**;
+The workspace starts with **Overview**, **Recordings** and **Explore**;
 specialist pages remain under **More tools**. Daily recordings appear first. Activity
 editing and signal details expand only when needed. First run is still API key →
 **Connect**, with **Need an API key?** help beside the form.
@@ -110,8 +110,8 @@ starts automatically from this screen. Existing analysis options are preserved.
 Archived pattern reports remain under More tools; their empty state leads back
 to Explore instead of asking users to run Python.
 
-These navigation changes require a new installer build; the published v0.2.7
-downloads retain their previous layout. All existing page URLs remain usable.
+The v0.2.8 installers include this guided layout. Earlier v0.2.7 downloads retain
+the previous navigation. All existing page URLs remain usable.
 
 ## Get your AWEAR API key
 
@@ -254,7 +254,7 @@ the selected chart window downloads as raw JSONL; labels export as CSV. Timestam
 
 ## Explore without labels
 
-The v0.2.7 installers include local numerical analysis on **Windows x64** and
+The v0.2.8 installers include local numerical analysis on **Windows x64** and
 **Mac Intel/Apple Silicon (macOS 12+)**. No Python installation or activity labels
 are required. Source users install [analysis dependencies](config/requirements/analysis.txt)
 in their development environment first.
@@ -318,7 +318,7 @@ Activity labels and clustering remain optional; no validated focus, mood or heal
 score is provided. Mobile-score entry is retired because the available API supplies
 no mobile-score history; archived observations remain exportable.
 
-The v0.2.7 release records source provenance, checksums and validation reports:
+The v0.2.8 release records source provenance, checksums and validation reports:
 
 - **Mac:** Developer ID signed, Apple notarized and stapled; Gatekeeper accepted.
   Native analysis/recovery ran on Intel and Apple Silicon. Genuine API connection
@@ -334,8 +334,8 @@ The v0.2.7 release records source provenance, checksums and validation reports:
 Earlier manual activity-review checks were deferred by the owner; they are not
 reported as passed. Automatic app updates, signed Windows distribution and Bluetooth
 capture ingestion into cloud analysis remain future work. See the
-[release evidence](https://github.com/synaptixs/MindTrail/releases/tag/v0.2.7) and
-[publisher verification guide](installer/README.md#v027-release-evidence-and-remaining-checks).
+[release evidence](https://github.com/synaptixs/MindTrail/releases/tag/v0.2.8) and
+[publisher verification guide](installer/README.md#v028-release-evidence-and-remaining-checks).
 
 ## Your data and privacy
 
@@ -364,7 +364,7 @@ The key is saved in macOS Keychain or Windows Credential Manager. If secure stor
 
 Desktop data is separate from installed files. New installations use: `~/Library/Application Support/MindTrail Lab/` on Mac, `%LOCALAPPDATA%\MindTrail Lab\` on Windows. Existing installations automatically reuse their original `AWEAR Personal Lab` profile when no MindTrail Lab profile exists; the vault identifiers stay stable so saved keys remain accessible. The database is `awear_data.sqlite3`; session files, exports and reports live under `data/`. Existing source data is not moved automatically. In v0.2.7, use **Settings → Advanced settings → Download workspace backup** to save recordings, labels, Bluetooth files and discovery history together. Restore that ZIP through **Restore an existing archive** in a new, empty desktop workspace, then choose **Open recordings offline** or reconnect an API key. Keys are excluded; generated analyses must be run again. Older published builds accept only a SQLite file, which requires copying `data/` separately. Keep the original backup until you have checked the restored workspace.
 
-**Settings & quit** in Overview changes setup or stops MindTrail Lab. Closing the browser tab keeps sync running. Open the app again to return to the same workspace. Each desktop profile has one running instance and an automatically chosen local port. Upgrades stop the old instance gracefully and preserve data; Windows uninstall also preserves the archive. Existing offline pattern reports remain readable. The v0.2.7 installers bundle the numerical runtime for dashboard analysis, including optional exploration; source commands use their own Python environment.
+**Settings & quit** in Overview changes setup or stops MindTrail Lab. Closing the browser tab keeps sync running. Open the app again to return to the same workspace. Each desktop profile has one running instance and an automatically chosen local port. Upgrades stop the old instance gracefully and preserve data; Windows uninstall also preserves the archive. Existing offline pattern reports remain readable. The v0.2.8 installers bundle the numerical runtime for dashboard analysis, including optional exploration; source commands use their own Python environment.
 
 [Installer build, signing and verification instructions](installer/README.md) describe both platforms and the simple end-user flow. Files containing **unsigned** in the name are development builds; production distribution requires signing/notarization and native Windows validation. Native analysis and recovery were validated on Intel and Apple Silicon Macs. Automatic update delivery remains a future feature.
 
