@@ -13,7 +13,8 @@ amplitude trends, inspect EEG, compare activities, and export your recordings.
 
 [Download installers](#download-installers) · [Get started](#get-started) · [Get an API key](#get-your-awear-api-key) ·
 [Use the dashboard](#use-the-dashboard) · [Explore without labels](#explore-without-labels) · [Run from source](#run-from-source) ·
-[Your data and privacy](#your-data-and-privacy) · [Build installers](#build-installers) · [Troubleshooting](#troubleshooting)
+[Your data and privacy](#your-data-and-privacy) · [Development workflow](#development-workflow) ·
+[Build installers](#build-installers) · [Troubleshooting](#troubleshooting)
 
 ## Download installers
 
@@ -438,7 +439,9 @@ The research portal's [Terms](https://awearlabs.com/terms) and [Data Use Agreeme
 ## Run from source
 
 These steps are for developers or people comfortable with a terminal.
-Run commands from the repository root.
+Run commands from the repository root. New clones use `develop`, the default
+branch for ongoing development. For published builds, use the
+[release downloads](#download-installers) or check out a specific release tag.
 
 ### Option A — try the demo without an API key
 
@@ -668,6 +671,58 @@ credential-store identity and `.env` remain at their existing profile paths.
 See the [archive layout](data/README.md) and [configuration guide](config/README.md).
 
 Packaged apps keep their normal per-user storage and do not load source configuration.
+
+## Development workflow
+
+**Feature branches → `develop` → `main`**
+
+| Branch | Purpose | Pull-request target |
+| --- | --- | --- |
+| `codex/<change>` or another feature branch | One focused feature, fix or documentation change, started from current `develop` | `develop` |
+| `develop` | Default branch; integrates ongoing work for testing | `main` when preparing a release |
+| `main` | Protected release branch | Release changes arrive through a `develop` → `main` PR |
+
+### 1. Develop a change
+
+Start from a clean checkout, update `develop`, and create a feature branch:
+
+```bash
+git switch develop
+git pull --ff-only origin develop
+git switch -c codex/my-change
+```
+
+Make the change and run the [tests below](#run-the-tests). Commit and push your
+feature branch, then open a pull request with **base: `develop`**. Merge it after
+review and successful validation. Keep personal data and API keys out of commits.
+
+### 2. Prepare a release
+
+After the intended changes have landed in `develop`, open a pull request with
+**base: `main`** and **compare: `develop`**. Include the release version, notes and
+validation evidence. Keep the PR up to date with `main` and resolve review
+conversations before merging. Build and publish release installers from the merged
+`main` revision, following the [installer guide](installer/README.md).
+
+`main` requires a pull request and a successful GitHub Actions `source` check;
+these rules apply to administrators too. Force pushes and branch deletion are
+blocked. A second person's approval is not mandatory. The Mac and Windows installer
+validation jobs also run on ready pull requests; inspect both results before a
+release. Their shared `package` check name is not currently a required status check.
+
+After a release merge, bring its merge commit back into `develop` before starting
+the next change. When `develop` has not advanced, this is a fast-forward:
+
+```bash
+git fetch origin
+git switch develop
+git merge --ff-only origin/main
+git push origin develop
+```
+
+If the branches have diverged, use a `main` → `develop` synchronization PR instead
+of resetting or force-pushing. Keep the long-lived `develop` and `main` branches;
+delete merged feature branches when no longer needed.
 
 ### Run the tests
 
