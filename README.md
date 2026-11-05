@@ -13,7 +13,7 @@ amplitude trends, inspect EEG, compare activities, and export your recordings.
 
 [Download installers](#download-installers) · [Get started](#get-started) · [Get an API key](#get-your-awear-api-key) ·
 [Use the dashboard](#use-the-dashboard) · [Explore without labels](#explore-without-labels) · [Run from source](#run-from-source) ·
-[Build installers](#build-installers) · [Troubleshooting](#troubleshooting)
+[Your data and privacy](#your-data-and-privacy) · [Build installers](#build-installers) · [Troubleshooting](#troubleshooting)
 
 ## Download installers
 
@@ -339,13 +339,25 @@ capture ingestion into cloud analysis remain future work. See the
 
 ## Your data and privacy
 
-- The dashboard listens on `127.0.0.1`, on your computer.
-- Cloud access uses authenticated HTTPS requests to AWEAR.
-- The desktop app saves your key in macOS Keychain or Windows Credential Manager.
-  If secure storage is unavailable, it explains that the key is session-only.
-- Raw recordings and activity labels remain separate, so editing a label does not
-  change the waveform.
-- Exports use UTC timestamps. Data folders, databases, and credentials are excluded from Git.
+**Bring your own device and key.** Each person needs their own AWEAR device and,
+for cloud syncing, an API key from the AWEAR account that has access to their recordings.
+MindTrail Lab does not provide a shared device, account or API key. Cloud access is
+limited by the permissions on the key you enter; a key with multiple participants
+can access more than one person's recordings. Direct Bluetooth recording does not
+require a cloud API key, but you must scan and select your device yourself.
+
+**No personal recordings or credentials are included in this repository or the
+published installers.** The repository's `data/` folder contains only documentation
+and empty placeholders; test fixtures use synthetic data. Installer builds include
+application code and dependencies, not the publisher's local archive, API key or
+device configuration. Installing the app does not connect you to the publisher's device.
+
+### Where your recordings and key are stored
+
+The dashboard listens on `127.0.0.1` on your computer. Cloud syncing sends your key
+to AWEAR using authenticated HTTPS requests and downloads the recordings it permits.
+Analysis runs locally. Raw recordings and activity labels remain separate, so editing
+a label does not change the waveform.
 
 | How you run the app | Default archive location |
 | --- | --- |
@@ -355,7 +367,40 @@ capture ingestion into cloud analysis remain future work. See the
 
 The archive is `awear_data.sqlite3`; exports, Bluetooth sessions, and reports are
 under `data/`. Back up both when you want to preserve the complete workspace.
-Uninstalling the desktop app preserves its profile and saved key.
+The desktop app saves your key separately in **macOS Keychain** or **Windows
+Credential Manager**. If secure storage is unavailable, it explains that the key is
+session-only. Uninstalling the desktop app preserves its profile and saved key.
+Existing installations may reuse their original `AWEAR Personal Lab` folder as
+explained below.
+
+Keep your key, database, exports and backups private. Runtime data and credentials
+are excluded from Git; do not force-add them or attach them to public issues.
+Workspace backups exclude API keys, but contain personal recordings and annotations.
+Exports use UTC timestamps. People using the **same OS login and workspace** can
+reuse its saved data and key; separate OS accounts are recommended on shared computers.
+Local workspace separation is not a separate app login or an access-control boundary.
+
+### Multiple devices and profiles
+
+A **workspace profile** is a local archive folder with its own database, settings,
+reports and saved-key namespace. A **participant** is a recording source returned
+by AWEAR. These are different from physical devices.
+
+| Need | Current support |
+| --- | --- |
+| Separate archives for two devices or people | Use separate workspace folders, with the appropriate key and source in each. This requires advanced launch configuration; there is no named-profile picker in the dashboard. |
+| Choose among participants accessible to one key | Use **Settings → Advanced settings → Load available sources**. One participant is selected at a time; this is not a device-to-profile mapping. |
+| Record from different Bluetooth devices | Scan and select the device for each recording. Each app instance supports one Bluetooth recording at a time and retains the selected device and placement in session metadata. |
+| Automatically assign device A to profile A and device B to profile B | Not implemented. Selecting a nearby Bluetooth device does not verify its ownership. |
+
+Advanced launch options already exist: desktop `--data-dir PATH` or `AWEAR_DATA_DIR`
+selects a workspace folder, and `python scripts/run-local.py --profile PATH desktop`
+selects one when running from source. For source launches, the ignored
+`config/development.local.json` can also select a folder using `data_directory`.
+Each folder gets a separate credential-store namespace; configure its own key and
+accessible participant. A local profile does not create an AWEAR account, change
+API permissions, or automatically separate two devices returned under one participant.
+Simultaneous two-device Bluetooth capture has not been validated as a supported workflow.
 
 <details>
 <summary><strong>Existing profiles, archive restore, and desktop behavior</strong></summary>
