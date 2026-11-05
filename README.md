@@ -679,7 +679,7 @@ Packaged apps keep their normal per-user storage and do not load source configur
 | Branch | Purpose | Pull-request target |
 | --- | --- | --- |
 | `codex/<change>` or another feature branch | One focused feature, fix or documentation change, started from current `develop` | `develop` |
-| `develop` | Default branch; integrates ongoing work for testing | `main` when preparing a release |
+| `develop` | Protected default branch; integrates ongoing work for testing | `main` when preparing a release |
 | `main` | Protected release branch | Release changes arrive through a `develop` → `main` PR |
 
 ### 1. Develop a change
@@ -704,25 +704,32 @@ validation evidence. Keep the PR up to date with `main` and resolve review
 conversations before merging. Build and publish release installers from the merged
 `main` revision, following the [installer guide](installer/README.md).
 
-`main` requires a pull request and a successful GitHub Actions `source` check;
-these rules apply to administrators too. Force pushes and branch deletion are
-blocked. A second person's approval is not mandatory. The Mac and Windows installer
+Both `develop` and `main` require a pull request, a successful GitHub Actions
+`source` check, a branch that is up to date with its PR target, and resolved review
+conversations. These rules apply to administrators too. Force pushes and branch
+deletion are blocked on both branches. A second person's approval is not mandatory,
+so you can merge your own PRs after the required checks pass. The Mac and Windows installer
 validation jobs also run on ready pull requests; inspect both results before a
 release. Their shared `package` check name is not currently a required status check.
 
-After a release merge, bring its merge commit back into `develop` before starting
-the next change. When `develop` has not advanced, this is a fast-forward:
+### 3. Sync release history back into develop
+
+After a release merge, open a synchronization pull request with **base: `develop`**
+and **compare: `main`**. Wait for the required `source` check, keep the PR up to date
+with its target, and resolve review conversations before merging. Use this PR flow
+even when a fast-forward would be possible; do not push directly to `develop`.
+
+After the synchronization PR merges, update your local checkout:
 
 ```bash
-git fetch origin
 git switch develop
-git merge --ff-only origin/main
-git push origin develop
+git pull --ff-only origin develop
 ```
 
-If the branches have diverged, use a `main` → `develop` synchronization PR instead
-of resetting or force-pushing. Keep the long-lived `develop` and `main` branches;
-delete merged feature branches when no longer needed.
+If the synchronization PR has conflicts, resolve them on a temporary branch created
+from `develop`, merge `origin/main` into that branch, and target its PR at `develop`.
+Do not reset or force-push either protected branch. Keep the long-lived `develop`
+and `main` branches; delete merged feature branches when no longer needed.
 
 ### Run the tests
 
